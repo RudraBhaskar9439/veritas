@@ -13,8 +13,9 @@ The foundation provisions the production boundaries required by the verified arc
 
 Terraform state configuration is intentionally environment-owned and is not committed. Initialize with a secure remote backend before applying outside an isolated preview project.
 
+Secret resources are provisioned without values. OAuth client values and the 32-byte browser-ticket key are added out-of-band so Terraform state never contains their plaintext. The API service account alone can read these secrets and use the credential-encryption KMS key.
+
 ```bash
 terraform init -backend=false
 terraform validate
 ```
-

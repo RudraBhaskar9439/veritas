@@ -22,6 +22,12 @@ locals {
   ])
 
   service_accounts = toset(["api", "ingress", "worker"])
+
+  auth_secrets = toset([
+    "google-oauth-client-id",
+    "google-oauth-client-secret",
+    "oauth-ticket-key",
+  ])
 }
 
 resource "google_project_service" "required" {
@@ -133,8 +139,10 @@ resource "google_kms_crypto_key" "credentials" {
   }
 }
 
-resource "google_secret_manager_secret" "oauth_client" {
-  secret_id = "${local.name}-google-oauth-client"
+resource "google_secret_manager_secret" "auth" {
+  for_each = local.auth_secrets
+
+  secret_id = "${local.name}-${each.key}"
 
   replication {
     auto {}
@@ -225,10 +233,18 @@ resource "google_kms_crypto_key_iam_member" "api_credentials" {
   member        = "serviceAccount:${google_service_account.runtime["api"].email}"
 }
 
-resource "google_secret_manager_secret_iam_member" "api_oauth_client" {
-  secret_id = google_secret_manager_secret.oauth_client.id
+resource "google_secret_manager_secret_iam_member" "api_auth" {
+  for_each = google_secret_manager_secret.auth
+
+  secret_id = each.value.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.runtime["api"].email}"
+}
+
+resource "google_project_iam_member" "api_cloudsql" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.runtime["api"].email}"
 }
 
 resource "google_project_iam_member" "worker_roles" {

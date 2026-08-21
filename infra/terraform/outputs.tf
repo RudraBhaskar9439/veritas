@@ -18,8 +18,17 @@ output "database_connection_name" {
   description = "Cloud SQL connection name for runtime services."
 }
 
+output "credential_kms_key" {
+  value       = google_kms_crypto_key.credentials.id
+  description = "Cloud KMS key that encrypts Google Workspace credential envelopes."
+}
+
+output "auth_secret_ids" {
+  value       = { for name, secret in google_secret_manager_secret.auth : name => secret.secret_id }
+  description = "Secret Manager IDs populated out-of-band during the Phase 2 live gate."
+}
+
 output "deployed_service_uris" {
   value       = { for name, service in google_cloud_run_v2_service.runtime : name => service.uri }
   description = "Cloud Run service URIs when immutable images are supplied."
 }
-

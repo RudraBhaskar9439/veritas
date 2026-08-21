@@ -6,7 +6,9 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+  "aiosqlite>=0.21,<1",
   "httpx>=0.28,<1",
+  "httpx2>=2.12,<3",
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",
   "pytest-cov>=6.2,<7",
@@ -36,4 +38,3 @@ python_version = "3.12"
 strict = true
 packages = ["veritas_runtime"]
 mypy_path = ["services/runtime/src"]
-

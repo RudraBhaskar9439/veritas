@@ -27,7 +27,7 @@ evidence change
 
 ## Current status
 
-Phases 0 and 1 are accepted. The product contract and canonical demo are frozen, and the production monorepo, service boundaries, infrastructure definitions, local checks, and clean-run CI are operational. Phase 2—Google OAuth, encrypted credentials, and Workspace adapter contracts—is the active build gate.
+Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. No Phase 3 implementation begins until that live gate passes.
 
 See:
 
@@ -42,6 +42,7 @@ See:
 ```bash
 node scripts/verify-phase-0.mjs
 node scripts/verify-phase-1.mjs
+node scripts/verify-phase-2.mjs
 ```
 
 Accepted phase evidence is recorded under [`docs/verification`](docs/verification).

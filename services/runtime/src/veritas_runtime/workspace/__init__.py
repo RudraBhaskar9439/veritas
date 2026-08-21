@@ -1,0 +1,1 @@
+"""Google Workspace capability boundaries."""
