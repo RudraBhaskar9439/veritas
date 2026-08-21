@@ -13,7 +13,8 @@
     "verify:phase1": "node scripts/verify-phase-1.mjs",
     "verify:phase2": "node scripts/verify-phase-2.mjs",
     "verify:phase3": "node scripts/verify-phase-3.mjs",
-    "verify:phase4": "node scripts/verify-phase-4.mjs"
+    "verify:phase4": "node scripts/verify-phase-4.mjs",
+    "verify:phase5": "node scripts/verify-phase-5.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.9"

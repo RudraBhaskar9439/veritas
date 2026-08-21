@@ -140,9 +140,34 @@ class ClaimManifest(CamelModel):
     packet_id: str
     version: int = Field(ge=1)
     created_at: datetime
-    sources: tuple[SourceRecord, ...]
-    artifacts: tuple[ArtifactRecord, ...]
-    claims: tuple[ClaimRecord, ...]
+    sources: tuple[SourceRecord, ...] = Field(min_length=1)
+    artifacts: tuple[ArtifactRecord, ...] = Field(min_length=1)
+    claims: tuple[ClaimRecord, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def valid_registered_graph(self) -> "ClaimManifest":
+        source_ids = [source.source_id for source in self.sources]
+        artifact_ids = [artifact.artifact_id for artifact in self.artifacts]
+        claim_ids = [claim.claim_id for claim in self.claims]
+        if len(set(source_ids)) != len(source_ids):
+            raise ValueError("manifest source IDs must be unique")
+        if len(set(artifact_ids)) != len(artifact_ids):
+            raise ValueError("manifest artifact IDs must be unique")
+        if len(set(claim_ids)) != len(claim_ids):
+            raise ValueError("manifest claim IDs must be unique")
+        known_sources = set(source_ids)
+        known_artifacts = set(artifact_ids)
+        for claim in self.claims:
+            if not claim.source_ids or not set(claim.source_ids).issubset(known_sources):
+                raise ValueError(f"claim {claim.claim_id} has invalid source lineage")
+            claim_artifacts = [anchor.artifact_id for anchor in claim.artifact_anchors]
+            if (
+                not claim_artifacts
+                or len(set(claim_artifacts)) != len(claim_artifacts)
+                or not set(claim_artifacts).issubset(known_artifacts)
+            ):
+                raise ValueError(f"claim {claim.claim_id} has invalid artifact lineage")
+        return self
 
 
 class ManifestDraft(CamelModel):

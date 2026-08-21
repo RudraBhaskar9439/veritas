@@ -27,7 +27,7 @@ evidence change
 
 ## Current status
 
-Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. Phase 3's pre-live Decision Packet generator and provenance-backed Claim Manifest pass locally and in CI. Phase 4's pre-live authenticated Drive watches, overlap renewal, durable cursor, native evidence extraction, immutable Cloud Storage snapshots, deduplication, and deterministic semantic-delta pipeline also pass locally. Phases 2-4 remain open until their real Google gates pass.
+Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. Phase 3's pre-live Decision Packet generator and provenance-backed Claim Manifest pass locally and in CI. Phase 4's authenticated Drive watches, overlap renewal, durable cursor, native evidence extraction, immutable snapshots, and semantic-delta pipeline pass locally and in CI. Phase 5's deterministic registered-lineage engine and persisted blast-radius API pass locally. Google-dependent end-to-end gates remain open.
 
 See:
 
@@ -45,6 +45,7 @@ node scripts/verify-phase-1.mjs
 node scripts/verify-phase-2.mjs
 node scripts/verify-phase-3.mjs
 node scripts/verify-phase-4.mjs
+node scripts/verify-phase-5.mjs
 ```
 
 Accepted phase evidence is recorded under [`docs/verification`](docs/verification).

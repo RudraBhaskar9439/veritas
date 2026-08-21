@@ -2,8 +2,8 @@
 
 - Status: pre-live implementation passed; real Google Drive and Cloud Storage gate pending
 - Verified locally: 2026-08-21
-- Accepted implementation commit: pending
-- Clean Linux workflow: pending
+- Accepted implementation commit: `c8bf0add5472d7581fc447de23d87822f451ecf6`
+- Clean Linux workflow: [verified-build run 32468355683](https://github.com/RudraBhaskar9439/veritas/actions/runs/32468355683)
 - Local command: `node scripts/verify-phase-4.mjs`
 
 ## Pre-live gate
