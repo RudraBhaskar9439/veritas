@@ -17,7 +17,13 @@ def test_ingress_fails_closed_until_event_phase() -> None:
     assert response.json()["acceptingWorkspaceEvents"] is False
 
 
-def test_worker_fails_closed_until_execution_phase() -> None:
+def test_worker_exposes_reliability_contract_but_fails_closed_until_configured() -> None:
     response = TestClient(worker_app).get("/api/v1/capabilities")
     assert response.status_code == 200
     assert response.json()["executingRepairs"] is False
+    reliability = TestClient(worker_app).get("/internal/v1/operations/capabilities")
+    assert reliability.json() == {
+        "durableLeases": False,
+        "boundedRetries": False,
+        "deadLetters": False,
+    }

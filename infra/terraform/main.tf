@@ -295,3 +295,62 @@ resource "google_project_iam_member" "ingress_roles" {
   role    = each.value
   member  = "serviceAccount:${google_service_account.runtime["ingress"].email}"
 }
+
+resource "google_logging_metric" "operation_dead_letters" {
+  name        = "${local.name}-operation-dead-letters"
+  description = "Veritas operations quarantined after permanent or exhausted failures."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"operation.dead_lettered\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_logging_metric" "operation_retries" {
+  name        = "${local.name}-operation-retries"
+  description = "Veritas operations scheduled for bounded retry."
+  filter      = "resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"operation.retry_scheduled\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_monitoring_alert_policy" "operation_dead_letter" {
+  display_name = "${local.name}: operation entered dead letter quarantine"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "At least one operation was quarantined"
+
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.operation_dead_letters.name}\" AND resource.type=\"cloud_run_revision\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_RATE"
+        cross_series_reducer = "REDUCE_SUM"
+      }
+    }
+  }
+
+  alert_strategy {
+    auto_close = "1800s"
+  }
+
+  documentation {
+    content   = "Inspect the dead-letter operation by correlation ID, correct the dependency, then use audited replay. Never mutate the original operation."
+    mime_type = "text/markdown"
+  }
+}

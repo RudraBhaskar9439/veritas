@@ -1,10 +1,11 @@
 from collections.abc import Awaitable, Callable
-from uuid import uuid4
+from time import perf_counter
 
 import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
+from veritas_runtime.security import security_headers, trusted_request_id
 from veritas_runtime.settings import Settings, get_settings
 
 logger = structlog.get_logger()
@@ -28,13 +29,25 @@ def create_app(service_name: str, settings: Settings | None = None) -> FastAPI:
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        request_id = request.headers.get(resolved.request_id_header) or str(uuid4())
+        started_at = perf_counter()
+        request_id = trusted_request_id(request.headers.get(resolved.request_id_header))
         request.state.request_id = request_id
-        response = await call_next(request)
+        content_length = request.headers.get("content-length")
+        response: Response
+        if content_length is not None and (
+            not content_length.isdigit() or int(content_length) > resolved.max_request_bytes
+        ):
+            response = JSONResponse(
+                status_code=413,
+                content={"error": "request_too_large", "requestId": request_id},
+            )
+        else:
+            response = await call_next(request)
         response.headers[resolved.request_id_header] = request_id
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "no-referrer"
+        for header, value in security_headers(
+            transport_secure=resolved.environment in {"preview", "production"}
+        ).items():
+            response.headers[header] = value
         await logger.ainfo(
             "request.completed",
             service=service_name,
@@ -42,6 +55,7 @@ def create_app(service_name: str, settings: Settings | None = None) -> FastAPI:
             method=request.method,
             path=request.url.path,
             status_code=response.status_code,
+            duration_ms=round((perf_counter() - started_at) * 1000, 2),
         )
         return response
 

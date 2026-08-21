@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     drive_channel_token_key: SecretStr | None = None
     drive_webhook_url: str | None = None
     snapshot_bucket: str | None = None
+    max_request_bytes: int = Field(default=1_048_576, ge=1024, le=10_485_760)
 
     @property
     def google_auth_configured(self) -> bool:

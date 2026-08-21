@@ -52,9 +52,34 @@ def test_request_id_is_generated_and_security_headers_are_set(client: TestClient
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Permissions-Policy"]
+    assert response.headers["Content-Security-Policy"]
 
 
 def test_request_id_is_propagated(client: TestClient) -> None:
     response = client.get("/health/live", headers={"X-Request-ID": "request-test-123"})
 
     assert response.headers["X-Request-ID"] == "request-test-123"
+
+
+def test_unsafe_request_id_is_replaced_and_oversized_request_is_rejected(
+    client: TestClient,
+) -> None:
+    unsafe = client.get("/health/live", headers={"X-Request-ID": "unsafe\nvalue"})
+    assert unsafe.headers["X-Request-ID"] != "unsafe\nvalue"
+    oversized = client.post(
+        "/missing",
+        headers={"Content-Length": "2000000", "X-Request-ID": "large-request"},
+    )
+    assert oversized.status_code == 413
+    assert oversized.json() == {
+        "error": "request_too_large",
+        "requestId": "large-request",
+    }
+
+
+def test_preview_responses_enable_hsts() -> None:
+    preview = create_app("preview-service", Settings(environment="preview"))
+    response = TestClient(preview).get("/health/live")
+    assert response.headers["Strict-Transport-Security"].startswith("max-age=31536000")

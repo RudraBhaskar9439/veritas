@@ -3,6 +3,7 @@ from veritas_runtime.auth.factory import build_google_connection_service
 from veritas_runtime.auth.routes import create_google_auth_router
 from veritas_runtime.execution.routes import create_execution_router
 from veritas_runtime.lineage.routes import create_impact_router
+from veritas_runtime.operations.routes import create_operations_router
 from veritas_runtime.packets.routes import create_packet_router
 from veritas_runtime.repairs.routes import create_repair_router
 from veritas_runtime.settings import get_settings
@@ -21,6 +22,7 @@ app.include_router(create_impact_router(None, None))
 app.include_router(create_repair_router(None, None, None))
 app.include_router(create_execution_router(None, None))
 app.include_router(create_verification_router(None, None))
+app.include_router(create_operations_router(None, None, None))
 
 
 @app.get("/api/v1", tags=["system"])

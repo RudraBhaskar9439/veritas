@@ -32,3 +32,11 @@ output "deployed_service_uris" {
   value       = { for name, service in google_cloud_run_v2_service.runtime : name => service.uri }
   description = "Cloud Run service URIs when immutable images are supplied."
 }
+
+output "operation_metric_names" {
+  value = {
+    dead_letters = google_logging_metric.operation_dead_letters.name
+    retries      = google_logging_metric.operation_retries.name
+  }
+  description = "Log-based metrics used by the Phase 10 operations dashboard and alert policy."
+}
