@@ -1,8 +1,10 @@
 # Phase 1 verification report
 
-- Status: local gate passed; CI gate pending
+- Status: accepted
 - Verified locally: 2026-08-21
 - Command: `node scripts/verify-phase-1.mjs`
+- Accepted implementation commit: `0fc6f2df097e1409e4cca915a8c38dcbc58f562f`
+- Clean Linux workflow: [verified-build run 32436195122](https://github.com/RudraBhaskar9439/veritas/actions/runs/32436195122)
 
 ## Local results
 
@@ -16,14 +18,14 @@
 - Docker Compose configuration validation passes.
 - Repository whitespace validation passes.
 
-## CI acceptance requirements
+## CI results
 
-Phase 1 is accepted only after the private GitHub workflow proves:
+The private GitHub workflow independently proved:
 
-- the same contract, runtime, and web checks on clean Linux runners;
-- Terraform formatting, initialization, and validation;
-- a clean production container build for the runtime;
-- a clean production container build for the web application.
+- the same contract, runtime, and web checks on clean Linux runners passed;
+- Terraform formatting, initialization, and validation passed;
+- the runtime production container built successfully;
+- the web production container built successfully;
+- all five jobs completed successfully on the accepted implementation commit.
 
-The final commit and workflow URL will be recorded after the CI gate completes.
-
+Phase 2 may begin. Later changes must continue to pass the cumulative workflow.

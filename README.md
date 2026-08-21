@@ -27,7 +27,7 @@ evidence change
 
 ## Current status
 
-Phase 0 is the active build gate. The product contract, canonical demo scenario, data contracts, and verification strategy must pass before Phase 1 begins.
+Phases 0 and 1 are accepted. The product contract and canonical demo are frozen, and the production monorepo, service boundaries, infrastructure definitions, local checks, and clean-run CI are operational. Phase 2—Google OAuth, encrypted credentials, and Workspace adapter contracts—is the active build gate.
 
 See:
 
@@ -37,9 +37,11 @@ See:
 - [Verification strategy](docs/verification-strategy.md)
 - [Claim Manifest decision record](docs/architecture-decisions/0001-claim-manifest.md)
 
-## Phase 0 verification
+## Verification
 
 ```bash
 node scripts/verify-phase-0.mjs
+node scripts/verify-phase-1.mjs
 ```
 
+Accepted phase evidence is recorded under [`docs/verification`](docs/verification).
