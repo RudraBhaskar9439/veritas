@@ -1,0 +1,39 @@
+[project]
+name = "veritas-workspace"
+version = "0.1.0"
+requires-python = ">=3.12,<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28,<1",
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<9",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+
+[tool.uv.workspace]
+members = ["services/runtime"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config --cov=veritas_runtime --cov-report=term-missing --cov-fail-under=90"
+testpaths = ["services/runtime/tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["services/runtime/src", "services/runtime/tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["veritas_runtime"]
+mypy_path = ["services/runtime/src"]
+

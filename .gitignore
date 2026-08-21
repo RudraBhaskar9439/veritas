@@ -6,7 +6,9 @@ node_modules/
 .next/
 dist/
 coverage/
+.coverage
 .turbo/
+.venv/
 .pytest_cache/
 __pycache__/
 *.pyc

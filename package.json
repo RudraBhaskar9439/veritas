@@ -1,0 +1,19 @@
+{
+  "name": "veritas",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "lint": "biome check apps/web/src apps/web/vite.config.ts apps/web/tsconfig.json",
+    "format": "biome format --write apps/web/src apps/web/vite.config.ts apps/web/tsconfig.json",
+    "typecheck": "pnpm --filter @veritas/web typecheck",
+    "test": "pnpm --filter @veritas/web test",
+    "build": "pnpm --filter @veritas/web build",
+    "verify:phase0": "node scripts/verify-phase-0.mjs",
+    "verify:phase1": "node scripts/verify-phase-1.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.9"
+  }
+}
+
