@@ -6,7 +6,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from execution_support import NOW, MemoryWorkspaceGateway, StaticWorkspaceSessions
+from execution_support import (
+    NOW,
+    MemoryWorkspaceGateway,
+    RecordingBaselineCapture,
+    StaticWorkspaceSessions,
+)
 from repair_support import MemoryRepairRepository
 from veritas_runtime.auth.database import metadata
 from veritas_runtime.execution.database import (
@@ -81,7 +86,12 @@ def test_sql_execution_journal_is_resumable_checksummed_and_append_only() -> Non
                 )
         repository = SqlExecutionRepository(engine)
         gateway = MemoryWorkspaceGateway(planned.plan.steps)
-        service = RepairExecutionService(repository, StaticWorkspaceSessions(), gateway)
+        service = RepairExecutionService(
+            repository,
+            StaticWorkspaceSessions(),
+            gateway,
+            RecordingBaselineCapture(),
+        )
         completed = await service.execute(
             "subject-1", planned.plan.plan_id, "execution-request-1", NOW
         )

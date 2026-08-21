@@ -46,6 +46,7 @@ jobs:
       - run: node scripts/verify-phase-5.mjs --ci
       - run: node scripts/verify-phase-6.mjs --ci
       - run: node scripts/verify-phase-7.mjs --ci
+      - run: node scripts/verify-phase-8.mjs --ci
 
   web:
     runs-on: ubuntu-latest

@@ -53,6 +53,17 @@ class WorkspaceRepairGateway(Protocol):
     ) -> MutationReceipt: ...
 
 
+class ExecutionBaselineCapture(Protocol):
+    async def capture(
+        self,
+        subject: str,
+        run: RepairRun,
+        plan: RepairPlan,
+        access_token: str,
+        now: datetime,
+    ) -> None: ...
+
+
 class ExecutionRepository(Protocol):
     async def load_context(self, subject: str, plan_id: str) -> ExecutionContext: ...
 
@@ -79,10 +90,12 @@ class RepairExecutionService:
         repository: ExecutionRepository,
         sessions: WorkspaceSessionProvider,
         gateway: WorkspaceRepairGateway,
+        baselines: ExecutionBaselineCapture,
     ) -> None:
         self._repository = repository
         self._sessions = sessions
         self._gateway = gateway
+        self._baselines = baselines
 
     async def execute(
         self,
@@ -101,6 +114,13 @@ class RepairExecutionService:
         if existing is not None and existing.status in _FINAL_RUN_STATES:
             return existing.model_copy(update={"reused": True})
         session = await self._sessions.get(subject)
+        await self._baselines.capture(
+            subject,
+            run,
+            context.plan,
+            session.access_token,
+            current_time,
+        )
         approval_index = {approval.approval_id: approval for approval in context.approvals}
         record_index = {record.step_id: record for record in run.steps}
         for step in context.plan.steps:

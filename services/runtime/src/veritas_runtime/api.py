@@ -6,6 +6,7 @@ from veritas_runtime.lineage.routes import create_impact_router
 from veritas_runtime.packets.routes import create_packet_router
 from veritas_runtime.repairs.routes import create_repair_router
 from veritas_runtime.settings import get_settings
+from veritas_runtime.verification.routes import create_verification_router
 
 settings = get_settings()
 app = create_app("control-api", settings)
@@ -19,6 +20,7 @@ app.include_router(create_packet_router(None))
 app.include_router(create_impact_router(None, None))
 app.include_router(create_repair_router(None, None, None))
 app.include_router(create_execution_router(None, None))
+app.include_router(create_verification_router(None, None))
 
 
 @app.get("/api/v1", tags=["system"])

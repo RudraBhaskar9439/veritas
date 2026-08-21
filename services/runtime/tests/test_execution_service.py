@@ -4,6 +4,7 @@ from execution_support import (
     NOW,
     MemoryExecutionRepository,
     MemoryWorkspaceGateway,
+    RecordingBaselineCapture,
     StaticWorkspaceSessions,
     plan_from_memory,
 )
@@ -29,11 +30,15 @@ def test_execution_resumes_after_approvals_without_repeating_completed_writes() 
         repository = MemoryExecutionRepository(repairs)
         gateway = MemoryWorkspaceGateway(planned.plan.steps)
         human_paragraph = gateway.human_regions["artifact-board-memo"]
-        execution = RepairExecutionService(repository, StaticWorkspaceSessions(), gateway)
+        baselines = RecordingBaselineCapture()
+        execution = RepairExecutionService(
+            repository, StaticWorkspaceSessions(), gateway, baselines
+        )
         first = await execution.execute(
             "subject-1", planned.plan.plan_id, "execution-request-1", NOW
         )
         assert first.status == RepairRunStatus.AWAITING_APPROVAL
+        assert len(baselines.calls) == 1
         assert len(gateway.apply_calls) == 5
         assert (
             sum(record.status == StepExecutionStatus.WAITING_APPROVAL for record in first.steps)
@@ -56,6 +61,7 @@ def test_execution_resumes_after_approvals_without_repeating_completed_writes() 
             "subject-1", planned.plan.plan_id, "execution-request-1", NOW
         )
         assert resumed.status == RepairRunStatus.COMPLETED
+        assert len(baselines.calls) == 2
         assert resumed.reused is True
         assert len(gateway.apply_calls) == 9
         assert gateway.human_regions["artifact-board-memo"] == human_paragraph
@@ -63,6 +69,7 @@ def test_execution_resumes_after_approvals_without_repeating_completed_writes() 
             "subject-1", planned.plan.plan_id, "execution-request-1", NOW
         )
         assert replay.reused is True
+        assert len(baselines.calls) == 2
         assert len(gateway.apply_calls) == 9
 
         plan, approvals = plan_from_memory(repairs)
@@ -92,9 +99,12 @@ def test_overlapping_human_edit_becomes_conflict_without_mutation() -> None:
         gateway.statements[(auto_step.resource_id, auto_step.anchor)] = (
             "The CFO rewrote this exact registered claim."
         )
-        run = await RepairExecutionService(repository, StaticWorkspaceSessions(), gateway).execute(
-            "subject-1", planned.plan.plan_id, "conflict-run", NOW
-        )
+        run = await RepairExecutionService(
+            repository,
+            StaticWorkspaceSessions(),
+            gateway,
+            RecordingBaselineCapture(),
+        ).execute("subject-1", planned.plan.plan_id, "conflict-run", NOW)
         assert run.status == RepairRunStatus.CONFLICT
         conflict = next(record for record in run.steps if record.step_id == auto_step.step_id)
         assert conflict.status == StepExecutionStatus.CONFLICT

@@ -107,6 +107,22 @@ class StaticWorkspaceSessions:
         )
 
 
+class RecordingBaselineCapture:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, str]] = []
+
+    async def capture(
+        self,
+        subject: str,
+        run: RepairRun,
+        plan: RepairPlan,
+        access_token: str,
+        now: datetime,
+    ) -> None:
+        assert now and run.plan_id == plan.plan_id
+        self.calls.append((subject, run.run_id, access_token))
+
+
 class MemoryWorkspaceGateway:
     def __init__(self, steps: tuple[RepairStep, ...]) -> None:
         self.statements = {(step.resource_id, step.anchor): step.before_statement for step in steps}

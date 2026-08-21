@@ -107,6 +107,13 @@ class SqlExecutionRepository:
             row = await _run_by_key(connection, key)
             return await _run(connection, row) if row is not None else None
 
+    async def get_by_run_id(self, subject: str, run_id: str) -> RepairRun:
+        async with self._engine.connect() as connection:
+            row = await _run_by_id(connection, run_id)
+            if row is None or row["subject"] != subject:
+                raise LookupError("Repair run was not found")
+            return await _run(connection, row)
+
     async def start(
         self,
         subject: str,
