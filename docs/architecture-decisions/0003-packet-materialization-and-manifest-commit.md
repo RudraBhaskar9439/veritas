@@ -18,7 +18,7 @@ Decision Packet generation is an idempotent, fail-closed pipeline:
 5. Reject incomplete, duplicated, or unexpected writer results.
 6. Persist a versioned Claim Manifest only after every expected artifact and anchor is present.
 
-The manifest stores source identity and version metadata, not source values or transformation context. Its canonical JSON receives a SHA-256 checksum. PostgreSQL serializes version allocation for each packet with a transaction-scoped advisory lock. Replaying the same request and inputs returns the existing manifest; reusing a request ID with different inputs is a conflict.
+The manifest stores source identity and version metadata, not source values. It preserves the versioned deterministic transformation name, its non-secret parameters, and the writer-returned base revision for each artifact. Every dynamic transformation input is a separate registered source edge; contextual values cannot remain hidden inside an in-memory generation request. The canonical manifest JSON receives a SHA-256 checksum. PostgreSQL serializes version allocation for each packet with a transaction-scoped advisory lock. Replaying the same request and inputs returns the existing manifest; reusing a request ID with different inputs is a conflict.
 
 ## Consequences
 

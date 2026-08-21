@@ -74,9 +74,7 @@ def test_sql_impact_repository_loads_owned_lineage_versions_and_checks_integrity
                 .values(checksum="0" * 64)
             )
         with pytest.raises(ValueError, match="Claim Manifest checksum mismatch"):
-            await repository.load_context(
-                "subject-1", blueprint.packet_id, (changed.snapshot_id,)
-            )
+            await repository.load_context("subject-1", blueprint.packet_id, (changed.snapshot_id,))
         async with engine.begin() as connection:
             await connection.execute(
                 update(claim_manifests)

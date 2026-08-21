@@ -73,6 +73,7 @@ class ClaimBlueprint(CamelModel):
     source_ids: tuple[str, ...] = Field(min_length=1)
     artifact_targets: tuple[ArtifactTarget, ...] = Field(min_length=1)
     transformation: str = Field(min_length=1)
+    transformation_version: str = Field(default="1", min_length=1)
     parameters: dict[str, JsonScalar] = Field(default_factory=dict)
     risk: ClaimRisk
     provenance: ProvenanceStatus = ProvenanceStatus.REGISTERED
@@ -116,6 +117,7 @@ class ArtifactRecord(CamelModel):
     artifact_id: str
     kind: ArtifactKind
     resource_id: str
+    base_revision_id: str = Field(min_length=1)
     mutability: ArtifactMutability
 
 
@@ -124,12 +126,18 @@ class ArtifactAnchor(CamelModel):
     anchor: str
 
 
+class TransformationSpec(CamelModel):
+    name: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    parameters: dict[str, JsonScalar] = Field(default_factory=dict)
+
+
 class ClaimRecord(CamelModel):
     claim_id: str
     statement: str
     source_ids: tuple[str, ...]
     artifact_anchors: tuple[ArtifactAnchor, ...]
-    transformation: str | None = None
+    transformation: TransformationSpec | None = None
     risk: ClaimRisk
     provenance: ProvenanceStatus
     freshness_hours: int

@@ -1,0 +1,15 @@
+{
+  "impactReportId": "impact-canonical-churn",
+  "stepCount": 9,
+  "policySummary": {
+    "autoExecuteSteps": 3,
+    "approvalRequiredSteps": 4,
+    "draftOnlySteps": 2,
+    "blockedSteps": 0
+  },
+  "approvalClaimIds": [
+    "claim-retention-target",
+    "claim-scale-acquisition"
+  ],
+  "correctionDraftArtifactId": "artifact-investor-email"
+}

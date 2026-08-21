@@ -22,7 +22,7 @@
       },
       {
         "claimId": "claim-churn-improved",
-        "sourceIds": ["src-churn"],
+        "sourceIds": ["src-churn", "src-churn-previous"],
         "artifactTargets": [{"artifactId": "artifact-board-memo", "slot": "claim-churn-improved"}, {"artifactId": "artifact-investor-email", "slot": "claim-churn-improved"}],
         "transformation": "compare_to_previous_quarter",
         "parameters": {"whenLower": "Customer churn improved during Q3.", "whenHigher": "Customer churn worsened during Q3.", "whenEqual": "Customer churn was unchanged during Q3."},
@@ -93,7 +93,8 @@
     ]
   },
   "sources": [
-    {"sourceId": "src-churn", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B17", "version": "sheet-v1", "value": 0.04, "context": {"previous": 0.06}},
+    {"sourceId": "src-churn", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B17", "version": "sheet-v1", "value": 0.04},
+    {"sourceId": "src-churn-previous", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B16", "version": "sheet-v1", "value": 0.06},
     {"sourceId": "src-revenue", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B5", "version": "sheet-v1", "value": 12},
     {"sourceId": "src-pipeline", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B8", "version": "sheet-v1", "value": 18},
     {"sourceId": "src-nps", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B20", "version": "sheet-v1", "value": 62},

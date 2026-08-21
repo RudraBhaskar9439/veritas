@@ -31,13 +31,14 @@ def test_manifest_sources_become_subject_and_packet_scoped_registrations() -> No
         registrations = await ManifestEvidenceRegistrar(repository).register(
             "workspace-subject-1", result.manifest, NOW
         )
-        assert len(registrations) == 5
+        assert len(registrations) == 6
         assert {registration.packet_id for registration in registrations} == {
             "packet-q3-executive-review"
         }
         assert {registration.subject for registration in registrations} == {"workspace-subject-1"}
         assert {registration.anchor for registration in registrations} == {
             "Metrics!B17",
+            "Metrics!B16",
             "Metrics!B5",
             "Metrics!B8",
             "Metrics!B20",

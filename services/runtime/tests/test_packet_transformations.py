@@ -36,10 +36,10 @@ def test_comparison_handles_equal_source_values_and_empty_output() -> None:
     comparison = next(
         claim for claim in blueprint.claims if claim.claim_id == "claim-churn-improved"
     )
-    equal = sources["src-churn"].model_copy(
-        update={"context": {"previous": sources["src-churn"].value}}
+    equal_previous = sources["src-churn-previous"].model_copy(
+        update={"value": sources["src-churn"].value}
     )
-    assert registry.render(comparison, {**sources, "src-churn": equal}) == (
+    assert registry.render(comparison, {**sources, "src-churn-previous": equal_previous}) == (
         "Customer churn was unchanged during Q3."
     )
 

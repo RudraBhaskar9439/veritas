@@ -11,13 +11,14 @@
 The pre-live gate proves:
 
 - packet blueprints, source snapshots, materialized artifacts, and manifests use strict typed contracts;
-- all eight canonical Q3 claims are calculated from the five source snapshots rather than copied from the Phase 0 manifest fixture;
+- all eight canonical Q3 claims are calculated from six exact source anchors rather than copied from the Phase 0 manifest fixture;
 - changing churn from 4% to 9% changes the value, trend, target outcome, and acquisition recommendation;
 - actual writer responses own artifact resource IDs and claim anchors;
 - missing sources, unknown artifacts, unknown transformations, incomplete anchors, and unexpected writer results fail closed;
 - stable request IDs make generation resumable and idempotent, while conflicting reuse is rejected;
 - version allocation and canonical checksums are persisted and checked on read;
-- raw source values and transformation context are excluded from the Claim Manifest;
+- raw source values are excluded from the Claim Manifest, while versioned transformation names and non-secret parameters are preserved so later repair is reproducible;
+- each artifact records the writer-returned base revision needed by the later three-way merge boundary;
 - the generated manifest validates against the Phase 0 JSON Schema.
 
 Observed local result: 52 runtime tests passed with 96.43% statement coverage; strict MyPy and Ruff passed. The packet-specific suite includes deterministic recalculation, schema validation, SQL replay/versioning, corruption detection, API status mapping, and adversarial writer-result tests.

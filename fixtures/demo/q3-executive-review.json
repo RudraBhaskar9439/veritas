@@ -5,17 +5,18 @@
   "createdAt": "2026-08-21T00:00:00.000Z",
   "sources": [
     {"sourceId": "src-churn", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B17", "version": "sheet-v1"},
+    {"sourceId": "src-churn-previous", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B16", "version": "sheet-v1"},
     {"sourceId": "src-revenue", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B5", "version": "sheet-v1"},
     {"sourceId": "src-pipeline", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B8", "version": "sheet-v1"},
     {"sourceId": "src-nps", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B20", "version": "sheet-v1"},
     {"sourceId": "src-launch", "kind": "google_doc", "resourceId": "demo-policy-doc", "anchor": "launch-date", "version": "doc-v1"}
   ],
   "artifacts": [
-    {"artifactId": "artifact-board-memo", "kind": "google_doc", "resourceId": "demo-board-memo", "mutability": "editable"},
-    {"artifactId": "artifact-exec-deck", "kind": "google_slides", "resourceId": "demo-exec-deck", "mutability": "editable"},
-    {"artifactId": "artifact-investor-email", "kind": "gmail", "resourceId": "demo-sent-email", "mutability": "immutable"},
-    {"artifactId": "artifact-acquisition-task", "kind": "google_task", "resourceId": "demo-acquisition-task", "mutability": "editable"},
-    {"artifactId": "artifact-retention-plan", "kind": "google_doc", "resourceId": "demo-retention-plan", "mutability": "editable"}
+    {"artifactId": "artifact-board-memo", "kind": "google_doc", "resourceId": "demo-board-memo", "baseRevisionId": "board-memo-v1", "mutability": "editable"},
+    {"artifactId": "artifact-exec-deck", "kind": "google_slides", "resourceId": "demo-exec-deck", "baseRevisionId": "exec-deck-v1", "mutability": "editable"},
+    {"artifactId": "artifact-investor-email", "kind": "gmail", "resourceId": "demo-sent-email", "baseRevisionId": "sent-email-v1", "mutability": "immutable"},
+    {"artifactId": "artifact-acquisition-task", "kind": "google_task", "resourceId": "demo-acquisition-task", "baseRevisionId": "acquisition-task-v1", "mutability": "editable"},
+    {"artifactId": "artifact-retention-plan", "kind": "google_doc", "resourceId": "demo-retention-plan", "baseRevisionId": "retention-plan-v1", "mutability": "editable"}
   ],
   "claims": [
     {
@@ -23,7 +24,7 @@
       "statement": "Q3 customer churn is 4%.",
       "sourceIds": ["src-churn"],
       "artifactAnchors": [{"artifactId": "artifact-board-memo", "anchor": "claim-churn-value"}, {"artifactId": "artifact-exec-deck", "anchor": "shape-churn-value"}],
-      "transformation": "identity_percent",
+      "transformation": {"name": "identity_percent", "version": "1", "parameters": {"prefix": "Q3 customer churn is "}},
       "risk": "reversible",
       "provenance": "registered",
       "freshnessHours": 24
@@ -31,9 +32,9 @@
     {
       "claimId": "claim-churn-improved",
       "statement": "Customer churn improved during Q3.",
-      "sourceIds": ["src-churn"],
+      "sourceIds": ["src-churn", "src-churn-previous"],
       "artifactAnchors": [{"artifactId": "artifact-board-memo", "anchor": "claim-churn-improved"}, {"artifactId": "artifact-investor-email", "anchor": "claim-churn-improved"}],
-      "transformation": "compare_to_previous_quarter",
+      "transformation": {"name": "compare_to_previous_quarter", "version": "1", "parameters": {"whenLower": "Customer churn improved during Q3.", "whenHigher": "Customer churn worsened during Q3.", "whenEqual": "Customer churn was unchanged during Q3."}},
       "risk": "reversible",
       "provenance": "registered",
       "freshnessHours": 24
@@ -43,7 +44,7 @@
       "statement": "The retention target has been achieved.",
       "sourceIds": ["src-churn"],
       "artifactAnchors": [{"artifactId": "artifact-exec-deck", "anchor": "shape-retention-target"}, {"artifactId": "artifact-retention-plan", "anchor": "claim-retention-target"}],
-      "transformation": "churn_lte_target_5_percent",
+      "transformation": {"name": "churn_lte_target_5_percent", "version": "1", "parameters": {"target": 0.05, "whenTrue": "The retention target has been achieved.", "whenFalse": "The retention target has not been achieved."}},
       "risk": "decision_changing",
       "provenance": "registered",
       "freshnessHours": 24
@@ -53,7 +54,7 @@
       "statement": "The company should increase acquisition spend.",
       "sourceIds": ["src-churn"],
       "artifactAnchors": [{"artifactId": "artifact-exec-deck", "anchor": "shape-acquisition-recommendation"}, {"artifactId": "artifact-investor-email", "anchor": "claim-acquisition-recommendation"}, {"artifactId": "artifact-acquisition-task", "anchor": "task-body"}],
-      "transformation": "recommend_if_churn_lte_5_percent",
+      "transformation": {"name": "recommend_if_churn_lte_5_percent", "version": "1", "parameters": {"target": 0.05, "whenTrue": "The company should increase acquisition spend.", "whenFalse": "The company should pause the planned increase in acquisition spend."}},
       "risk": "decision_changing",
       "provenance": "registered",
       "freshnessHours": 24
@@ -63,7 +64,7 @@
       "statement": "Q3 revenue is $12M.",
       "sourceIds": ["src-revenue"],
       "artifactAnchors": [{"artifactId": "artifact-board-memo", "anchor": "claim-revenue"}],
-      "transformation": "identity_currency_millions",
+      "transformation": {"name": "identity_currency_millions", "version": "1", "parameters": {"prefix": "Q3 revenue is "}},
       "risk": "reversible",
       "provenance": "registered",
       "freshnessHours": 24
@@ -73,7 +74,7 @@
       "statement": "The qualified pipeline is $18M.",
       "sourceIds": ["src-pipeline"],
       "artifactAnchors": [{"artifactId": "artifact-exec-deck", "anchor": "shape-pipeline"}],
-      "transformation": "identity_currency_millions",
+      "transformation": {"name": "identity_currency_millions", "version": "1", "parameters": {"prefix": "The qualified pipeline is "}},
       "risk": "reversible",
       "provenance": "registered",
       "freshnessHours": 24
@@ -83,7 +84,7 @@
       "statement": "Net Promoter Score is 62.",
       "sourceIds": ["src-nps"],
       "artifactAnchors": [{"artifactId": "artifact-retention-plan", "anchor": "claim-nps"}],
-      "transformation": "identity_number",
+      "transformation": {"name": "identity_number", "version": "1", "parameters": {"prefix": "Net Promoter Score is "}},
       "risk": "reversible",
       "provenance": "registered",
       "freshnessHours": 24
@@ -93,11 +94,10 @@
       "statement": "The product launch remains scheduled for October 15.",
       "sourceIds": ["src-launch"],
       "artifactAnchors": [{"artifactId": "artifact-board-memo", "anchor": "claim-launch-date"}],
-      "transformation": "identity_date",
+      "transformation": {"name": "identity_date", "version": "1", "parameters": {"prefix": "The product launch remains scheduled for "}},
       "risk": "decision_changing",
       "provenance": "registered",
       "freshnessHours": 168
     }
   ]
 }
-

@@ -19,6 +19,7 @@ from veritas_runtime.packets.models import (
     PacketGenerationResult,
     SourceRecord,
     SourceSnapshot,
+    TransformationSpec,
 )
 from veritas_runtime.packets.transformations import TransformationError, TransformationRegistry
 
@@ -210,6 +211,7 @@ def _manifest_draft(
                 artifact_id=artifact_id,
                 kind=artifact_blueprints[artifact_id].kind,
                 resource_id=result.resource_id,
+                base_revision_id=result.revision_id,
                 mutability=artifact_blueprints[artifact_id].mutability,
             )
             for artifact_id, result in artifacts.items()
@@ -226,7 +228,11 @@ def _manifest_draft(
                     )
                     for target in claim.artifact_targets
                 ),
-                transformation=claim.transformation,
+                transformation=TransformationSpec(
+                    name=claim.transformation,
+                    version=claim.transformation_version,
+                    parameters=claim.parameters,
+                ),
                 risk=claim.risk,
                 provenance=claim.provenance,
                 freshness_hours=claim.freshness_hours,

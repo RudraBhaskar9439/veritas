@@ -51,6 +51,12 @@ def test_canonical_packet_is_generated_from_sources_with_writer_owned_anchors() 
             set(source) == {"sourceId", "kind", "resourceId", "anchor", "version"}
             for source in actual["sources"]
         )
+        assert all(artifact["baseRevisionId"] for artifact in actual["artifacts"])
+        assert all(
+            set(claim["transformation"]) == {"name", "version", "parameters"}
+            and claim["transformation"]["version"] == "1"
+            for claim in actual["claims"]
+        )
 
     asyncio.run(scenario())
 

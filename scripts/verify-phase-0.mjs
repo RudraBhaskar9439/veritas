@@ -41,12 +41,19 @@ for (const claim of manifest.claims) {
   if (claim.provenance !== 'registered') failures.push(`canonical claim ${claim.claimId} is not registered`);
   if (!claim.sourceIds.length) failures.push(`claim ${claim.claimId} has no source`);
   if (!claim.artifactAnchors.length) failures.push(`claim ${claim.claimId} has no artifact anchor`);
+  if (!claim.transformation?.name || !claim.transformation?.version) {
+    failures.push(`claim ${claim.claimId} lacks a versioned transformation`);
+  }
   for (const sourceId of claim.sourceIds) {
     if (!sourceIds.has(sourceId)) failures.push(`claim ${claim.claimId} references unknown source ${sourceId}`);
   }
   for (const anchor of claim.artifactAnchors) {
     if (!artifactIds.has(anchor.artifactId)) failures.push(`claim ${claim.claimId} references unknown artifact ${anchor.artifactId}`);
   }
+}
+
+for (const artifact of manifest.artifacts) {
+  if (!artifact.baseRevisionId) failures.push(`artifact ${artifact.artifactId} lacks a base revision`);
 }
 
 if (impact.affectedClaimIds.length !== 4) failures.push('churn change must affect exactly 4 claims');
