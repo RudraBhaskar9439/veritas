@@ -1,0 +1,12 @@
+{
+  "scenarioCount": 40,
+  "overallAccuracy": 1.0,
+  "meaningfulChangeRecall": 1.0,
+  "cosmeticChangeSuppression": 1.0,
+  "lineagePrecision": 1.0,
+  "lineageRecall": 1.0,
+  "repairDecisionAccuracy": 1.0,
+  "humanEditConflictDetection": 1.0,
+  "falseCertificationRateMax": 0.0,
+  "offlineDurationMsMax": 1000.0
+}

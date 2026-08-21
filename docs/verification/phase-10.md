@@ -3,6 +3,8 @@
 - Status: credit-independent implementation passed; live Cloud failure injection pending
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-10.mjs`
+- Accepted implementation commits: `e51933aadf2c1bdebce08913c5bced55f52c10e6`, `5c07a069886d0a39616d7fce397cd94bf1b33397`
+- Clean GitHub workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32504932370>
 
 ## Implemented reliability boundary
 

@@ -1,0 +1,30 @@
+{
+  "categoryResults": {
+    "certification": {"passed": 8, "total": 8},
+    "lineage": {"passed": 8, "total": 8},
+    "repair_policy": {"passed": 8, "total": 8},
+    "semantic_delta": {"passed": 8, "total": 8},
+    "three_way_merge": {"passed": 8, "total": 8}
+  },
+  "cost": {
+    "liveGoogleCloudUsd": "pending",
+    "offlineEvaluationUsd": 0.0,
+    "offlineExternalApiCalls": 0
+  },
+  "datasetChecksum": "2fa0c41b5da5b9d1c8a6b991798ed81d7434bd479a00db12bf92c1e372cf21c5",
+  "failedScenarioIds": [],
+  "liveMetricsStatus": "pending_google_cloud",
+  "metrics": {
+    "cosmeticChangeSuppression": 1.0,
+    "falseCertificationRate": 0.0,
+    "humanEditConflictDetection": 1.0,
+    "lineagePrecision": 1.0,
+    "lineageRecall": 1.0,
+    "meaningfulChangeRecall": 1.0,
+    "overallAccuracy": 1.0,
+    "repairDecisionAccuracy": 1.0
+  },
+  "passed": 40,
+  "scenarioCount": 40,
+  "schemaVersion": "1.0"
+}
