@@ -13,9 +13,9 @@ coverage/
 __pycache__/
 *.pyc
 *.log
+*.tsbuildinfo
 .terraform/
 *.tfstate
 *.tfstate.*
 secrets/
 tmp/
-
