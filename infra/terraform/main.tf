@@ -63,7 +63,7 @@ resource "google_storage_bucket" "snapshots" {
       age = 30
     }
     action {
-      type = "SetStorageClass"
+      type          = "SetStorageClass"
       storage_class = "NEARLINE"
     }
   }
@@ -162,7 +162,7 @@ resource "google_sql_database_instance" "postgres" {
 
     ip_configuration {
       ipv4_enabled = true
-      require_ssl  = true
+      ssl_mode     = "ENCRYPTED_ONLY"
     }
 
     database_flags {
@@ -243,4 +243,3 @@ resource "google_project_iam_member" "worker_roles" {
   role    = each.value
   member  = "serviceAccount:${google_service_account.runtime["worker"].email}"
 }
-
