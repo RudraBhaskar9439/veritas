@@ -1,0 +1,17 @@
+{
+  "status": "pending_google_cloud",
+  "requiredEvidence": [
+    {"id":"public-url","description":"Public Cloud Run Command Center URL","status":"pending"},
+    {"id":"immutable-images","description":"Four deployed image digests bound to the accepted commit","status":"pending"},
+    {"id":"workspace-generation","description":"Real packet generated through Docs, Slides, Gmail, and Tasks APIs","status":"pending"},
+    {"id":"drive-event","description":"Authenticated Drive change persisted and deduplicated","status":"pending"},
+    {"id":"native-repair","description":"Five real artifacts repaired with native preconditions","status":"pending"},
+    {"id":"human-preservation","description":"Pre/post protected hash proves CFO paragraph unchanged","status":"pending"},
+    {"id":"correction-draft","description":"Unsent Gmail correction linked to immutable original","status":"pending"},
+    {"id":"certificate","description":"Independent report and scoped certificate checksums","status":"pending"},
+    {"id":"failure-injection","description":"Worker termination, duplicate, 429, token expiry, and partial write recovery","status":"pending"},
+    {"id":"five-runs","description":"Five consecutive clean live rehearsal records","status":"pending"},
+    {"id":"browser-audit","description":"Hosted responsive, keyboard, refresh, and accessibility evidence","status":"pending"},
+    {"id":"cost-latency","description":"Real p50/p95 latency, Gemini usage, and Cloud cost","status":"pending"}
+  ]
+}

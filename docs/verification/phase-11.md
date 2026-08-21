@@ -4,6 +4,8 @@
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-11.mjs`
 - Dataset checksum: `2fa0c41b5da5b9d1c8a6b991798ed81d7434bd479a00db12bf92c1e372cf21c5`
+- Accepted implementation commit: `f49bbe1e2db584371e6abe348fbe99c4c6500267`
+- Clean GitHub workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32505438197>
 
 ## Published deterministic metrics
 
@@ -34,4 +36,3 @@ All five strata pass 8/8 cases. A representative local run completed in 2.209 ms
 ## Pending live metrics
 
 Google Workspace semantic recall on real edits, native repair correctness, end-to-end p50/p95 latency, Gemini token usage, Google Cloud cost, and repeated-run reliability cannot be measured without the preview project. They remain unclaimed and must be appended to this report after deployment.
-

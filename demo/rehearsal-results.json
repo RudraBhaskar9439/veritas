@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0",
+  "mode": "automated_offline_contract_rehearsal",
+  "durationSeconds": 238,
+  "inputChecksum": "b901c63d19e4316e896b531ca2c55759b149880aadc57ecf0f1960a596a0afe2",
+  "runs": [
+    {"run":1,"passed":true,"checksPassed":12,"checksTotal":12,"rehearsalDigest":"064e684c50b0279c3e93ed9fbfb55359cd6b5bd223b232f635bcf31fb7dcb4bb"},
+    {"run":2,"passed":true,"checksPassed":12,"checksTotal":12,"rehearsalDigest":"064e684c50b0279c3e93ed9fbfb55359cd6b5bd223b232f635bcf31fb7dcb4bb"},
+    {"run":3,"passed":true,"checksPassed":12,"checksTotal":12,"rehearsalDigest":"064e684c50b0279c3e93ed9fbfb55359cd6b5bd223b232f635bcf31fb7dcb4bb"},
+    {"run":4,"passed":true,"checksPassed":12,"checksTotal":12,"rehearsalDigest":"064e684c50b0279c3e93ed9fbfb55359cd6b5bd223b232f635bcf31fb7dcb4bb"},
+    {"run":5,"passed":true,"checksPassed":12,"checksTotal":12,"rehearsalDigest":"064e684c50b0279c3e93ed9fbfb55359cd6b5bd223b232f635bcf31fb7dcb4bb"}
+  ],
+  "passedRuns": 5,
+  "failedChecks": [],
+  "liveWorkspaceMutations": false,
+  "liveRehearsalsStatus": "pending_google_cloud"
+}

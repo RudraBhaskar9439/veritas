@@ -27,7 +27,7 @@ evidence change
 
 ## Current status
 
-Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. Phases 3-5 provide deterministic packet generation, durable change capture, and registered-lineage blast radius. Phase 6's typed repair planner, deterministic safety policy, human approval boundary, and idempotent SQL/API contracts pass locally and in CI. Phase 7's conflict-aware Workspace execution and durable resume contracts pass pre-live; five real Workspace runs remain mandatory. Phase 8 independently verifies registered coverage, and Phase 9 provides the judge-first evidence room. Phase 10 adds durable operation leases, bounded retries, dead-letter quarantine, audited replay, safe operational telemetry, and security hardening. Phase 11 publishes a checksummed forty-scenario benchmark that executes production decision functions. Google-dependent end-to-end gates remain open.
+Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. Phases 3-5 provide deterministic packet generation, durable change capture, and registered-lineage blast radius. Phase 6's typed repair planner, deterministic safety policy, human approval boundary, and idempotent SQL/API contracts pass locally and in CI. Phase 7's conflict-aware Workspace execution and durable resume contracts pass pre-live; five real Workspace runs remain mandatory. Phase 8 independently verifies registered coverage, and Phase 9 provides the judge-first evidence room. Phase 10 adds durable operation leases, bounded retries, dead-letter quarantine, audited replay, safe operational telemetry, and security hardening. Phase 11 publishes a checksummed forty-scenario benchmark that executes production decision functions. Phase 12 completes the credit-independent demo, architecture, runbook, evidence, rehearsal, and submission package while leaving every live Cloud proof item explicit. Google-dependent end-to-end gates remain open.
 
 See:
 
@@ -52,6 +52,7 @@ node scripts/verify-phase-8.mjs
 node scripts/verify-phase-9.mjs
 node scripts/verify-phase-10.mjs
 node scripts/verify-phase-11.mjs
+node scripts/verify-phase-12.mjs
 ```
 
 Accepted phase evidence is recorded under [`docs/verification`](docs/verification).

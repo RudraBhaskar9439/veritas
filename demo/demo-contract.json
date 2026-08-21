@@ -1,0 +1,34 @@
+{
+  "title": "Veritas — When evidence changes, repair every consequence",
+  "durationSeconds": 238,
+  "mode": "unedited-live-product-demo",
+  "canonicalIncident": {
+    "sourceAnchor": "Metrics!B17",
+    "beforeChurnPercent": 4,
+    "afterChurnPercent": 9,
+    "affectedClaims": 4,
+    "unaffectedClaims": 4,
+    "affectedArtifacts": 5,
+    "registeredPaths": 9,
+    "registeredTargets": 13,
+    "protectedArtifacts": 5,
+    "verificationChecks": 36,
+    "correctionDrafts": 2,
+    "humanEditsLost": 0,
+    "candidatePathsUsed": 0
+  },
+  "beats": [
+    {"id":"hook","start":0,"end":18,"screen":"Sheet and five downstream artifacts","proof":"One source value is wrong everywhere."},
+    {"id":"promise","start":18,"end":36,"screen":"Veritas opening view","proof":"Veritas repairs consequences, not reminders."},
+    {"id":"change","start":36,"end":58,"screen":"Google Sheet Metrics!B17","proof":"Change real churn from 4% to 9%."},
+    {"id":"detect","start":58,"end":80,"screen":"Live incident timeline","proof":"Authenticated event, immutable snapshot, meaningful delta."},
+    {"id":"trace","start":80,"end":105,"screen":"Blast Radius","proof":"Exactly 4 claims, 5 artifacts, 9 registered paths."},
+    {"id":"policy","start":105,"end":128,"screen":"Repair plan and approval","proof":"Facts auto-repair; decisions require a human; sent email stays immutable."},
+    {"id":"execute","start":128,"end":165,"screen":"Docs, Slides, Gmail draft, Tasks","proof":"Minimal native repairs with revision preconditions."},
+    {"id":"preserve","start":165,"end":185,"screen":"Board memo protected paragraph","proof":"CFO-authored paragraph remains byte-for-byte intact."},
+    {"id":"verify","start":185,"end":205,"screen":"Independent Verification","proof":"Re-read 13 targets and 5 protected artifacts; 36 checks pass."},
+    {"id":"certificate","start":205,"end":220,"screen":"Evidence Integrity Certificate","proof":"Scoped certificate binds 8 claims to 6 evidence versions."},
+    {"id":"architecture","start":220,"end":232,"screen":"Architecture proof","proof":"Cloud Run, Cloud SQL, Pub/Sub, Tasks, Storage, KMS, Gemini, Workspace."},
+    {"id":"close","start":232,"end":238,"screen":"Veritas mark","proof":"AI created the work. Veritas keeps it true."}
+  ]
+}
