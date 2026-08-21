@@ -1,0 +1,102 @@
+{
+  "requestId": "generate-q3-executive-review-v1",
+  "blueprint": {
+    "packetId": "packet-q3-executive-review",
+    "artifacts": [
+      {"artifactId": "artifact-board-memo", "kind": "google_doc", "title": "Q3 Board Memo", "mutability": "editable"},
+      {"artifactId": "artifact-exec-deck", "kind": "google_slides", "title": "Q3 Executive Review", "mutability": "editable"},
+      {"artifactId": "artifact-investor-email", "kind": "gmail", "title": "Q3 Investor Update", "mutability": "immutable"},
+      {"artifactId": "artifact-acquisition-task", "kind": "google_task", "title": "Scale acquisition spend", "mutability": "editable"},
+      {"artifactId": "artifact-retention-plan", "kind": "google_doc", "title": "Q4 Retention Plan", "mutability": "editable"}
+    ],
+    "claims": [
+      {
+        "claimId": "claim-churn-value",
+        "sourceIds": ["src-churn"],
+        "artifactTargets": [{"artifactId": "artifact-board-memo", "slot": "claim-churn-value"}, {"artifactId": "artifact-exec-deck", "slot": "shape-churn-value"}],
+        "transformation": "identity_percent",
+        "parameters": {"prefix": "Q3 customer churn is "},
+        "risk": "reversible",
+        "provenance": "registered",
+        "freshnessHours": 24
+      },
+      {
+        "claimId": "claim-churn-improved",
+        "sourceIds": ["src-churn"],
+        "artifactTargets": [{"artifactId": "artifact-board-memo", "slot": "claim-churn-improved"}, {"artifactId": "artifact-investor-email", "slot": "claim-churn-improved"}],
+        "transformation": "compare_to_previous_quarter",
+        "parameters": {"whenLower": "Customer churn improved during Q3.", "whenHigher": "Customer churn worsened during Q3.", "whenEqual": "Customer churn was unchanged during Q3."},
+        "risk": "reversible",
+        "provenance": "registered",
+        "freshnessHours": 24
+      },
+      {
+        "claimId": "claim-retention-target",
+        "sourceIds": ["src-churn"],
+        "artifactTargets": [{"artifactId": "artifact-exec-deck", "slot": "shape-retention-target"}, {"artifactId": "artifact-retention-plan", "slot": "claim-retention-target"}],
+        "transformation": "churn_lte_target_5_percent",
+        "parameters": {"target": 0.05, "whenTrue": "The retention target has been achieved.", "whenFalse": "The retention target has not been achieved."},
+        "risk": "decision_changing",
+        "provenance": "registered",
+        "freshnessHours": 24
+      },
+      {
+        "claimId": "claim-scale-acquisition",
+        "sourceIds": ["src-churn"],
+        "artifactTargets": [{"artifactId": "artifact-exec-deck", "slot": "shape-acquisition-recommendation"}, {"artifactId": "artifact-investor-email", "slot": "claim-acquisition-recommendation"}, {"artifactId": "artifact-acquisition-task", "slot": "task-body"}],
+        "transformation": "recommend_if_churn_lte_5_percent",
+        "parameters": {"target": 0.05, "whenTrue": "The company should increase acquisition spend.", "whenFalse": "The company should pause the planned increase in acquisition spend."},
+        "risk": "decision_changing",
+        "provenance": "registered",
+        "freshnessHours": 24
+      },
+      {
+        "claimId": "claim-revenue",
+        "sourceIds": ["src-revenue"],
+        "artifactTargets": [{"artifactId": "artifact-board-memo", "slot": "claim-revenue"}],
+        "transformation": "identity_currency_millions",
+        "parameters": {"prefix": "Q3 revenue is "},
+        "risk": "reversible",
+        "provenance": "registered",
+        "freshnessHours": 24
+      },
+      {
+        "claimId": "claim-pipeline",
+        "sourceIds": ["src-pipeline"],
+        "artifactTargets": [{"artifactId": "artifact-exec-deck", "slot": "shape-pipeline"}],
+        "transformation": "identity_currency_millions",
+        "parameters": {"prefix": "The qualified pipeline is "},
+        "risk": "reversible",
+        "provenance": "registered",
+        "freshnessHours": 24
+      },
+      {
+        "claimId": "claim-nps",
+        "sourceIds": ["src-nps"],
+        "artifactTargets": [{"artifactId": "artifact-retention-plan", "slot": "claim-nps"}],
+        "transformation": "identity_number",
+        "parameters": {"prefix": "Net Promoter Score is "},
+        "risk": "reversible",
+        "provenance": "registered",
+        "freshnessHours": 24
+      },
+      {
+        "claimId": "claim-launch-date",
+        "sourceIds": ["src-launch"],
+        "artifactTargets": [{"artifactId": "artifact-board-memo", "slot": "claim-launch-date"}],
+        "transformation": "identity_date",
+        "parameters": {"prefix": "The product launch remains scheduled for "},
+        "risk": "decision_changing",
+        "provenance": "registered",
+        "freshnessHours": 168
+      }
+    ]
+  },
+  "sources": [
+    {"sourceId": "src-churn", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B17", "version": "sheet-v1", "value": 0.04, "context": {"previous": 0.06}},
+    {"sourceId": "src-revenue", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B5", "version": "sheet-v1", "value": 12},
+    {"sourceId": "src-pipeline", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B8", "version": "sheet-v1", "value": 18},
+    {"sourceId": "src-nps", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B20", "version": "sheet-v1", "value": 62},
+    {"sourceId": "src-launch", "kind": "google_doc", "resourceId": "demo-policy-doc", "anchor": "launch-date", "version": "doc-v1", "value": "2026-10-15"}
+  ]
+}

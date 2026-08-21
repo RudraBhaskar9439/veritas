@@ -27,7 +27,7 @@ evidence change
 
 ## Current status
 
-Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. No Phase 3 implementation begins until that live gate passes.
+Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. Phase 3's pre-live Decision Packet generator, deterministic claim transformations, writer-owned provenance anchors, idempotent versioned manifests, and SQL integrity checks also pass locally. Phase 3 is not accepted until its real Workspace generation gate passes.
 
 See:
 
@@ -43,6 +43,7 @@ See:
 node scripts/verify-phase-0.mjs
 node scripts/verify-phase-1.mjs
 node scripts/verify-phase-2.mjs
+node scripts/verify-phase-3.mjs
 ```
 
 Accepted phase evidence is recorded under [`docs/verification`](docs/verification).

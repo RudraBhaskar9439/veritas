@@ -41,6 +41,7 @@ jobs:
       - run: uv run mypy
       - run: uv run pytest
       - run: node scripts/verify-phase-2.mjs --ci
+      - run: node scripts/verify-phase-3.mjs --ci
 
   web:
     runs-on: ubuntu-latest

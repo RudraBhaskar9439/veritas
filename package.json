@@ -11,7 +11,8 @@
     "build": "pnpm --filter @veritas/web build",
     "verify:phase0": "node scripts/verify-phase-0.mjs",
     "verify:phase1": "node scripts/verify-phase-1.mjs",
-    "verify:phase2": "node scripts/verify-phase-2.mjs"
+    "verify:phase2": "node scripts/verify-phase-2.mjs",
+    "verify:phase3": "node scripts/verify-phase-3.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.9"

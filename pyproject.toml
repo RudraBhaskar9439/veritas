@@ -9,6 +9,7 @@ dev = [
   "aiosqlite>=0.21,<1",
   "httpx>=0.28,<1",
   "httpx2>=2.12,<3",
+  "jsonschema[format]>=4.25,<5",
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",
   "pytest-cov>=6.2,<7",
