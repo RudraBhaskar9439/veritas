@@ -64,6 +64,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: node scripts/verify-phase-9.mjs --ci
 
   terraform:
     runs-on: ubuntu-latest

@@ -1,7 +1,9 @@
 # Phase 8 verification report
 
-- Status: pre-live implementation passed locally; Linux CI and real Workspace verification pending
+- Status: pre-live implementation accepted; real Workspace verification pending
 - Verified locally: 2026-08-21
+- Accepted implementation commit: `d5f10ae3e7d3e72469924450e5ff7f1a6ca7a92b`
+- Clean Linux workflow: [verified-build run 32472264691](https://github.com/RudraBhaskar9439/veritas/actions/runs/32472264691)
 - Local command: `node scripts/verify-phase-8.mjs`
 
 ## Pre-live gate
