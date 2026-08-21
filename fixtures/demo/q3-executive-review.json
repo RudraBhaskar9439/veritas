@@ -1,0 +1,103 @@
+{
+  "manifestId": "manifest-q3-exec-v1",
+  "packetId": "packet-q3-executive-review",
+  "version": 1,
+  "createdAt": "2026-08-21T00:00:00.000Z",
+  "sources": [
+    {"sourceId": "src-churn", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B17", "version": "sheet-v1"},
+    {"sourceId": "src-revenue", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B5", "version": "sheet-v1"},
+    {"sourceId": "src-pipeline", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B8", "version": "sheet-v1"},
+    {"sourceId": "src-nps", "kind": "google_sheet", "resourceId": "demo-sheet", "anchor": "Metrics!B20", "version": "sheet-v1"},
+    {"sourceId": "src-launch", "kind": "google_doc", "resourceId": "demo-policy-doc", "anchor": "launch-date", "version": "doc-v1"}
+  ],
+  "artifacts": [
+    {"artifactId": "artifact-board-memo", "kind": "google_doc", "resourceId": "demo-board-memo", "mutability": "editable"},
+    {"artifactId": "artifact-exec-deck", "kind": "google_slides", "resourceId": "demo-exec-deck", "mutability": "editable"},
+    {"artifactId": "artifact-investor-email", "kind": "gmail", "resourceId": "demo-sent-email", "mutability": "immutable"},
+    {"artifactId": "artifact-acquisition-task", "kind": "google_task", "resourceId": "demo-acquisition-task", "mutability": "editable"},
+    {"artifactId": "artifact-retention-plan", "kind": "google_doc", "resourceId": "demo-retention-plan", "mutability": "editable"}
+  ],
+  "claims": [
+    {
+      "claimId": "claim-churn-value",
+      "statement": "Q3 customer churn is 4%.",
+      "sourceIds": ["src-churn"],
+      "artifactAnchors": [{"artifactId": "artifact-board-memo", "anchor": "claim-churn-value"}, {"artifactId": "artifact-exec-deck", "anchor": "shape-churn-value"}],
+      "transformation": "identity_percent",
+      "risk": "reversible",
+      "provenance": "registered",
+      "freshnessHours": 24
+    },
+    {
+      "claimId": "claim-churn-improved",
+      "statement": "Customer churn improved during Q3.",
+      "sourceIds": ["src-churn"],
+      "artifactAnchors": [{"artifactId": "artifact-board-memo", "anchor": "claim-churn-improved"}, {"artifactId": "artifact-investor-email", "anchor": "claim-churn-improved"}],
+      "transformation": "compare_to_previous_quarter",
+      "risk": "reversible",
+      "provenance": "registered",
+      "freshnessHours": 24
+    },
+    {
+      "claimId": "claim-retention-target",
+      "statement": "The retention target has been achieved.",
+      "sourceIds": ["src-churn"],
+      "artifactAnchors": [{"artifactId": "artifact-exec-deck", "anchor": "shape-retention-target"}, {"artifactId": "artifact-retention-plan", "anchor": "claim-retention-target"}],
+      "transformation": "churn_lte_target_5_percent",
+      "risk": "decision_changing",
+      "provenance": "registered",
+      "freshnessHours": 24
+    },
+    {
+      "claimId": "claim-scale-acquisition",
+      "statement": "The company should increase acquisition spend.",
+      "sourceIds": ["src-churn"],
+      "artifactAnchors": [{"artifactId": "artifact-exec-deck", "anchor": "shape-acquisition-recommendation"}, {"artifactId": "artifact-investor-email", "anchor": "claim-acquisition-recommendation"}, {"artifactId": "artifact-acquisition-task", "anchor": "task-body"}],
+      "transformation": "recommend_if_churn_lte_5_percent",
+      "risk": "decision_changing",
+      "provenance": "registered",
+      "freshnessHours": 24
+    },
+    {
+      "claimId": "claim-revenue",
+      "statement": "Q3 revenue is $12M.",
+      "sourceIds": ["src-revenue"],
+      "artifactAnchors": [{"artifactId": "artifact-board-memo", "anchor": "claim-revenue"}],
+      "transformation": "identity_currency_millions",
+      "risk": "reversible",
+      "provenance": "registered",
+      "freshnessHours": 24
+    },
+    {
+      "claimId": "claim-pipeline",
+      "statement": "The qualified pipeline is $18M.",
+      "sourceIds": ["src-pipeline"],
+      "artifactAnchors": [{"artifactId": "artifact-exec-deck", "anchor": "shape-pipeline"}],
+      "transformation": "identity_currency_millions",
+      "risk": "reversible",
+      "provenance": "registered",
+      "freshnessHours": 24
+    },
+    {
+      "claimId": "claim-nps",
+      "statement": "Net Promoter Score is 62.",
+      "sourceIds": ["src-nps"],
+      "artifactAnchors": [{"artifactId": "artifact-retention-plan", "anchor": "claim-nps"}],
+      "transformation": "identity_number",
+      "risk": "reversible",
+      "provenance": "registered",
+      "freshnessHours": 24
+    },
+    {
+      "claimId": "claim-launch-date",
+      "statement": "The product launch remains scheduled for October 15.",
+      "sourceIds": ["src-launch"],
+      "artifactAnchors": [{"artifactId": "artifact-board-memo", "anchor": "claim-launch-date"}],
+      "transformation": "identity_date",
+      "risk": "decision_changing",
+      "provenance": "registered",
+      "freshnessHours": 168
+    }
+  ]
+}
+
