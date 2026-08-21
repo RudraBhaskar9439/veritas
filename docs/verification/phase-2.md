@@ -1,7 +1,9 @@
 # Phase 2 verification report
 
-- Status: local implementation gate passed; clean CI pending; live Google gate blocked on preview project ID
+- Status: local implementation and clean CI gates passed; live Google gate blocked on preview project ID
 - Verified locally: 2026-08-21
+- Accepted implementation commit: `cc51a2c19b4528ffdf0b0dabf7c00c56abfd493e`
+- Clean Linux workflow: [verified-build run 32437356752](https://github.com/RudraBhaskar9439/veritas/actions/runs/32437356752)
 - Local command: `node scripts/verify-phase-2.mjs`
 - Live procedure: `docs/runbooks/phase-2-google-live-gate.md`
 
@@ -19,7 +21,9 @@ The local gate must prove:
 - Workspace capabilities deny operation when any required scope is absent;
 - lint, formatting, strict types, migration presence, tests, coverage, web build, and Compose validation pass.
 
-Observed result: 41 runtime tests and 2 web tests passed, runtime statement coverage reached 96.35%, strict MyPy and Ruff passed, the web production bundle and Compose configuration passed locally, and Terraform 1.13.3 validated the Google provider configuration. Python and production web dependency audits reported no known vulnerabilities. Clean Linux container builds remain part of the pending CI evidence.
+Observed result: 41 runtime tests and 2 web tests passed, runtime statement coverage reached 96.35%, strict MyPy and Ruff passed, the web production bundle and Compose configuration passed locally, and Terraform 1.13.3 validated the Google provider configuration. Python and production web dependency audits reported no known vulnerabilities.
+
+CI independently passed the contract, runtime, Phase 2 security, web, Terraform, and two-container production-build jobs on the accepted implementation commit.
 
 ## Live gate
 
