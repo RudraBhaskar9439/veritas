@@ -1,9 +1,9 @@
 # Phase 6 verification report
 
-- Status: local implementation passed; clean Linux workflow pending
+- Status: typed repair implementation passed; Google live dependency pending
 - Verified locally: 2026-08-21
-- Accepted implementation commit: pending
-- Clean Linux workflow: pending
+- Accepted implementation commit: `1642d22ffd021b2cd62f64a4498a474e49f68e57`
+- Clean Linux workflow: [verified-build run 32469970879](https://github.com/RudraBhaskar9439/veritas/actions/runs/32469970879)
 - Local command: `node scripts/verify-phase-6.mjs`
 
 ## Gate

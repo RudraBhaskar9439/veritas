@@ -27,7 +27,7 @@ evidence change
 
 ## Current status
 
-Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. Phases 3-5 provide deterministic packet generation, durable change capture, and registered-lineage blast radius. Phase 6's typed repair planner, deterministic safety policy, human approval boundary, and idempotent SQL/API contracts pass locally. Google-dependent end-to-end gates remain open.
+Phases 0 and 1 are accepted. Phase 2's OAuth security, encrypted credential custody, SQL persistence, and Workspace capability contracts pass locally; its real Google Cloud and Workspace integration gate is waiting for the preview project ID. Phases 3-5 provide deterministic packet generation, durable change capture, and registered-lineage blast radius. Phase 6's typed repair planner, deterministic safety policy, human approval boundary, and idempotent SQL/API contracts pass locally and in CI. Google-dependent end-to-end gates remain open.
 
 See:
 
