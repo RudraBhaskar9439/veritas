@@ -2,8 +2,8 @@
 
 - Status: pre-live implementation passed; real Google Workspace generation gate pending
 - Verified locally: 2026-08-21
-- Accepted implementation commit: pending
-- Clean Linux workflow: pending
+- Accepted implementation commit: `3175d88615084c7db099f2ea07433d6a3c7c27c2`
+- Clean Linux workflow: [verified-build run 32466743025](https://github.com/RudraBhaskar9439/veritas/actions/runs/32466743025)
 - Local command: `node scripts/verify-phase-3.mjs`
 
 ## Pre-live gate
