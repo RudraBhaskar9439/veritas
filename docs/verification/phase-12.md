@@ -3,6 +3,8 @@
 - Status: credit-independent submission package passed; live Cloud proof and video pending
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-12.mjs`
+- Accepted implementation commit: `3c6de6e07669ca2313a7c8d2b21e8a8eca2ea49d`
+- Clean GitHub workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32505918117>
 
 ## Completed without Google Cloud
 
@@ -30,4 +32,3 @@ The offline rehearsals verify timing, chronology, canonical 4% → 9% evidence, 
 - final Devpost links and submission confirmation.
 
 No fixture, replay, or automated rehearsal is represented as completing those live requirements.
-
