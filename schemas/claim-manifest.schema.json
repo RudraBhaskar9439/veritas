@@ -47,6 +47,7 @@
         "artifactId": {"type": "string", "minLength": 1},
         "kind": {"enum": ["google_doc", "google_slides", "gmail", "google_task"]},
         "resourceId": {"type": "string", "minLength": 1},
+        "containerId": {"type": ["string", "null"], "minLength": 1},
         "baseRevisionId": {"type": "string", "minLength": 1},
         "mutability": {"enum": ["editable", "draft_only", "immutable"]}
       }

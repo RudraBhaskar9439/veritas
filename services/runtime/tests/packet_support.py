@@ -57,6 +57,7 @@ class RecordingArtifactWriter:
                 else draft.artifact_id
             ),
             resource_id=f"workspace-{draft.artifact_id}",
+            container_id=("workspace-task-list" if draft.kind.value == "google_task" else None),
             revision_id="workspace-revision-1",
             anchors=anchors,
         )

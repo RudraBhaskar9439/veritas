@@ -117,6 +117,7 @@ class ArtifactRecord(CamelModel):
     artifact_id: str
     kind: ArtifactKind
     resource_id: str
+    container_id: str | None = None
     base_revision_id: str = Field(min_length=1)
     mutability: ArtifactMutability
 
@@ -202,6 +203,7 @@ class PacketArtifactDraft(CamelModel):
 class MaterializedArtifact(CamelModel):
     artifact_id: str
     resource_id: str
+    container_id: str | None = None
     revision_id: str
     anchors: dict[str, str]
 

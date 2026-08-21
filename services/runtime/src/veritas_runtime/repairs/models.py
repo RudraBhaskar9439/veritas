@@ -62,6 +62,7 @@ class RepairStep(CamelModel):
     artifact_id: str = Field(min_length=1)
     artifact_kind: ArtifactKind
     resource_id: str = Field(min_length=1)
+    container_id: str | None = None
     base_revision_id: str = Field(min_length=1)
     anchor: str = Field(min_length=1)
     operation: RepairOperation

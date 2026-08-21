@@ -211,6 +211,7 @@ def _manifest_draft(
                 artifact_id=artifact_id,
                 kind=artifact_blueprints[artifact_id].kind,
                 resource_id=result.resource_id,
+                container_id=result.container_id,
                 base_revision_id=result.revision_id,
                 mutability=artifact_blueprints[artifact_id].mutability,
             )

@@ -101,6 +101,7 @@ class TypedRepairPlanner:
                     artifact_id=artifact.artifact_id,
                     artifact_kind=artifact.kind,
                     resource_id=artifact.resource_id,
+                    container_id=artifact.container_id,
                     base_revision_id=artifact.base_revision_id,
                     anchor=anchor.anchor,
                     operation=decision.operation,
