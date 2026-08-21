@@ -3,6 +3,8 @@
 - Status: pre-browser implementation passed; hosted browser E2E and accessibility audit pending
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-9.mjs`
+- Accepted implementation commit: `8196ee3f83a3b20d83e5ed52edc714ff20bcc23a`
+- Clean GitHub workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32473183580>
 
 ## Implemented experience
 
