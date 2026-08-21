@@ -18,7 +18,7 @@
 - Terraform log metrics and a dead-letter alert policy;
 - operator recovery runbook.
 
-Observed result: 29 targeted failure-injection, SQL lifecycle, API, security, health, and service-role checks pass. The complete runtime suite passes all 152 tests at 90.97% coverage. Terraform formatting and validation are authoritative in CI because the local workstation does not provide a Terraform binary.
+Observed result: 29 targeted failure-injection, SQL lifecycle, API, security, health, and service-role checks pass. The complete runtime suite passes all 152 tests at 90.97% coverage. Terraform formatting and validation are authoritative in the dedicated CI infrastructure job because neither the local workstation nor the isolated runtime job provides a Terraform binary.
 
 ## Pending live evidence
 

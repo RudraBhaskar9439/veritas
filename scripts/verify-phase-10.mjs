@@ -89,9 +89,6 @@ const checks = [
       'services/runtime/tests/test_service_roles.py'
     ]
   ],
-  ...(process.argv.includes('--ci')
-    ? [['Terraform formatting', 'terraform', ['-chdir=infra/terraform', 'fmt', '-check', '-recursive']]]
-    : []),
   ['Git whitespace', 'git', ['diff', '--check']]
 ];
 
