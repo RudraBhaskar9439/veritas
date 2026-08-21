@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     google_oauth_redirect_uri: str | None = None
     google_kms_credentials_key: str | None = None
     oauth_ticket_key: SecretStr | None = None
+    drive_channel_token_key: SecretStr | None = None
+    drive_webhook_url: str | None = None
+    snapshot_bucket: str | None = None
 
     @property
     def google_auth_configured(self) -> bool:
@@ -35,6 +38,10 @@ class Settings(BaseSettings):
                 self.oauth_ticket_key,
             )
         )
+
+    @property
+    def drive_ingress_configured(self) -> bool:
+        return bool(self.database_url and self.drive_channel_token_key)
 
 
 @lru_cache

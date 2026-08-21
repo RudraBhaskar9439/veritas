@@ -23,11 +23,15 @@ locals {
 
   service_accounts = toset(["api", "ingress", "worker"])
 
-  auth_secrets = toset([
+  api_auth_secrets = toset([
     "google-oauth-client-id",
     "google-oauth-client-secret",
     "oauth-ticket-key",
   ])
+
+  auth_secrets = setunion(local.api_auth_secrets, toset([
+    "drive-channel-token-key",
+  ]))
 }
 
 resource "google_project_service" "required" {
@@ -221,9 +225,15 @@ resource "google_cloud_run_v2_service" "runtime" {
   depends_on = [google_project_service.required]
 }
 
-resource "google_storage_bucket_iam_member" "worker_snapshots" {
+resource "google_storage_bucket_iam_member" "worker_snapshot_create" {
   bucket = google_storage_bucket.snapshots.name
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.runtime["worker"].email}"
+}
+
+resource "google_storage_bucket_iam_member" "worker_snapshot_read" {
+  bucket = google_storage_bucket.snapshots.name
+  role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.runtime["worker"].email}"
 }
 
@@ -233,12 +243,27 @@ resource "google_kms_crypto_key_iam_member" "api_credentials" {
   member        = "serviceAccount:${google_service_account.runtime["api"].email}"
 }
 
+resource "google_kms_crypto_key_iam_member" "worker_credentials" {
+  crypto_key_id = google_kms_crypto_key.credentials.id
+  role          = "roles/cloudkms.cryptoKeyDecrypter"
+  member        = "serviceAccount:${google_service_account.runtime["worker"].email}"
+}
+
 resource "google_secret_manager_secret_iam_member" "api_auth" {
-  for_each = google_secret_manager_secret.auth
+  for_each = {
+    for name, secret in google_secret_manager_secret.auth : name => secret
+    if contains(local.api_auth_secrets, name)
+  }
 
   secret_id = each.value.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.runtime["api"].email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "ingress_channel_token" {
+  secret_id = google_secret_manager_secret.auth["drive-channel-token-key"].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.runtime["ingress"].email}"
 }
 
 resource "google_project_iam_member" "api_cloudsql" {
@@ -258,4 +283,15 @@ resource "google_project_iam_member" "worker_roles" {
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${google_service_account.runtime["worker"].email}"
+}
+
+resource "google_project_iam_member" "ingress_roles" {
+  for_each = toset([
+    "roles/cloudsql.client",
+    "roles/pubsub.publisher",
+  ])
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.runtime["ingress"].email}"
 }
