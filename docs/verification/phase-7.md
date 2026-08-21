@@ -2,8 +2,8 @@
 
 - Status: pre-live implementation passed; five real Workspace repair runs pending
 - Verified locally: 2026-08-21
-- Accepted implementation commit: pending
-- Clean Linux workflow: pending
+- Accepted implementation commit: `b7e4a0af1a840044c48bfbc4351085d915705239`
+- Clean Linux workflow: [verified-build run 32470875892](https://github.com/RudraBhaskar9439/veritas/actions/runs/32470875892)
 - Local command: `node scripts/verify-phase-7.mjs`
 
 ## Pre-live gate
