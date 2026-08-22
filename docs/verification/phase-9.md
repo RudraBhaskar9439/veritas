@@ -8,6 +8,10 @@
 
 ## Implemented experience
 
+- redesigned judge-first consequence room informed by the complete Rapid Agent winner gallery and official recent Google winner sets;
+- cinematic incident stage that makes the autonomous trigger, 4% → 9% source transition, nine-second resolution, and scoped certificate legible in the opening viewport;
+- manifest-derived evidence → claims → artifacts consequence map with no frontend-invented relationships;
+- four explicit guardrail outcomes: zero inferred paths, zero human edits lost, immutable sent email, and 13/13 independently verified targets;
 - judge-first Command Center with the complete change → impact → repair → verification story in the opening viewport;
 - six-stage replayable transaction timeline with an announced live status;
 - exact selectable before/after diffs for all four affected registered claims;
@@ -19,7 +23,7 @@
 - semantic navigation, headings, tabs, tables, skip link, focus states, reduced motion, print-ready certificate, and ARIA live replay feedback;
 - bespoke Veritas social preview stored with the application.
 
-Observed result: web lint, strict TypeScript, five interaction tests, and the Vite production build pass. The app bundle is approximately 65 KB gzip plus the social image. The cumulative Phase 0–8 implementation remains green.
+Observed result: web lint, strict TypeScript, six interaction tests, and the Vite production build pass. The app bundle is approximately 66 KB gzip plus the social image. The cumulative Phase 0–8 implementation remains green.
 
 ## Open hard gate
 

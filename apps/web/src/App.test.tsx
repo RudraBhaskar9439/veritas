@@ -14,13 +14,26 @@ describe('Veritas command center', () => {
     render(<App />);
 
     expect(
-      screen.getByRole('heading', { name: 'Churn changed. The packet repaired itself.' }),
+      screen.getByRole('heading', { name: 'One number changed. Nine consequences repaired.' }),
     ).toBeInTheDocument();
     expect(screen.getByText('13/13')).toBeInTheDocument();
     expect(screen.getByText('0', { selector: '.metric > strong' })).toBeInTheDocument();
     expect(
       screen.getByText(/All monitored claims in this Decision Packet are consistent/),
     ).toBeInTheDocument();
+  });
+
+  it('makes the registered blast radius legible in the opening view', () => {
+    render(<App />);
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'The source moved. Veritas knew exactly what it owned.',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('02 · 4 affected claims')).toBeInTheDocument();
+    expect(screen.getByText('03 · 5 repaired artifacts')).toBeInTheDocument();
+    expect(screen.getByText('0 inferred paths')).toBeInTheDocument();
   });
 
   it('shows an exact deterministic diff for every affected claim', () => {

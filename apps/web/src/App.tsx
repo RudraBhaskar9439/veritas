@@ -82,13 +82,13 @@ export function App() {
             V
           </span>
           <span className="brandWord">VERITAS</span>
-          <span className="brandDescriptor">Evidence integrity runtime</span>
+          <span className="brandDescriptor">Autonomous consequence repair</span>
         </a>
         <div className="topbarActions">
-          <span className="environment">Replay dataset · Q3 workspace</span>
+          <span className="environment">Evidence-bound replay · Q3 workspace</span>
           <span className="systemStatus">
             <span className="pulseDot" aria-hidden="true" />
-            Local runtime ready
+            Runtime ready
           </span>
           <button className="replayButton" type="button" onClick={replayIncident}>
             <span aria-hidden="true">↻</span>
@@ -105,6 +105,7 @@ export function App() {
           <div>
             <span className="sidebarLabel">Decision packet</span>
             <strong>Executive review</strong>
+            <span className="incidentDuration">Resolved in 9 seconds</span>
           </div>
         </div>
         <nav>
@@ -185,26 +186,72 @@ function Overview({
 }: OverviewProps) {
   return (
     <>
-      <section className="incidentHero" aria-labelledby="incident-title">
+      <section className="judgeStage" aria-labelledby="incident-title">
+        <div className="stageGrid" aria-hidden="true" />
         <div className="incidentHeading">
           <div className="incidentMeta">
-            <span className="incidentNumber">INCIDENT 042</span>
+            <span className="incidentNumber">AUTONOMOUS RUN · INCIDENT 042</span>
             <span className="severity">Material evidence change</span>
           </div>
-          <h1 id="incident-title">Churn changed. The packet repaired itself.</h1>
+          <h1 id="incident-title">
+            One number changed. <span>Nine consequences repaired.</span>
+          </h1>
           <p>
             A registered Sheet value moved from <strong>4%</strong> to <strong>9%</strong>. Veritas
-            traced every consequence, repaired only owned claim anchors, preserved the CFO&apos;s
-            paragraph, and verified the result through a separate read path.
+            traced the exact blast radius, repaired only owned claim anchors, preserved the
+            CFO&apos;s paragraph, and proved the result through a separate read path.
           </p>
+          <ul className="heroProofRow" aria-label="Run guarantees">
+            <li>
+              <i aria-hidden="true">01</i> No prompt after source change
+            </li>
+            <li>
+              <i aria-hidden="true">02</i> Human prose hash-preserved
+            </li>
+            <li>
+              <i aria-hidden="true">03</i> Independently re-read
+            </li>
+          </ul>
         </div>
-        <div className="certificateSeal" data-visible={replayStage >= 5}>
-          <span className="sealOrbit" aria-hidden="true">
-            <span>V</span>
-          </span>
-          <span>Evidence integrity</span>
-          <strong>{replayStage >= 5 ? 'CERTIFIED' : 'VERIFYING'}</strong>
-          <small>Scoped · {incident.certificate.shortId}</small>
+
+        <div className="sourceShiftCard" data-visible={replayStage >= 1}>
+          <div className="sourceCardTopline">
+            <span className="sourceApp">
+              <i aria-hidden="true">S</i> Google Sheets
+            </span>
+            <span className="sourceLive">
+              <i aria-hidden="true" /> source event
+            </span>
+          </div>
+          <div className="sourceAnchor">
+            <span>REGISTERED SOURCE</span>
+            <code>Metrics!B17</code>
+          </div>
+          <div className="valueTransition">
+            <span className="srOnly">Source value changed from 4 percent to 9 percent</span>
+            <s>4%</s>
+            <span aria-hidden="true">→</span>
+            <strong>9%</strong>
+          </div>
+          <div className="sourceClock">
+            <span>
+              <small>Detected</small>10:42:07
+            </span>
+            <span>
+              <small>Certified</small>10:42:16
+            </span>
+          </div>
+          <div className="scopeStamp" data-visible={replayStage >= 5}>
+            <span aria-hidden="true">✓</span>
+            <div>
+              <strong>
+                {replayStage >= 5
+                  ? 'Scoped certificate issued'
+                  : 'Independent verification running'}
+              </strong>
+              <small>{incident.certificate.shortId} · 36 checks</small>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -224,6 +271,8 @@ function Overview({
       </section>
 
       <Timeline activeStage={replayStage} />
+
+      <ConsequenceMap replayStage={replayStage} />
 
       <div className="overviewGrid">
         <section className="panel diffPanel" aria-labelledby="diff-title">
@@ -347,6 +396,106 @@ function Overview({
         </div>
       </section>
     </>
+  );
+}
+
+function ConsequenceMap({ replayStage }: { replayStage: number }) {
+  return (
+    <section className="panel consequenceMap" aria-labelledby="consequence-title">
+      <div className="consequenceHeader">
+        <div>
+          <span className="sectionKicker">Registered consequence map</span>
+          <h2 id="consequence-title">The source moved. Veritas knew exactly what it owned.</h2>
+          <p>
+            No similarity search. No guessed relationships. Every path came from the Claim Manifest.
+          </p>
+        </div>
+        <span className="manifestBadge">
+          <i aria-hidden="true" /> Manifest-bound
+        </span>
+      </div>
+
+      <div className="consequenceFlow">
+        <div className="flowColumn sourceFlowColumn" data-visible={replayStage >= 1}>
+          <span className="flowLabel">01 · evidence</span>
+          <article className="flowSource">
+            <span className="flowAppIcon">S</span>
+            <div>
+              <small>Google Sheets · Metrics!B17</small>
+              <strong>Customer churn</strong>
+              <span>
+                <s>4%</s> → 9%
+              </span>
+            </div>
+          </article>
+        </div>
+
+        <div className="flowBridge" data-visible={replayStage >= 2} aria-hidden="true">
+          <span>semantic delta</span>
+          <i />
+        </div>
+
+        <div className="flowColumn" data-visible={replayStage >= 2}>
+          <span className="flowLabel">02 · {incident.claims.length} affected claims</span>
+          <div className="claimFlowGrid">
+            {incident.claims.map((claim, index) => (
+              <article className="flowClaim" key={claim.id}>
+                <span>0{index + 1}</span>
+                <div>
+                  <strong>{claim.shortLabel}</strong>
+                  <small>{claim.targetCount} registered targets</small>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div className="flowBridge" data-visible={replayStage >= 3} aria-hidden="true">
+          <span>9 exact paths</span>
+          <i />
+        </div>
+
+        <div className="flowColumn" data-visible={replayStage >= 3}>
+          <span className="flowLabel">03 · {incident.artifacts.length} repaired artifacts</span>
+          <div className="artifactFlowGrid">
+            {incident.artifacts.map((artifact) => (
+              <article className="flowArtifact" key={artifact.id}>
+                <span
+                  className={`surfaceIcon surface-${artifact.code.toLowerCase()}`}
+                  aria-hidden="true"
+                >
+                  {artifact.code}
+                </span>
+                <div>
+                  <strong>{artifact.name}</strong>
+                  <small>
+                    {artifact.result} · {artifact.guardrail}
+                  </small>
+                </div>
+                <span className="flowCheck" aria-hidden="true">
+                  ✓
+                </span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="consequenceGuardrails">
+        <span>
+          <i aria-hidden="true">✓</i> 0 inferred paths
+        </span>
+        <span>
+          <i aria-hidden="true">✓</i> 0 human edits lost
+        </span>
+        <span>
+          <i aria-hidden="true">✓</i> Sent email left immutable
+        </span>
+        <span>
+          <i aria-hidden="true">✓</i> 13/13 targets independently verified
+        </span>
+      </div>
+    </section>
   );
 }
 
