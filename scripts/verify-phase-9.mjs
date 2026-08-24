@@ -10,6 +10,7 @@ const requiredFiles = [
   'apps/web/src/incident.ts',
   'apps/web/src/styles.css',
   'docs/architecture-decisions/0009-evidence-room-command-center.md',
+  'docs/architecture-decisions/0016-autonomous-consequence-orchestration.md',
   'docs/verification/phase-9.md'
 ];
 
@@ -28,7 +29,9 @@ for (const contract of [
   'Blast radius',
   'The repair agent does not grade its own work.',
   'Candidate lineage and unregistered prose',
-  'localStorage'
+  'localStorage',
+  '/api/v1/command-center/incidents/latest',
+  'Open offline judge demo'
 ]) {
   if (!app.includes(contract)) {
     console.error(`Phase 9 verification failed: Command Center lacks ${contract}`);
@@ -76,4 +79,6 @@ console.log('\nPhase 9 pre-browser Command Center verification passed.');
 console.log('- the opening view proves the full evidence-to-certificate story');
 console.log('- diffs, lineage, receipts, protected regions, and scope are inspectable');
 console.log('- navigation and claim selection survive refresh');
+console.log('- live records load by authenticated subject and demo data is explicitly opt-in');
+console.log('- one server-side action advances approval through continuation and verification');
 console.log('- hosted browser E2E and accessibility audit remain mandatory');

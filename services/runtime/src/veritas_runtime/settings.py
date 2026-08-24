@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     drive_channel_token_key: SecretStr | None = None
     drive_webhook_url: str | None = None
     snapshot_bucket: str | None = None
+    google_cloud_project: str | None = None
+    google_cloud_location: str = "us-central1"
+    gemini_model: str = "gemini-3.5-flash"
     max_request_bytes: int = Field(default=1_048_576, ge=1024, le=10_485_760)
 
     @property
@@ -51,6 +54,10 @@ class Settings(BaseSettings):
     @property
     def drive_ingress_configured(self) -> bool:
         return bool(self.database_configured and self.drive_channel_token_key)
+
+    @property
+    def gemini_configured(self) -> bool:
+        return bool(self.google_cloud_project and self.google_cloud_location and self.gemini_model)
 
     @property
     def database_configured(self) -> bool:

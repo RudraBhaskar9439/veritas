@@ -28,7 +28,7 @@
     {"id":"preserve","start":165,"end":185,"screen":"Board memo protected paragraph","proof":"CFO-authored paragraph remains byte-for-byte intact."},
     {"id":"verify","start":185,"end":205,"screen":"Independent Verification","proof":"Re-read 13 targets and 5 protected artifacts; 36 checks pass."},
     {"id":"certificate","start":205,"end":220,"screen":"Evidence Integrity Certificate","proof":"Scoped certificate binds 8 claims to 6 evidence versions."},
-    {"id":"architecture","start":220,"end":232,"screen":"Architecture proof","proof":"Cloud Run, Cloud SQL, Pub/Sub, Tasks, Storage, KMS, Gemini, Workspace."},
+    {"id":"architecture","start":220,"end":232,"screen":"Architecture proof","proof":"Gemini 3.5 + Gen AI SDK reasoning receipt; Cloud Run, Cloud SQL, Storage, KMS, Workspace."},
     {"id":"close","start":232,"end":238,"screen":"Veritas mark","proof":"AI created the work. Veritas keeps it true."}
   ]
 }

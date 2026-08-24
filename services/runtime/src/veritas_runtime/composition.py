@@ -16,6 +16,8 @@ from veritas_runtime.auth.sessions import (
     SessionPrincipal,
 )
 from veritas_runtime.changes.snapshots import GcsSnapshotObjectStore
+from veritas_runtime.command_center.database import SqlCommandCenterRepository
+from veritas_runtime.command_center.service import CommandCenterService
 from veritas_runtime.database_runtime import DatabaseRuntime, build_database_runtime
 from veritas_runtime.execution.database import SqlExecutionRepository
 from veritas_runtime.execution.google import GoogleWorkspaceRepairGateway
@@ -26,6 +28,10 @@ from veritas_runtime.lineage.service import ImpactAnalysisService
 from veritas_runtime.operations.database import SqlOperationRepository
 from veritas_runtime.operations.service import ReliableOperationService
 from veritas_runtime.operations.telemetry import StructuredLogOperationTelemetry
+from veritas_runtime.orchestration import (
+    ConsequenceRepairOrchestrator,
+    HumanApprovalContinuation,
+)
 from veritas_runtime.packets.database import SqlManifestRepository
 from veritas_runtime.packets.service import WorkspacePacketGenerationService
 from veritas_runtime.repairs.database import SqlRepairRepository
@@ -58,6 +64,8 @@ class ApiComponents:
     execution: RepairExecutionService
     verification: VerificationService
     operations: ReliableOperationService
+    command_center: CommandCenterService
+    approval_continuation: HumanApprovalContinuation
 
     async def close(self) -> None:
         await self.http.aclose()
@@ -87,6 +95,25 @@ def build_api_components(settings: Settings) -> ApiComponents | None:
     http = httpx.AsyncClient(timeout=httpx.Timeout(20, connect=5))
     verification_repository = SqlVerificationRepository(engine, snapshots)
     verification_gateway = GoogleWorkspaceVerificationGateway(http)
+    repairs = RepairPlanningService(SqlRepairRepository(engine, snapshots))
+    execution = RepairExecutionService(
+        SqlExecutionRepository(engine),
+        sessions,
+        GoogleWorkspaceRepairGateway(http),
+        ProtectedRegionBaselineService(verification_repository, verification_gateway),
+    )
+    verification = VerificationService(
+        verification_repository,
+        sessions,
+        verification_gateway,
+    )
+    command_center = CommandCenterService(SqlCommandCenterRepository(engine))
+    orchestrator = ConsequenceRepairOrchestrator(
+        ImpactAnalysisService(SqlImpactRepository(engine)),
+        repairs,
+        execution,
+        verification,
+    )
     return ApiComponents(
         database=database,
         engine=engine,
@@ -99,22 +126,19 @@ def build_api_components(settings: Settings) -> ApiComponents | None:
             http,
         ),
         impact=ImpactAnalysisService(SqlImpactRepository(engine)),
-        repairs=RepairPlanningService(SqlRepairRepository(engine, snapshots)),
-        execution=RepairExecutionService(
-            SqlExecutionRepository(engine),
-            sessions,
-            GoogleWorkspaceRepairGateway(http),
-            ProtectedRegionBaselineService(verification_repository, verification_gateway),
-        ),
-        verification=VerificationService(
-            verification_repository,
-            sessions,
-            verification_gateway,
-        ),
+        repairs=repairs,
+        execution=execution,
+        verification=verification,
         operations=ReliableOperationService(
             SqlOperationRepository(engine),
             {},
             telemetry=StructuredLogOperationTelemetry(),
+        ),
+        command_center=command_center,
+        approval_continuation=HumanApprovalContinuation(
+            command_center,
+            repairs,
+            orchestrator,
         ),
     )
 

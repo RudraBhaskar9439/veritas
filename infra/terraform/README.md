@@ -3,7 +3,7 @@
 The foundation provisions the production boundaries required by the verified architecture:
 
 - least-privilege runtime service accounts;
-- passwordless Cloud SQL IAM database users for API, ingress, and worker;
+- passwordless Cloud SQL IAM database users for API, ingress, worker, and the isolated migrator;
 - Artifact Registry for immutable images;
 - versioned Cloud Storage evidence snapshots;
 - Pub/Sub event and dead-letter topics;
@@ -11,6 +11,7 @@ The foundation provisions the production boundaries required by the verified arc
 - KMS and Secret Manager credential boundaries;
 - PostgreSQL 16 with IAM authentication and point-in-time recovery;
 - optional Cloud Run services supplied by immutable image references;
+- an on-demand Cloud Run migration job with a checksum ledger and single-writer advisory lock;
 - an authenticated Cloud Scheduler heartbeat that drains the transactional Drive outbox in bounded worker batches;
 - payload-free retry and dead-letter log metrics with a quarantine alert policy.
 - preview-specific Cloud Run and Cloud SQL growth ceilings;

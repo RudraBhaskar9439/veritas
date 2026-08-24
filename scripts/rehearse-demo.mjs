@@ -20,6 +20,7 @@ const impact = JSON.parse(raw.impact);
 const repair = JSON.parse(raw.repair);
 const evaluation = JSON.parse(raw.evaluation);
 const cloudProof = JSON.parse(raw.cloudProof);
+const demoIncident = raw.incident.slice(raw.incident.indexOf('export const demoIncident'));
 
 const contiguous = contract.beats.every((beat, index) => {
   if (index === 0) return beat.start === 0;
@@ -34,7 +35,12 @@ const checks = [
   ['minimal repair plan', repair.stepCount === 9],
   ['human approval boundary', repair.policySummary.approvalRequiredSteps === 4],
   ['immutable correction boundary', repair.policySummary.draftOnlySteps === 2],
-  ['command-center coverage', raw.incident.includes('coverage: { claims: 8, targets: 13, protectedArtifacts: 5, sources: 6 }')],
+  [
+    'command-center coverage',
+    ['claims: 8', 'targets: 13', 'protectedArtifacts: 5', 'sources: 6'].every((value) =>
+      demoIncident.includes(value)
+    )
+  ],
   ['independent checks', raw.incident.includes("detail: '13 Workspace targets match'") && raw.incident.includes("detail: '5 protected projections unchanged'")],
   ['published benchmark', evaluation.scenarioCount === 40 && evaluation.passed === 40],
   ['cloud-proof honesty', cloudProof.status === 'pending_google_cloud' && cloudProof.requiredEvidence.every((item) => item.status === 'pending')]

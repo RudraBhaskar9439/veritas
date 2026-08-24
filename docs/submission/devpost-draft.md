@@ -34,7 +34,7 @@ The repair agent also cannot certify itself. An independent, read-only verifier 
 
 ## How we built it
 
-- **Gemini on Vertex AI:** semantic interpretation and structured repair assistance within deterministic boundaries.
+- **Gemini 3.5 Flash on Vertex AI + Google Gen AI SDK:** schema-bound consequence safety review. Gemini may stop ambiguous work, but exact scope, policy, approvals, writes, and certification remain deterministic.
 - **Cloud Run:** separately deployable control API, event ingress, agent worker, and Command Center.
 - **Cloud SQL for PostgreSQL:** Claim Manifests, impact reports, repair plans, approvals, execution journals, verification reports, durable worker leases, dead letters, and audit events.
 - **Pub/Sub and Cloud Tasks:** asynchronous change capture and bounded command delivery.
@@ -45,7 +45,7 @@ The repair agent also cannot certify itself. An independent, read-only verifier 
 
 ## Architectural discipline
 
-Gemini may interpret; deterministic code decides. Calculations, versions, registered graph traversal, policy, approvals, native write preconditions, idempotency, worker leases, checksums, protected-region hashes, and certificate eligibility remain outside the model.
+Gemini reasons inside a narrow authority envelope; deterministic code controls the transaction. The model reviews the registered impact and typed policy, must echo the exact claim set, and can only return `proceed` or `escalate`. Calculations, versions, graph traversal, policy, approvals, native write preconditions, idempotency, worker leases, checksums, protected-region hashes, and certificate eligibility remain outside the model. Its structured decision is persisted as a checksummed reasoning receipt.
 
 Every operation is idempotent and resumable. Retryable failures use bounded deterministic backoff. Permanent or exhausted failures enter dead-letter quarantine, and operator replay creates a new audited operation linked to the immutable original.
 
@@ -83,4 +83,3 @@ Expand registered packet templates beyond executive reviews, add organization-co
 - Demo video: pending five clean live rehearsals
 - Source repository: private during development; provide judge access as required
 - Architecture and reproducibility instructions: included in the repository
-

@@ -14,6 +14,7 @@ COPY services/runtime/pyproject.toml services/runtime/pyproject.toml
 RUN uv sync --frozen --no-dev --package veritas-runtime
 
 COPY services/runtime/src services/runtime/src
+COPY services/runtime/migrations services/runtime/migrations
 
 RUN addgroup --system veritas && adduser --system --ingroup veritas veritas \
     && chown -R veritas:veritas /app
@@ -25,4 +26,3 @@ ENV PYTHONPATH=/app/services/runtime/src \
 EXPOSE 8080
 
 CMD ["uvicorn", "veritas_runtime.api:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]
-

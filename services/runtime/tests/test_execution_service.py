@@ -57,9 +57,7 @@ def test_execution_resumes_after_approvals_without_repeating_completed_writes() 
                 "Reviewed and approved the changed business decision.",
                 NOW,
             )
-        resumed = await execution.execute(
-            "subject-1", planned.plan.plan_id, "execution-request-1", NOW
-        )
+        resumed = await execution.resume("subject-1", first.run_id, "resume-request-1", NOW)
         assert resumed.status == RepairRunStatus.COMPLETED
         assert len(baselines.calls) == 2
         assert resumed.reused is True

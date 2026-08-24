@@ -1,6 +1,6 @@
 # Phase 9 verification report
 
-- Status: pre-browser implementation passed; hosted browser E2E and accessibility audit pending
+- Status: live read-model implementation passed; hosted browser E2E and accessibility audit pending
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-9.mjs`
 - Accepted implementation commit: `a82e429a7a952ea3b7112d1885c15db7e61e8c23`
@@ -21,12 +21,18 @@
 - refresh recovery for the selected view and claim;
 - responsive desktop, tablet, and phone layouts;
 - semantic navigation, headings, tabs, tables, skip link, focus states, reduced motion, print-ready certificate, and ARIA live replay feedback;
-- bespoke Veritas social preview stored with the application.
+- bespoke Veritas social preview stored with the application;
+- subject-scoped incident reconstruction from checksummed manifests, impact reports, repair plans, approvals, execution journals, snapshots, verification reports, and certificates;
+- explicit loading, sign-in, empty, and failure states with no silent fixture fallback;
+- an opt-in offline judge demo that is visibly labeled as demo data;
+- one idempotent approval action that validates the plan/run binding, records the human decision, resumes unfinished steps, independently verifies a completed run, and then refreshes the incident;
+- a same-origin production proxy for Strict session cookies and the Google OAuth callback;
+- a visible Gemini model/disposition receipt derived from the durable agent review record.
 
-Observed result: web lint, strict TypeScript, six interaction tests, and the Vite production build pass. The app bundle is approximately 66 KB gzip plus the social image. The cumulative Phase 0–8 implementation remains green.
+Observed result: web lint, strict TypeScript, eight interaction tests, and the Vite production build pass. Backend tests independently prove the live read model, SQL integrity chain, subject isolation, approval binding, and autonomous orchestration. The cumulative Phase 0–8 implementation remains green.
 
 ## Open hard gate
 
 The required real-browser E2E, responsive screenshot inspection, refresh test, keyboard pass, and automated accessibility audit are not accepted yet. The approved browser-control surface rejected `http://localhost:5173` under its network policy, and no alternate browser or raw automation path was used to bypass that restriction. Complete this gate against the final hosted Cloud Run URL once Google Cloud access is available.
 
-Production API wiring also remains mandatory before the final demo. The current typed canonical incident view is deterministic and fully interactive, but it is intentionally labeled as a replay dataset rather than represented as a live Google Workspace run.
+The production API wiring is complete. Cloud-hosted proof remains mandatory before the final demo; the explicit offline judge dataset must never be represented as a live Google Workspace run.

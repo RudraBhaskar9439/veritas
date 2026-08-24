@@ -33,6 +33,11 @@ output "deployed_service_uris" {
   description = "Cloud Run service URIs when immutable images are supplied."
 }
 
+output "migration_job_name" {
+  value       = try(google_cloud_run_v2_job.migrations[0].name, null)
+  description = "Auditable, checksum-pinned Cloud Run schema migration job when service images are supplied."
+}
+
 output "operation_metric_names" {
   value = {
     dead_letters = google_logging_metric.operation_dead_letters.name

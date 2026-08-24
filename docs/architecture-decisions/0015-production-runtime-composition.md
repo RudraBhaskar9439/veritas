@@ -20,6 +20,10 @@ Cloud Run services use four distinct service accounts. API, ingress, and worker 
 
 Drive webhooks commit the notification and a deterministic outbox event in one database transaction. An authenticated Cloud Scheduler heartbeat invokes the private worker, which converts pending events into idempotent operations, processes a bounded batch, and leaves retries or dead letters in the durable operation ledger. The worker verifies that every stream belongs to the operation subject before loading that subject's encrypted Workspace credentials.
 
+For every meaningful snapshot, the worker automatically advances a deterministic correlation root through registered impact analysis, typed repair planning, guarded execution, and independent verification. Approval-required steps pause the same durable run. The Command Center exposes one idempotent authenticated decision action that validates the plan/run/approval binding, records the human decision, resumes only unfinished steps, and verifies a completed run.
+
+The browser and API use one public origin. The web service reverse-proxies `/api/` to the application service, so Strict HttpOnly session cookies, OAuth callbacks, and browser requests share one trust origin even though web and API remain separately deployable Cloud Run services. The Command Center reconstructs incidents from checksummed SQL records under the authenticated subject; offline judge data appears only after an explicit user choice.
+
 ## Consequences
 
 - A deployed API is no longer a health-check-only shell.
@@ -27,4 +31,5 @@ Drive webhooks commit the notification and a deterministic outbox event in one d
 - Native packet creation is testable through real request shapes before Cloud access and repeatable against Workspace after deployment.
 - Cloud SQL connections use short-lived IAM credentials and require connector egress to Google APIs and the instance connector port.
 - Drive change processing is production-composed without blocking Google's webhook delivery path and recovers safely from a crash between operation enqueue and outbox acknowledgement.
-- Downstream impact/planning/execution orchestration and the live Command Center read model remain explicit pre-deployment work.
+- Automatic downstream orchestration, crash-safe approval continuation, and the live subject-scoped Command Center read model are production-composed before deployment.
+- Cloud deployment and the real Workspace/browser/failure-injection proof gates remain explicit post-billing work.

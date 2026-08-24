@@ -1,10 +1,10 @@
 # Phase 12 verification report
 
 - Status: credit-independent submission package passed; live Cloud proof and video pending
-- Verified locally: 2026-08-21
+- Verified locally: 2026-08-24
 - Local command: `node scripts/verify-phase-12.mjs`
-- Accepted implementation commit: `3c6de6e07669ca2313a7c8d2b21e8a8eca2ea49d`
-- Clean GitHub workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32505918117>
+- Previous accepted baseline commit: `bd219dbe72957e9f501c97fdd7d55858e8295b81`
+- Previous clean GitHub workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32728641116>
 
 ## Completed without Google Cloud
 
@@ -16,6 +16,8 @@
 - recording, deployment, operations-recovery, and final-submission runbooks;
 - a twelve-item machine-readable Cloud proof manifest;
 - a comprehensive final checklist;
+- a schema-bound Gemini 3.5 Flash reasoning gate implemented with the Google Gen AI SDK, including exact-scope validation, durable checksummed receipts, escalation, and safe retry behavior;
+- a dedicated least-privilege Cloud Run schema job with an advisory lock, immutable checksum ledger, transactional migrations, and fail-closed drift detection;
 - five consecutive automated offline contract rehearsals, each passing 12/12 checks with the same deterministic digest.
 
 The offline rehearsals verify timing, chronology, canonical 4% → 9% evidence, four-claim/five-artifact blast radius, nine-step repair plan, approval and immutable-email boundaries, Command Center coverage, independent verification values, benchmark status, and honest pending Cloud state.

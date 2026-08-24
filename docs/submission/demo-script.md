@@ -66,11 +66,10 @@ Total planned duration: **3:58**. Speak calmly; let each visible state prove the
 
 **Screen:** Architecture diagram and green GitHub workflow.
 
-**Say:** “The system runs on Cloud Run, Cloud SQL, Pub/Sub, Cloud Tasks, Cloud Storage, KMS, Secret Manager, Gemini, and real Workspace APIs—with durable leases, dead letters, audited replay, and a forty-scenario reproducible benchmark.”
+**Say:** “Gemini 3.5 Flash reviews the exact registered scope through Google’s Gen AI SDK. It can stop ambiguous work, but it cannot invent scope or approve itself; its structured decision is checksummed. The system runs on Cloud Run, Cloud SQL, Cloud Storage, KMS, Secret Manager, Vertex AI, and real Workspace APIs—with durable leases, dead letters, audited replay, and a forty-scenario reproducible benchmark.”
 
 ## 3:52–3:58 — Close
 
 **Screen:** Veritas mark.
 
 **Say:** “AI created the work. Veritas keeps it true.”
-

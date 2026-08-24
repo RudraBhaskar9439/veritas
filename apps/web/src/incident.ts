@@ -13,7 +13,81 @@ export interface ClaimChange {
   targetCount: number;
 }
 
-export const incident = {
+export interface ArtifactChange {
+  id: string;
+  code: string;
+  surface: string;
+  name: string;
+  targetCount: number;
+  action: string;
+  guardrail: string;
+  result: string;
+}
+
+export interface IncidentApproval {
+  approvalId: string;
+  planId: string;
+  runId: string | null;
+  claimId: string;
+  claimLabel: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reason: string | null;
+}
+
+export interface Incident {
+  id: string;
+  packetId: string;
+  runId: string | null;
+  status: 'awaiting_approval' | 'repairing' | 'verified' | 'attention';
+  source: 'live' | 'demo';
+  headline: string;
+  summary: string;
+  detectedAt: string;
+  updatedAt: string;
+  claims: ReadonlyArray<ClaimChange>;
+  artifacts: ReadonlyArray<ArtifactChange>;
+  timeline: ReadonlyArray<{ time: string; label: string; detail: string }>;
+  coverage: {
+    claims: number;
+    affectedClaims: number;
+    targets: number;
+    verifiedTargets: number;
+    protectedArtifacts: number;
+    verifiedProtectedArtifacts: number;
+    sources: number;
+  };
+  certificate: { shortId: string; statement: string; issuedAt: string } | null;
+  checks: ReadonlyArray<{ label: string; detail: string; receipt: string; passed: boolean }>;
+  evidence: ReadonlyArray<{
+    id: string;
+    label: string;
+    kind: string;
+    anchor: string;
+    version: string;
+    snapshot: string;
+    current: boolean;
+  }>;
+  approvals: ReadonlyArray<IncidentApproval>;
+  agentReview: {
+    model: string;
+    disposition: 'proceed' | 'escalate';
+    rationale: string;
+    riskFlags: ReadonlyArray<string>;
+    receipt: string;
+  } | null;
+}
+
+export const demoIncident = {
+  id: 'plan-demo-042',
+  packetId: 'q3-executive-review',
+  runId: 'run-demo-042',
+  status: 'verified',
+  source: 'demo',
+  headline: 'One number changed. Nine consequences repaired.',
+  summary:
+    'A registered Sheet value moved from 4% to 9%. Veritas repaired only owned claim anchors and preserved the CFO paragraph.',
+  detectedAt: '2026-08-21T10:42:07Z',
+  updatedAt: '2026-08-21T10:42:16Z',
   claims: [
     {
       id: 'churn-value',
@@ -124,36 +198,64 @@ export const incident = {
     { time: '10:42:15', label: 'Verified', detail: '36 checks passed' },
     { time: '10:42:16', label: 'Certified', detail: 'Scoped record issued' },
   ],
-  coverage: { claims: 8, targets: 13, protectedArtifacts: 5, sources: 6 },
+  coverage: {
+    claims: 8,
+    affectedClaims: 4,
+    targets: 13,
+    verifiedTargets: 13,
+    protectedArtifacts: 5,
+    verifiedProtectedArtifacts: 5,
+    sources: 6,
+  },
   certificate: {
     shortId: 'CERT-7A92',
     statement:
       'All monitored claims in this Decision Packet are consistent with their registered evidence versions as of the stated timestamp.',
+    issuedAt: '2026-08-21T10:42:16Z',
   },
   checks: [
-    { label: 'Repair run terminal', detail: '9 of 9 planned steps succeeded', receipt: 'run·e1c4' },
+    {
+      label: 'Repair run terminal',
+      detail: '9 of 9 planned steps succeeded',
+      receipt: 'run·e1c4',
+      passed: true,
+    },
     {
       label: 'Source set fresh',
       detail: '6 causal snapshots are still current',
       receipt: 'src·d09f',
+      passed: true,
     },
     {
       label: 'Claims recomputed',
       detail: '8 deterministic recipes reproduced',
       receipt: 'clm·a881',
+      passed: true,
     },
-    { label: 'Targets re-read', detail: '13 Workspace targets match', receipt: 'tgt·29b3' },
+    {
+      label: 'Targets re-read',
+      detail: '13 Workspace targets match',
+      receipt: 'tgt·29b3',
+      passed: true,
+    },
     {
       label: 'Human work preserved',
       detail: '5 protected projections unchanged',
       receipt: 'hsh·c443',
+      passed: true,
     },
     {
       label: 'Correction drafts present',
       detail: '2 corrections independently read',
       receipt: 'drf·8d2a',
+      passed: true,
     },
-    { label: 'Coverage complete', detail: '0 candidate edges entered scope', receipt: 'cov·1000' },
+    {
+      label: 'Coverage complete',
+      detail: '0 candidate edges entered scope',
+      receipt: 'cov·1000',
+      passed: true,
+    },
   ],
   evidence: [
     {
@@ -163,6 +265,7 @@ export const incident = {
       anchor: 'Metrics!B17',
       version: 'sheet-v2',
       snapshot: 'snap·3a91',
+      current: true,
     },
     {
       id: 'previous-churn',
@@ -171,6 +274,7 @@ export const incident = {
       anchor: 'Metrics!B16',
       version: 'sheet-v1',
       snapshot: 'snap·c882',
+      current: true,
     },
     {
       id: 'revenue',
@@ -179,6 +283,7 @@ export const incident = {
       anchor: 'Metrics!B5',
       version: 'sheet-v1',
       snapshot: 'snap·f230',
+      current: true,
     },
     {
       id: 'pipeline',
@@ -187,6 +292,7 @@ export const incident = {
       anchor: 'Metrics!B8',
       version: 'sheet-v1',
       snapshot: 'snap·b122',
+      current: true,
     },
     {
       id: 'nps',
@@ -195,6 +301,7 @@ export const incident = {
       anchor: 'Metrics!B20',
       version: 'sheet-v1',
       snapshot: 'snap·4cc9',
+      current: true,
     },
     {
       id: 'launch',
@@ -203,6 +310,16 @@ export const incident = {
       anchor: 'launch-date',
       version: 'doc-v1',
       snapshot: 'snap·71dd',
+      current: true,
     },
   ],
-} as const;
+  approvals: [],
+  agentReview: {
+    model: 'gemini-3.5-flash',
+    disposition: 'proceed',
+    rationale:
+      'Registered scope and deterministic policy are coherent; proceed within the declared authority boundaries.',
+    riskFlags: ['human approval required for decision-changing claims'],
+    receipt: 'a1f94e0c2b',
+  },
+} as const satisfies Incident;

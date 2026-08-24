@@ -32,7 +32,7 @@ variable "service_images" {
 }
 
 variable "google_oauth_redirect_uri" {
-  description = "Exact HTTPS Google OAuth callback for the deployed API service."
+  description = "Exact HTTPS Google OAuth callback exposed by the public web origin."
   type        = string
   default     = null
   nullable    = true

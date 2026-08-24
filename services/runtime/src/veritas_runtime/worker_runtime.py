@@ -2,6 +2,9 @@ from dataclasses import dataclass
 
 import httpx
 
+from veritas_runtime.agents.database import SqlAgentReviewRepository
+from veritas_runtime.agents.gemini import GeminiReviewGateway
+from veritas_runtime.agents.service import GeminiConsequenceReviewService
 from veritas_runtime.auth.factory import GoogleAuthComponents, build_google_auth_components
 from veritas_runtime.changes.database import SqlWatchRepository
 from veritas_runtime.changes.drive import GoogleDriveChangesClient
@@ -14,12 +17,23 @@ from veritas_runtime.changes.operations import (
 from veritas_runtime.changes.processor import DriveChangeProcessor
 from veritas_runtime.changes.snapshots import GcsSnapshotObjectStore, ImmutableSnapshotService
 from veritas_runtime.database_runtime import DatabaseRuntime, build_database_runtime
+from veritas_runtime.execution.database import SqlExecutionRepository
+from veritas_runtime.execution.google import GoogleWorkspaceRepairGateway
+from veritas_runtime.execution.service import RepairExecutionService
 from veritas_runtime.execution.sessions import EncryptedWorkspaceSessionProvider
+from veritas_runtime.lineage.database import SqlImpactRepository
+from veritas_runtime.lineage.service import ImpactAnalysisService
 from veritas_runtime.operations.database import SqlOperationRepository
 from veritas_runtime.operations.models import OperationTick
 from veritas_runtime.operations.service import ReliableOperationService
 from veritas_runtime.operations.telemetry import StructuredLogOperationTelemetry
+from veritas_runtime.orchestration import ConsequenceRepairOrchestrator
+from veritas_runtime.repairs.database import SqlRepairRepository
+from veritas_runtime.repairs.service import RepairPlanningService
 from veritas_runtime.settings import Settings
+from veritas_runtime.verification.database import SqlVerificationRepository
+from veritas_runtime.verification.google import GoogleWorkspaceVerificationGateway
+from veritas_runtime.verification.service import ProtectedRegionBaselineService, VerificationService
 
 
 class WorkerRuntimeService:
@@ -51,8 +65,10 @@ class WorkerComponents:
     http: httpx.AsyncClient
     auth: GoogleAuthComponents
     service: WorkerRuntimeService
+    gemini: GeminiReviewGateway
 
     async def close(self) -> None:
+        await self.gemini.close()
         await self.http.aclose()
         await self.database.close()
 
@@ -62,6 +78,7 @@ def build_worker_components(settings: Settings) -> WorkerComponents | None:
         not settings.database_configured
         or settings.snapshot_bucket is None
         or not settings.google_auth_configured
+        or not settings.gemini_configured
     ):
         return None
     database = build_database_runtime(settings)
@@ -73,21 +90,54 @@ def build_worker_components(settings: Settings) -> WorkerComponents | None:
     http = httpx.AsyncClient(timeout=httpx.Timeout(20, connect=5))
     sessions = EncryptedWorkspaceSessionProvider(auth.vault, auth.oauth)
     watch_repository = SqlWatchRepository(database.engine)
+    snapshot_objects = GcsSnapshotObjectStore(settings.snapshot_bucket)
     processor = DriveChangeProcessor(
         GoogleDriveChangesClient(http),
         GoogleEvidenceExtractor(http),
-        ImmutableSnapshotService(GcsSnapshotObjectStore(settings.snapshot_bucket)),
+        ImmutableSnapshotService(snapshot_objects),
         watch_repository,
+    )
+    verification_repository = SqlVerificationRepository(database.engine, snapshot_objects)
+    verification_gateway = GoogleWorkspaceVerificationGateway(http)
+    assert settings.google_cloud_project is not None
+    gemini = GeminiReviewGateway(
+        settings.google_cloud_project,
+        settings.google_cloud_location,
+        settings.gemini_model,
+    )
+    execution = RepairExecutionService(
+        SqlExecutionRepository(database.engine),
+        sessions,
+        GoogleWorkspaceRepairGateway(http),
+        ProtectedRegionBaselineService(verification_repository, verification_gateway),
+    )
+    orchestrator = ConsequenceRepairOrchestrator(
+        ImpactAnalysisService(SqlImpactRepository(database.engine)),
+        RepairPlanningService(SqlRepairRepository(database.engine, snapshot_objects)),
+        execution,
+        VerificationService(verification_repository, sessions, verification_gateway),
+        GeminiConsequenceReviewService(
+            SqlAgentReviewRepository(database.engine),
+            gemini,
+            settings.gemini_model,
+        ),
     )
     operations = ReliableOperationService(
         SqlOperationRepository(database.engine),
-        {DRIVE_PROCESS_OPERATION: DriveStreamOperationHandler(processor, sessions)},
+        {
+            DRIVE_PROCESS_OPERATION: DriveStreamOperationHandler(
+                processor,
+                sessions,
+                orchestrator,
+            )
+        },
         telemetry=StructuredLogOperationTelemetry(),
     )
     return WorkerComponents(
         database=database,
         http=http,
         auth=auth,
+        gemini=gemini,
         service=WorkerRuntimeService(
             operations,
             DriveNotificationOutboxDispatcher(watch_repository, operations),

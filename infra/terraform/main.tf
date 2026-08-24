@@ -23,8 +23,8 @@ locals {
     "cloudtrace.googleapis.com",
   ])
 
-  service_accounts          = toset(["api", "ingress", "worker", "web"])
-  database_service_accounts = toset(["api", "ingress", "worker"])
+  service_accounts          = toset(["api", "ingress", "migrator", "worker", "web"])
+  database_service_accounts = toset(["api", "ingress", "migrator", "worker"])
 
   runtime_entrypoints = {
     api     = "veritas_runtime.api:app"
@@ -41,7 +41,7 @@ locals {
 
   google_oauth_redirect_uri = coalesce(
     var.google_oauth_redirect_uri,
-    "${local.deterministic_service_urls.api}/api/v1/auth/google/callback",
+    "${local.deterministic_service_urls.web}/api/v1/auth/google/callback",
   )
   drive_webhook_url = coalesce(
     var.drive_webhook_url,
@@ -336,9 +336,31 @@ resource "google_cloud_run_v2_service" "runtime" {
       }
 
       dynamic "env" {
+        for_each = each.key == "web" ? {
+          VERITAS_API_ORIGIN = local.deterministic_service_urls.api
+        } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+
+      dynamic "env" {
         for_each = contains(["api", "worker"], each.key) ? {
           VERITAS_GOOGLE_KMS_CREDENTIALS_KEY = google_kms_crypto_key.credentials.id
           VERITAS_SNAPSHOT_BUCKET            = google_storage_bucket.snapshots.name
+        } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+
+      dynamic "env" {
+        for_each = each.key == "worker" ? {
+          VERITAS_GOOGLE_CLOUD_PROJECT  = var.project_id
+          VERITAS_GOOGLE_CLOUD_LOCATION = var.region
+          VERITAS_GEMINI_MODEL          = "gemini-3.5-flash"
         } : {}
         content {
           name  = env.key
@@ -414,6 +436,56 @@ resource "google_cloud_run_v2_service" "runtime" {
   depends_on = [google_project_service.required]
 }
 
+resource "google_cloud_run_v2_job" "migrations" {
+  count = contains(keys(var.service_images), "worker") ? 1 : 0
+
+  name                = "${local.name}-migrations"
+  location            = var.region
+  deletion_protection = var.environment == "production"
+
+  template {
+    template {
+      service_account = google_service_account.runtime["migrator"].email
+      timeout         = "900s"
+      max_retries     = 0
+
+      containers {
+        image   = var.service_images["worker"]
+        command = ["python", "-m", "veritas_runtime.migrations"]
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "512Mi"
+          }
+        }
+
+        env {
+          name  = "VERITAS_ENVIRONMENT"
+          value = var.environment
+        }
+
+        env {
+          name  = "VERITAS_CLOUD_SQL_INSTANCE"
+          value = google_sql_database_instance.postgres.connection_name
+        }
+
+        env {
+          name  = "VERITAS_CLOUD_SQL_DATABASE"
+          value = google_sql_database.veritas.name
+        }
+
+        env {
+          name  = "VERITAS_CLOUD_SQL_USER"
+          value = trimsuffix(google_service_account.runtime["migrator"].email, ".gserviceaccount.com")
+        }
+      }
+    }
+  }
+
+  depends_on = [google_project_service.required]
+}
+
 resource "google_storage_bucket_iam_member" "worker_snapshot_create" {
   bucket = google_storage_bucket.snapshots.name
   role   = "roles/storage.objectCreator"
@@ -476,6 +548,12 @@ resource "google_project_iam_member" "api_cloudsql" {
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.runtime["api"].email}"
+}
+
+resource "google_project_iam_member" "migrator_cloudsql" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.runtime["migrator"].email}"
 }
 
 resource "google_project_iam_member" "runtime_cloudsql_instance_user" {

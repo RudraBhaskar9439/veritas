@@ -70,6 +70,8 @@ class ExecutionRepository(Protocol):
 
     async def get_by_idempotency_key(self, key: str) -> RepairRun | None: ...
 
+    async def get_by_run_id(self, subject: str, run_id: str) -> RepairRun: ...
+
     async def start(
         self,
         subject: str,
@@ -114,6 +116,39 @@ class RepairExecutionService:
         run = existing or await self._repository.start(subject, context.plan, key, current_time)
         if existing is not None and existing.status in _FINAL_RUN_STATES:
             return existing.model_copy(update={"reused": True})
+        return await self._advance(
+            subject,
+            context,
+            run,
+            current_time,
+            reused=existing is not None,
+        )
+
+    async def resume(
+        self,
+        subject: str,
+        run_id: str,
+        request_id: str,
+        now: datetime | None = None,
+    ) -> RepairRun:
+        if not subject or not run_id or not request_id:
+            raise ValueError("Subject, run ID, and resume request ID are required")
+        current_time = (now or datetime.now(UTC)).astimezone(UTC)
+        run = await self._repository.get_by_run_id(subject, run_id)
+        if run.status in _FINAL_RUN_STATES:
+            return run.model_copy(update={"reused": True})
+        context = await self._repository.load_context(subject, run.plan_id)
+        return await self._advance(subject, context, run, current_time, reused=True)
+
+    async def _advance(
+        self,
+        subject: str,
+        context: ExecutionContext,
+        run: RepairRun,
+        current_time: datetime,
+        *,
+        reused: bool,
+    ) -> RepairRun:
         session = await self._sessions.get(subject)
         await self._baselines.capture(
             subject,
@@ -138,7 +173,7 @@ class RepairExecutionService:
             record_index[step.step_id] = record
         status = _aggregate_status(run.steps)
         finished = await self._repository.finish(run, status, current_time)
-        return finished.model_copy(update={"reused": existing is not None})
+        return finished.model_copy(update={"reused": reused})
 
     async def _execute_step(
         self,

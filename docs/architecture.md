@@ -11,12 +11,13 @@ flowchart LR
   end
 
   subgraph Cloud["Google Cloud — single-region transactional runtime"]
+    API["Cloud Run API\nauth + subject-scoped read model"]
     Ingress["Cloud Run ingress\nchannel validation + dedupe"]
-    Events["Pub/Sub\nordered change events"]
     Snapshots["Cloud Storage\nimmutable evidence snapshots"]
-    Worker["Cloud Run worker\nGemini interpretation + deterministic tools"]
-    Queue["Cloud Tasks\nbounded delivery retries"]
-    Database["Cloud SQL PostgreSQL\nmanifests + journals + leases + audits"]
+    Scheduler["Cloud Scheduler\nauthenticated heartbeat"]
+    Worker["Private Cloud Run worker\ndeterministic agent loop"]
+    Gemini["Gemini 3.5 Flash on Vertex AI\nbounded structured safety review"]
+    Database["Cloud SQL PostgreSQL\noutbox + manifests + journals + leases + audits"]
     KMS["KMS + Secret Manager\ncredential custody"]
     Verify["Independent read-only verifier"]
     Logs["Cloud Logging + Monitoring\npayload-free operational events"]
@@ -25,13 +26,14 @@ flowchart LR
   UI["Command Center\nincident evidence room"]
 
   Sheet -->|"Drive notification"| Ingress
-  Ingress --> Events
-  Events --> Worker
+  Ingress -->|"transactional outbox"| Database
+  Scheduler -->|"OIDC invocation"| Worker
+  Database -->|"leased operation"| Worker
   Worker -->|"refetch exact source"| Sheet
   Worker --> Snapshots
+  Worker -->|"schema-bound review"| Gemini
+  Gemini -->|"proceed or escalate receipt"| Worker
   Worker <-->|"registered Claim Manifest"| Database
-  Worker -->|"typed repair commands"| Queue
-  Queue --> Worker
   Worker -->|"minimal guarded writes"| Docs
   Worker -->|"minimal guarded writes"| Slides
   Worker -->|"unsent correction only"| Gmail
@@ -45,15 +47,18 @@ flowchart LR
   Snapshots --> Verify
   Database --> Verify
   Verify -->|"checksummed scoped certificate"| Database
-  Database --> UI
+  UI -->|"same-origin /api proxy"| API
+  API <-->|"checksummed records"| Database
+  KMS --> API
   Worker --> Logs
+  API --> Logs
   Ingress --> Logs
   Verify --> Logs
 ```
 
 ## Why the architecture matters
 
-The model is not the transaction coordinator. Gemini may interpret whether a source change is meaningful and help propose a repair, but deterministic code owns evidence versions, registered graph traversal, policy, native API preconditions, idempotency, leases, checksums, and certificate eligibility.
+The worker is not a brittle chain of browser calls. Gemini 3.5 Flash, accessed through Google's Gen AI SDK on Vertex AI, reviews the already-scoped impact and plan and may force human escalation. Durable deterministic code still owns evidence versions, semantic classification, registered graph traversal, policy, native API preconditions, idempotency, leases, checksums, and certificate eligibility. The model cannot invent scope or authorize itself. Each meaningful change advances automatically through the complete lifecycle under one correlation root.
 
 The mutation path and verification path are separate. A successful write response is never accepted as proof. The verifier independently re-reads every registered target and compares protected-content hashes captured before mutation.
 
@@ -73,4 +78,3 @@ stateDiagram-v2
 ```
 
 Human edit conflicts and source movement do not silently retry into an overwrite. They stop the run, prevent certification, and surface the exact registered boundary requiring review.
-

@@ -9,6 +9,7 @@ const requiredFiles = [
   'docs/architecture.md',
   'docs/architecture-decisions/0012-proof-bound-submission.md',
   'docs/architecture-decisions/0014-preview-cost-containment.md',
+  'docs/architecture-decisions/0016-autonomous-consequence-orchestration.md',
   'docs/runbooks/cloud-deployment.md',
   'docs/submission/checklist.md',
   'docs/submission/claim-evidence-matrix.md',
@@ -17,7 +18,11 @@ const requiredFiles = [
   'docs/submission/devpost-draft.md',
   'docs/submission/recording-runbook.md',
   'docs/verification/phase-12.md',
-  'scripts/rehearse-demo.mjs'
+  'scripts/rehearse-demo.mjs',
+  'services/runtime/migrations/0009_gemini_agent_reviews.sql',
+  'services/runtime/src/veritas_runtime/migrations.py',
+  'services/runtime/src/veritas_runtime/agents/gemini.py',
+  'services/runtime/src/veritas_runtime/agents/service.py'
 ];
 
 const missing = requiredFiles.filter((file) => !existsSync(resolve(root, file)));
@@ -47,6 +52,39 @@ const devpost = readFileSync(resolve(root, 'docs/submission/devpost-draft.md'), 
 for (const forbidden of ['Veritas guarantees correctness', 'This document is completely true']) {
   if (devpost.includes(forbidden)) {
     console.error(`Phase 12 verification failed: Devpost draft contains ${forbidden}`);
+    process.exit(1);
+  }
+}
+const geminiGateway = readFileSync(
+  resolve(root, 'services/runtime/src/veritas_runtime/agents/gemini.py'),
+  'utf8'
+);
+const geminiService = readFileSync(
+  resolve(root, 'services/runtime/src/veritas_runtime/agents/service.py'),
+  'utf8'
+);
+const terraform = readFileSync(resolve(root, 'infra/terraform/main.tf'), 'utf8');
+for (const contract of [
+  'genai.Client(vertexai=True',
+  'response_schema=GeminiReviewPayload',
+  'Gemini review changed the registered claim scope'
+]) {
+  if (!`${geminiGateway}\n${geminiService}`.includes(contract)) {
+    console.error(`Phase 12 verification failed: Gemini agent contract lacks ${contract}`);
+    process.exit(1);
+  }
+}
+if (!terraform.includes('VERITAS_GEMINI_MODEL') || !terraform.includes('gemini-3.5-flash')) {
+  console.error('Phase 12 verification failed: Terraform does not bind Gemini 3.5 Flash');
+  process.exit(1);
+}
+for (const contract of [
+  'resource "google_cloud_run_v2_job" "migrations"',
+  'veritas_runtime.migrations',
+  'service_account = google_service_account.runtime["migrator"]'
+]) {
+  if (!terraform.includes(contract)) {
+    console.error(`Phase 12 verification failed: migration-job contract lacks ${contract}`);
     process.exit(1);
   }
 }

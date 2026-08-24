@@ -4,6 +4,8 @@
 
 Veritas is a continuous evidence-integrity agent for AI-created knowledge work. It records claim-level provenance when a decision packet is created, watches registered evidence for meaningful changes, calculates the downstream blast radius, performs minimal repairs across Google Workspace artifacts, preserves human edits, and independently verifies the repaired packet.
 
+The production worker uses Gemini 3.5 Flash on Vertex AI through Google's Gen AI SDK as a bounded safety-reasoning gate. Gemini may veto ambiguous work and force escalation, but it cannot expand registered scope, override policy, approve its own action, or certify its own repairs. Every structured model decision is schema-validated, checksummed, and persisted as an inspectable reasoning receipt.
+
 ## Hackathon target
 
 - Primary track: The Taskmaster
@@ -19,6 +21,7 @@ evidence change
   -> semantic delta
   -> registered lineage traversal
   -> typed repair plan
+  -> Gemini 3.5 bounded safety review
   -> policy/approval gate
   -> minimal cross-artifact execution
   -> independent verification
@@ -27,7 +30,7 @@ evidence change
 
 ## Current status
 
-Phases 0 and 1 are accepted. Phase 2's OAuth security, signed application sessions, KMS-encrypted credential custody, automatic token refresh, passwordless Cloud SQL IAM path, SQL persistence, and Workspace capability contracts pass locally. The isolated preview project and a 67-resource read-only Terraform foundation plan are verified, but its billing account is still pending and no Cloud resources have been applied. Phases 3-5 provide a real native Workspace packet writer, deterministic packet generation, durable change capture, and registered-lineage blast radius. Phase 6's typed repair planner, deterministic safety policy, human approval boundary, and idempotent SQL/API contracts pass locally and in CI. Phase 7's conflict-aware Workspace execution and durable resume contracts pass pre-live; five real Workspace runs remain mandatory. Phase 8 independently verifies registered coverage, and Phase 9 provides the judge-first evidence room. Phase 10 adds durable operation leases, bounded retries, dead-letter quarantine, audited replay, safe operational telemetry, and security hardening. The production worker now drains Drive's transactional outbox into subject-bound, idempotent change-processing operations on an authenticated schedule. Phase 11 publishes a checksummed forty-scenario benchmark that executes production decision functions. Phase 12 completes the credit-independent demo, architecture, runbook, evidence, rehearsal, and submission package while leaving every live Cloud proof item explicit. The Command Center read model, Cloud deployment, downstream automatic planning/execution composition, and Google-dependent end-to-end gates remain open.
+Phases 0 and 1 are accepted. Phase 2's OAuth security, signed application sessions, KMS-encrypted credential custody, automatic token refresh, passwordless Cloud SQL IAM path, SQL persistence, and Workspace capability contracts pass locally. The isolated preview project and its read-only Terraform foundation plan are verified, but its billing account is still disabled and no Cloud resources have been applied. Phases 3-8 implement native Workspace packet creation, immutable change capture, registered-lineage impact analysis, typed policy-bound planning, conflict-aware execution, durable approval continuation, and independent verification. Phase 9's judge-first Command Center now reads subject-scoped checksummed production records; it never silently substitutes demo data, and its approval action advances the durable run through verification. Phase 10 adds durable operation leases, bounded retries, dead-letter quarantine, audited replay, safe telemetry, and security hardening. The production worker automatically advances each meaningful Drive snapshot through impact → plan → execute → verify, while stopping safely at human authority boundaries. A dedicated migration job applies the complete schema under a PostgreSQL advisory lock and immutable checksum ledger. Phase 11 publishes a checksummed forty-scenario benchmark, and Phase 12 provides the credit-independent submission package. Only Cloud deployment, real Google Workspace gates, hosted browser/accessibility proof, live failure injection, five live rehearsals, and the final video/submission remain open.
 
 See:
 

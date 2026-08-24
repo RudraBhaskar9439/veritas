@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { type ClaimChange, incident, type ViewId } from './incident';
+import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  type ClaimChange,
+  demoIncident,
+  type Incident,
+  type IncidentApproval,
+  type ViewId,
+} from './incident';
 
 const VIEW_STORAGE_KEY = 'veritas.command-center.view';
 const CLAIM_STORAGE_KEY = 'veritas.command-center.claim';
@@ -15,22 +21,82 @@ function storedView(): ViewId {
   return views.some((view) => view.id === value) ? (value as ViewId) : 'overview';
 }
 
-function storedClaim(): string {
+function storedClaim(incident: Incident): string {
   const value = window.localStorage.getItem(CLAIM_STORAGE_KEY);
   return incident.claims.some((claim) => claim.id === value)
     ? (value ?? '')
     : incident.claims[0].id;
 }
 
-export function App() {
+const IncidentContext = createContext<Incident | null>(null);
+
+function useIncident(): Incident {
+  const incident = useContext(IncidentContext);
+  if (!incident) throw new Error('Incident context is unavailable');
+  return incident;
+}
+
+export function App({ initialIncident }: { initialIncident?: Incident }) {
+  const [incident, setIncident] = useState<Incident | null>(initialIncident ?? null);
+  const [state, setState] = useState<'loading' | 'ready' | 'unauthorized' | 'empty' | 'error'>(
+    initialIncident ? 'ready' : 'loading',
+  );
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    if (initialIncident) return;
+    const controller = new AbortController();
+    setState('loading');
+    fetch('/api/v1/command-center/incidents/latest', {
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'X-Veritas-Load-Attempt': String(retry) },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (response.status === 401) {
+          setState('unauthorized');
+          return;
+        }
+        if (!response.ok) throw new Error(`command_center_${response.status}`);
+        const result = (await response.json()) as Incident | null;
+        setIncident(result);
+        setState(result ? 'ready' : 'empty');
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setState('error');
+      });
+    return () => controller.abort();
+  }, [initialIncident, retry]);
+
+  if (state !== 'ready' || !incident) {
+    return (
+      <StartupState
+        state={state}
+        onRetry={() => setRetry((value) => value + 1)}
+        onDemo={() => {
+          setIncident(demoIncident);
+          setState('ready');
+        }}
+      />
+    );
+  }
+  return <CommandCenter incident={incident} onIncidentChange={setIncident} />;
+}
+
+function CommandCenter({
+  incident,
+  onIncidentChange,
+}: {
+  incident: Incident;
+  onIncidentChange: (incident: Incident) => void;
+}) {
   const [view, setView] = useState<ViewId>(storedView);
-  const [selectedClaimId, setSelectedClaimId] = useState(storedClaim);
+  const [selectedClaimId, setSelectedClaimId] = useState(() => storedClaim(incident));
   const [replayStage, setReplayStage] = useState<number>(incident.timeline.length);
   const [isReplaying, setIsReplaying] = useState(false);
-  const selectedClaim = useMemo(
-    () => incident.claims.find((claim) => claim.id === selectedClaimId) ?? incident.claims[0],
-    [selectedClaimId],
-  );
+  const selectedClaim =
+    incident.claims.find((claim) => claim.id === selectedClaimId) ?? incident.claims[0];
 
   useEffect(() => {
     window.localStorage.setItem(VIEW_STORAGE_KEY, view);
@@ -53,7 +119,7 @@ export function App() {
       });
     }, 720);
     return () => window.clearInterval(timer);
-  }, [isReplaying]);
+  }, [isReplaying, incident.timeline.length]);
 
   function chooseView(next: ViewId) {
     setView(next);
@@ -68,102 +134,162 @@ export function App() {
 
   const visibleClaims = replayStage >= 2 ? incident.claims.length : 0;
   const visibleArtifacts = replayStage >= 3 ? incident.artifacts.length : 0;
-  const verifiedTargets = replayStage >= 4 ? incident.coverage.targets : 0;
+  const verifiedTargets = replayStage >= 4 ? incident.coverage.verifiedTargets : 0;
 
   return (
-    <div className="appFrame">
-      <a className="skipLink" href="#main-content">
-        Skip to incident details
-      </a>
-
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="Veritas command center home">
-          <span className="brandMark" aria-hidden="true">
-            V
-          </span>
-          <span className="brandWord">VERITAS</span>
-          <span className="brandDescriptor">Autonomous consequence repair</span>
+    <IncidentContext.Provider value={incident}>
+      <div className="appFrame">
+        <a className="skipLink" href="#main-content">
+          Skip to incident details
         </a>
-        <div className="topbarActions">
-          <span className="environment">Evidence-bound replay · Q3 workspace</span>
-          <span className="systemStatus">
-            <span className="pulseDot" aria-hidden="true" />
-            Runtime ready
-          </span>
-          <button className="replayButton" type="button" onClick={replayIncident}>
-            <span aria-hidden="true">↻</span>
-            {isReplaying ? 'Replaying incident' : 'Replay incident'}
-          </button>
-        </div>
-      </header>
 
-      <aside className="sidebar" aria-label="Incident views">
-        <div className="incidentIdentity">
-          <span className="incidentMonogram" aria-hidden="true">
-            Q3
-          </span>
-          <div>
-            <span className="sidebarLabel">Decision packet</span>
-            <strong>Executive review</strong>
-            <span className="incidentDuration">Resolved in 9 seconds</span>
+        <header className="topbar">
+          <a className="brand" href="/" aria-label="Veritas command center home">
+            <span className="brandMark" aria-hidden="true">
+              V
+            </span>
+            <span className="brandWord">VERITAS</span>
+            <span className="brandDescriptor">Autonomous consequence repair</span>
+          </a>
+          <div className="topbarActions">
+            <span className="environment">
+              {incident.source === 'live'
+                ? 'Live Workspace evidence'
+                : 'Offline evidence-bound demo'}
+            </span>
+            <span className="systemStatus">
+              <span className="pulseDot" aria-hidden="true" />
+              {incident.status.replace('_', ' ')}
+            </span>
+            <button className="replayButton" type="button" onClick={replayIncident}>
+              <span aria-hidden="true">↻</span>
+              {isReplaying ? 'Replaying incident' : 'Replay incident'}
+            </button>
           </div>
+        </header>
+
+        <aside className="sidebar" aria-label="Incident views">
+          <div className="incidentIdentity">
+            <span className="incidentMonogram" aria-hidden="true">
+              Q3
+            </span>
+            <div>
+              <span className="sidebarLabel">Decision packet</span>
+              <strong>Executive review</strong>
+              <span className="incidentDuration">Resolved in 9 seconds</span>
+            </div>
+          </div>
+          <nav>
+            {views.map((item) => (
+              <button
+                className="navItem"
+                data-active={view === item.id}
+                key={item.id}
+                type="button"
+                onClick={() => chooseView(item.id)}
+                aria-current={view === item.id ? 'page' : undefined}
+              >
+                <span>{item.index}</span>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+          <div className="sidebarFooter">
+            <span className="sidebarLabel">Integrity window</span>
+            <strong>Aug 21 · 10:42 UTC</strong>
+            <span>6 immutable evidence versions</span>
+          </div>
+        </aside>
+
+        <main id="main-content" className="mainContent" tabIndex={-1}>
+          <nav className="mobileNav" aria-label="Incident views">
+            {views.map((item) => (
+              <button
+                data-active={view === item.id}
+                key={item.id}
+                type="button"
+                onClick={() => chooseView(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          {view === 'overview' && (
+            <Overview
+              selectedClaim={selectedClaim}
+              onSelectClaim={setSelectedClaimId}
+              replayStage={replayStage}
+              visibleClaims={visibleClaims}
+              visibleArtifacts={visibleArtifacts}
+              verifiedTargets={verifiedTargets}
+              onIncidentChange={onIncidentChange}
+            />
+          )}
+          {view === 'lineage' && <LineageView />}
+          {view === 'verification' && <VerificationView />}
+        </main>
+
+        <div className="srOnly" role="status" aria-live="polite">
+          {isReplaying
+            ? `Incident replay step ${replayStage + 1} of ${incident.timeline.length}`
+            : 'Incident is independently verified.'}
         </div>
-        <nav>
-          {views.map((item) => (
-            <button
-              className="navItem"
-              data-active={view === item.id}
-              key={item.id}
-              type="button"
-              onClick={() => chooseView(item.id)}
-              aria-current={view === item.id ? 'page' : undefined}
-            >
-              <span>{item.index}</span>
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebarFooter">
-          <span className="sidebarLabel">Integrity window</span>
-          <strong>Aug 21 · 10:42 UTC</strong>
-          <span>6 immutable evidence versions</span>
-        </div>
-      </aside>
-
-      <main id="main-content" className="mainContent" tabIndex={-1}>
-        <nav className="mobileNav" aria-label="Incident views">
-          {views.map((item) => (
-            <button
-              data-active={view === item.id}
-              key={item.id}
-              type="button"
-              onClick={() => chooseView(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        {view === 'overview' && (
-          <Overview
-            selectedClaim={selectedClaim}
-            onSelectClaim={setSelectedClaimId}
-            replayStage={replayStage}
-            visibleClaims={visibleClaims}
-            visibleArtifacts={visibleArtifacts}
-            verifiedTargets={verifiedTargets}
-          />
-        )}
-        {view === 'lineage' && <LineageView />}
-        {view === 'verification' && <VerificationView />}
-      </main>
-
-      <div className="srOnly" role="status" aria-live="polite">
-        {isReplaying
-          ? `Incident replay step ${replayStage + 1} of ${incident.timeline.length}`
-          : 'Incident is independently verified.'}
       </div>
-    </div>
+    </IncidentContext.Provider>
+  );
+}
+
+function StartupState({
+  state,
+  onRetry,
+  onDemo,
+}: {
+  state: 'loading' | 'ready' | 'unauthorized' | 'empty' | 'error';
+  onRetry: () => void;
+  onDemo: () => void;
+}) {
+  const connect = () => {
+    window.location.assign('/api/v1/auth/google/start?returnTo=/');
+  };
+  return (
+    <main className="startupState">
+      <span className="brandMark" aria-hidden="true">
+        V
+      </span>
+      <span className="sectionKicker">Veritas Command Center</span>
+      <h1>
+        {state === 'loading'
+          ? 'Loading your evidence boundary…'
+          : state === 'unauthorized'
+            ? 'Connect Google Workspace to begin.'
+            : state === 'empty'
+              ? 'Your workspace is connected.'
+              : 'The live Command Center is temporarily unreachable.'}
+      </h1>
+      <p>
+        {state === 'empty'
+          ? 'Generate a decision packet to register its claims, evidence, and downstream artifacts.'
+          : 'Live mode never substitutes demonstration data silently. You can retry, connect, or explicitly open the offline judge demo.'}
+      </p>
+      <div className="startupActions">
+        {state === 'unauthorized' && (
+          <button className="replayButton" type="button" onClick={connect}>
+            Connect Google Workspace
+          </button>
+        )}
+        {(state === 'error' || state === 'empty') && (
+          <button className="replayButton" type="button" onClick={onRetry}>
+            Retry live data
+          </button>
+        )}
+        {state !== 'loading' && (
+          <button className="secondaryButton" type="button" onClick={onDemo}>
+            Open offline judge demo
+          </button>
+        )}
+      </div>
+    </main>
   );
 }
 
@@ -174,6 +300,7 @@ interface OverviewProps {
   visibleClaims: number;
   visibleArtifacts: number;
   verifiedTargets: number;
+  onIncidentChange: (incident: Incident) => void;
 }
 
 function Overview({
@@ -183,7 +310,10 @@ function Overview({
   visibleClaims,
   visibleArtifacts,
   verifiedTargets,
+  onIncidentChange,
 }: OverviewProps) {
+  const incident = useIncident();
+  const source = incident.evidence[0];
   return (
     <>
       <section className="judgeStage" aria-labelledby="incident-title">
@@ -193,14 +323,8 @@ function Overview({
             <span className="incidentNumber">AUTONOMOUS RUN · INCIDENT 042</span>
             <span className="severity">Material evidence change</span>
           </div>
-          <h1 id="incident-title">
-            One number changed. <span>Nine consequences repaired.</span>
-          </h1>
-          <p>
-            A registered Sheet value moved from <strong>4%</strong> to <strong>9%</strong>. Veritas
-            traced the exact blast radius, repaired only owned claim anchors, preserved the
-            CFO&apos;s paragraph, and proved the result through a separate read path.
-          </p>
+          <h1 id="incident-title">{incident.headline}</h1>
+          <p>{incident.summary}</p>
           <ul className="heroProofRow" aria-label="Run guarantees">
             <li>
               <i aria-hidden="true">01</i> No prompt after source change
@@ -217,7 +341,7 @@ function Overview({
         <div className="sourceShiftCard" data-visible={replayStage >= 1}>
           <div className="sourceCardTopline">
             <span className="sourceApp">
-              <i aria-hidden="true">S</i> Google Sheets
+              <i aria-hidden="true">S</i> {source?.kind ?? 'Registered evidence'}
             </span>
             <span className="sourceLive">
               <i aria-hidden="true" /> source event
@@ -225,38 +349,56 @@ function Overview({
           </div>
           <div className="sourceAnchor">
             <span>REGISTERED SOURCE</span>
-            <code>Metrics!B17</code>
+            <code>{source?.anchor ?? 'registered anchor'}</code>
           </div>
           <div className="valueTransition">
             <span className="srOnly">Source value changed from 4 percent to 9 percent</span>
-            <s>4%</s>
+            <s>{incident.claims[0]?.before ?? 'previous value'}</s>
             <span aria-hidden="true">→</span>
-            <strong>9%</strong>
+            <strong>{incident.claims[0]?.after ?? 'recomputed value'}</strong>
           </div>
           <div className="sourceClock">
             <span>
-              <small>Detected</small>10:42:07
+              <small>Detected</small>
+              {incident.timeline[0]?.time ?? 'pending'}
             </span>
             <span>
-              <small>Certified</small>10:42:16
+              <small>Updated</small>
+              {incident.timeline.at(-1)?.time ?? 'pending'}
             </span>
           </div>
+          {incident.agentReview && (
+            <section className="agentReceipt" aria-label="Gemini agent review">
+              <span>G</span>
+              <div>
+                <strong>{incident.agentReview.model}</strong>
+                <small>
+                  {incident.agentReview.disposition} · {incident.agentReview.receipt}
+                </small>
+              </div>
+            </section>
+          )}
           <div className="scopeStamp" data-visible={replayStage >= 5}>
             <span aria-hidden="true">✓</span>
             <div>
               <strong>
-                {replayStage >= 5
-                  ? 'Scoped certificate issued'
-                  : 'Independent verification running'}
+                {incident.certificate ? 'Scoped certificate issued' : 'Integrity gate pending'}
               </strong>
-              <small>{incident.certificate.shortId} · 36 checks</small>
+              <small>
+                {incident.certificate?.shortId ?? incident.status.replace('_', ' ')} ·{' '}
+                {incident.checks.length} checks
+              </small>
             </div>
           </div>
         </div>
       </section>
 
       <section className="metricStrip" aria-label="Incident outcome">
-        <Metric value={`${visibleClaims}`} label="Claims changed" detail="of 8 monitored" />
+        <Metric
+          value={`${visibleClaims}`}
+          label="Claims changed"
+          detail={`of ${incident.coverage.claims} monitored`}
+        />
         <Metric
           value={`${visibleArtifacts}`}
           label="Artifacts repaired"
@@ -271,6 +413,8 @@ function Overview({
       </section>
 
       <Timeline activeStage={replayStage} />
+
+      <ApprovalQueue onIncidentChange={onIncidentChange} />
 
       <ConsequenceMap replayStage={replayStage} />
 
@@ -399,7 +543,100 @@ function Overview({
   );
 }
 
+function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Incident) => void }) {
+  const incident = useIncident();
+  const pending = incident.approvals.filter((approval) => approval.status === 'pending');
+  const [working, setWorking] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  if (pending.length === 0) return null;
+
+  async function decide(approval: IncidentApproval, decision: 'approve' | 'reject') {
+    if (incident.source !== 'live') return;
+    setWorking(approval.approvalId);
+    setError(null);
+    try {
+      const requestId = crypto.randomUUID();
+      if (!approval.runId) throw new Error('approval_run_missing');
+      const response = await fetch(
+        `/api/v1/command-center/incidents/${encodeURIComponent(approval.planId)}/runs/${encodeURIComponent(approval.runId)}/approvals/${encodeURIComponent(approval.approvalId)}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId,
+            decision,
+            reason:
+              decision === 'approve'
+                ? 'Reviewed the registered impact and approved this decision-changing repair.'
+                : 'Reviewed the registered impact and rejected this decision-changing repair.',
+          }),
+        },
+      );
+      if (!response.ok) throw new Error(`approval_${response.status}`);
+      const refreshed = await fetch('/api/v1/command-center/incidents/latest', {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (!refreshed.ok) throw new Error(`refresh_${refreshed.status}`);
+      const result = (await refreshed.json()) as Incident | null;
+      if (!result) throw new Error('incident_missing');
+      onIncidentChange(result);
+    } catch {
+      setError('The decision could not be confirmed. It is safe to retry with a fresh request.');
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  return (
+    <section className="panel approvalPanel" aria-labelledby="approval-title">
+      <div className="panelHeader">
+        <div>
+          <span className="sectionKicker">Human authority boundary</span>
+          <h2 id="approval-title">Decision-changing consequences need your approval</h2>
+        </div>
+        <span className="severity">{pending.length} pending</span>
+      </div>
+      <div className="approvalList">
+        {pending.map((approval) => (
+          <article key={approval.approvalId}>
+            <div>
+              <strong>{approval.claimLabel}</strong>
+              <span>Automatic factual repairs are preserved; this decision step is paused.</span>
+            </div>
+            <div className="approvalActions">
+              <button
+                className="secondaryButton"
+                type="button"
+                disabled={working !== null || incident.source !== 'live'}
+                onClick={() => decide(approval, 'reject')}
+              >
+                Reject
+              </button>
+              <button
+                className="replayButton"
+                type="button"
+                disabled={working !== null || incident.source !== 'live'}
+                onClick={() => decide(approval, 'approve')}
+              >
+                {working === approval.approvalId ? 'Applying decision…' : 'Approve & continue'}
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      {error && (
+        <p className="actionError" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function ConsequenceMap({ replayStage }: { replayStage: number }) {
+  const incident = useIncident();
   return (
     <section className="panel consequenceMap" aria-labelledby="consequence-title">
       <div className="consequenceHeader">
@@ -421,11 +658,12 @@ function ConsequenceMap({ replayStage }: { replayStage: number }) {
           <article className="flowSource">
             <span className="flowAppIcon">S</span>
             <div>
-              <small>Google Sheets · Metrics!B17</small>
-              <strong>Customer churn</strong>
-              <span>
-                <s>4%</s> → 9%
-              </span>
+              <small>
+                {incident.evidence[0]?.kind ?? 'Evidence'} ·{' '}
+                {incident.evidence[0]?.anchor ?? 'registered anchor'}
+              </small>
+              <strong>{incident.evidence[0]?.label ?? 'Changed evidence'}</strong>
+              <span>semantic change accepted</span>
             </div>
           </article>
         </div>
@@ -451,7 +689,7 @@ function ConsequenceMap({ replayStage }: { replayStage: number }) {
         </div>
 
         <div className="flowBridge" data-visible={replayStage >= 3} aria-hidden="true">
-          <span>9 exact paths</span>
+          <span>exact registered paths</span>
           <i />
         </div>
 
@@ -492,7 +730,8 @@ function ConsequenceMap({ replayStage }: { replayStage: number }) {
           <i aria-hidden="true">✓</i> Sent email left immutable
         </span>
         <span>
-          <i aria-hidden="true">✓</i> 13/13 targets independently verified
+          <i aria-hidden="true">✓</i> {incident.coverage.verifiedTargets}/
+          {incident.coverage.targets} targets independently verified
         </span>
       </div>
     </section>
@@ -522,6 +761,7 @@ function Metric({
 }
 
 function Timeline({ activeStage }: { activeStage: number }) {
+  const incident = useIncident();
   return (
     <section className="timelineSection" aria-labelledby="timeline-title">
       <div className="timelineIntro">
@@ -551,36 +791,46 @@ function Timeline({ activeStage }: { activeStage: number }) {
 }
 
 function CertificateCard() {
+  const incident = useIncident();
+  const certificate = incident.certificate;
   return (
     <aside className="panel certificateCard" aria-labelledby="certificate-title">
       <div className="certificateTopline">
         <span className="verifiedBadge">
-          <span aria-hidden="true">✓</span> Verified
+          <span aria-hidden="true">{certificate ? '✓' : '…'}</span>{' '}
+          {certificate ? 'Verified' : 'Pending'}
         </span>
-        <span>{incident.certificate.shortId}</span>
+        <span>{certificate?.shortId ?? 'NO CERTIFICATE'}</span>
       </div>
       <div className="miniSeal" aria-hidden="true">
         V
       </div>
       <span className="sectionKicker">Evidence Integrity Certificate</span>
       <h2 id="certificate-title">This packet is consistent within its monitored boundary.</h2>
-      <blockquote>{incident.certificate.statement}</blockquote>
+      <blockquote>
+        {certificate?.statement ??
+          'No certificate is issued until every registered target and protected region passes independent verification.'}
+      </blockquote>
       <dl className="certificateFacts">
         <div>
           <dt>Claims</dt>
-          <dd>8 / 8</dd>
+          <dd>{incident.coverage.claims}</dd>
         </div>
         <div>
           <dt>Targets</dt>
-          <dd>13 / 13</dd>
+          <dd>
+            {incident.coverage.verifiedTargets} / {incident.coverage.targets}
+          </dd>
         </div>
         <div>
           <dt>Sources</dt>
-          <dd>6 pinned</dd>
+          <dd>{incident.coverage.sources} pinned</dd>
         </div>
         <div>
           <dt>Protected</dt>
-          <dd>5 / 5</dd>
+          <dd>
+            {incident.coverage.verifiedProtectedArtifacts} / {incident.coverage.protectedArtifacts}
+          </dd>
         </div>
       </dl>
       <p className="certificateScope">
@@ -594,6 +844,7 @@ function CertificateCard() {
 }
 
 function LineageView() {
+  const incident = useIncident();
   return (
     <>
       <ViewHeader
@@ -701,6 +952,7 @@ function LineageView() {
 }
 
 function VerificationView() {
+  const incident = useIncident();
   return (
     <>
       <ViewHeader
@@ -714,7 +966,7 @@ function VerificationView() {
           <div className="panelHeader">
             <div>
               <span className="sectionKicker">Certificate gates</span>
-              <h2>36 checks passed</h2>
+              <h2>{incident.checks.filter((check) => check.passed).length} checks passed</h2>
             </div>
             <span className="verifiedBadge">
               <span aria-hidden="true">✓</span> No exceptions
@@ -724,7 +976,7 @@ function VerificationView() {
             {incident.checks.map((check) => (
               <li key={check.label}>
                 <span className="checkIcon" aria-hidden="true">
-                  ✓
+                  {check.passed ? '✓' : '!'}
                 </span>
                 <div>
                   <strong>{check.label}</strong>
@@ -777,7 +1029,8 @@ function VerificationView() {
                   </td>
                   <td>
                     <span className="successCell">
-                      <span aria-hidden="true">✓</span> current
+                      <span aria-hidden="true">{source.current ? '✓' : '…'}</span>{' '}
+                      {source.current ? 'current' : 'pending verification'}
                     </span>
                   </td>
                 </tr>

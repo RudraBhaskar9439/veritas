@@ -4,7 +4,8 @@ from datetime import UTC, datetime
 import pytest
 
 from operations_support import MemoryOperationRepository
-from veritas_runtime.changes.models import DriveNotificationOutboxEvent
+from veritas_runtime.agents.service import AgentEscalationRequired, AgentReviewError
+from veritas_runtime.changes.models import DriveNotificationOutboxEvent, EvidenceSnapshot
 from veritas_runtime.changes.operations import (
     DRIVE_PROCESS_OPERATION,
     DriveNotificationOutboxDispatcher,
@@ -12,7 +13,11 @@ from veritas_runtime.changes.operations import (
 )
 from veritas_runtime.execution.service import WorkspaceSession
 from veritas_runtime.operations.models import OperationRequest
-from veritas_runtime.operations.service import PermanentOperationError, ReliableOperationService
+from veritas_runtime.operations.service import (
+    PermanentOperationError,
+    ReliableOperationService,
+    RetryableOperationError,
+)
 from veritas_runtime.settings import Settings
 from veritas_runtime.worker_runtime import WorkerRuntimeService, build_worker_components
 from veritas_runtime.workspace.contracts import WorkspaceAuthorization
@@ -57,8 +62,9 @@ class FakeSessions:
 
 
 class FakeProcessor:
-    def __init__(self) -> None:
+    def __init__(self, snapshots: tuple[EvidenceSnapshot, ...] = ()) -> None:
         self.calls: list[tuple[str, str, str | None]] = []
+        self.snapshots = snapshots
 
     async def process_stream(
         self,
@@ -66,9 +72,24 @@ class FakeProcessor:
         access_token: str,
         *,
         expected_subject: str | None = None,
-    ) -> object:
+    ) -> tuple[EvidenceSnapshot, ...]:
         self.calls.append((stream_id, access_token, expected_subject))
-        return ()
+        return self.snapshots
+
+
+class FakeOrchestrator:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.calls: list[tuple[str, tuple[EvidenceSnapshot, ...]]] = []
+        self.error = error
+
+    async def process(
+        self,
+        operation,
+        snapshots: tuple[EvidenceSnapshot, ...],
+    ) -> None:  # type: ignore[no-untyped-def]
+        self.calls.append((operation.operation_id, snapshots))
+        if self.error is not None:
+            raise self.error
 
 
 def test_outbox_dispatches_once_and_worker_processes_subject_bound_stream() -> None:
@@ -138,5 +159,75 @@ def test_drive_operation_rejects_missing_stream_payload() -> None:
         with pytest.raises(PermanentOperationError, match="invalid_drive_stream_operation"):
             await handler.handle(operation)
         assert processor.calls == []
+
+    asyncio.run(scenario())
+
+
+def test_drive_operation_hands_captured_snapshots_to_the_orchestrator() -> None:
+    from repair_support import canonical_repair_context
+
+    repository = MemoryOperationRepository()
+    snapshots = canonical_repair_context().snapshot_metadata
+    processor = FakeProcessor(snapshots)
+    orchestrator = FakeOrchestrator()
+    handler = DriveStreamOperationHandler(processor, FakeSessions(), orchestrator)
+
+    async def scenario() -> None:
+        operation, _ = await repository.enqueue(
+            OperationRequest(
+                subject="subject-1",
+                kind=DRIVE_PROCESS_OPERATION,
+                correlation_id="event-orchestrated",
+                idempotency_key="event-orchestrated",
+                payload={"streamId": "stream-1"},
+            ),
+            NOW,
+        )
+        await handler.handle(operation)
+        assert orchestrator.calls == [(operation.operation_id, snapshots)]
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("agent_error", "expected_error", "code"),
+    [
+        (
+            AgentEscalationRequired("ambiguous authority"),
+            PermanentOperationError,
+            "gemini_escalation_required",
+        ),
+        (
+            AgentReviewError("temporary model outage"),
+            RetryableOperationError,
+            "gemini_review_unavailable",
+        ),
+    ],
+)
+def test_drive_operation_translates_gemini_failures_without_leaking_payloads(
+    agent_error: Exception,
+    expected_error: type[Exception],
+    code: str,
+) -> None:
+    repository = MemoryOperationRepository()
+    handler = DriveStreamOperationHandler(
+        FakeProcessor(),
+        FakeSessions(),
+        FakeOrchestrator(agent_error),
+    )
+
+    async def scenario() -> None:
+        operation, _ = await repository.enqueue(
+            OperationRequest(
+                subject="subject-1",
+                kind=DRIVE_PROCESS_OPERATION,
+                correlation_id="event-gemini-error",
+                idempotency_key="event-gemini-error",
+                payload={"streamId": "stream-1"},
+            ),
+            NOW,
+        )
+        with pytest.raises(expected_error, match=code):
+            await handler.handle(operation)
 
     asyncio.run(scenario())

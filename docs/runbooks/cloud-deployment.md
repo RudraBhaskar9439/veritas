@@ -25,11 +25,11 @@ Populate the OAuth client ID/secret, 32-byte browser-ticket key, separate 32-byt
 
 ## 4. Build immutable images
 
-Build API, ingress, worker, and web images from the accepted commit. Push immutable digest references to Artifact Registry; do not deploy mutable `latest` tags. Terraform derives the API OAuth callback and Drive ingress notification endpoints from Cloud Run's predictable service URLs; record those exact values in the Google OAuth client and watch evidence.
+Build API, ingress, worker, and web images from the accepted commit. Push immutable digest references to Artifact Registry; do not deploy mutable `latest` tags. Terraform derives the OAuth callback from the public web URL and derives the Drive ingress notification endpoint from Cloud Run's predictable service URL. The web container reverse-proxies `/api/` to the API service so the OAuth callback and Strict application-session cookie stay on one browser origin. Record those exact values in the Google OAuth client and watch evidence.
 
 ## 5. Migrate and compose services
 
-Apply SQL migrations `0001` through `0008` exactly once through an auditable migration job. Bind runtime configuration and Secret Manager references. Keep the worker private; expose the API/web boundary and only the narrow signed Drive notification endpoint on ingress. Confirm Cloud Scheduler invokes the worker with OIDC and that unauthenticated worker calls fail.
+Grant the dedicated migrator database identity schema-owner privileges once from an administrative connection, then execute the Terraform-created `veritas-preview-migrations` Cloud Run job before starting traffic. The job takes a PostgreSQL advisory lock, verifies the immutable SHA-256 ledger, and applies SQL migrations `0001` through `0009` transactionally; checksum drift fails closed. Grant API, ingress, and worker only their required table privileges after the schema exists. Bind runtime configuration and Secret Manager references. Keep the worker private; expose the API/web boundary and only the narrow signed Drive notification endpoint on ingress. Confirm Cloud Scheduler invokes the worker with OIDC and that unauthenticated worker calls fail.
 
 ## 6. Configure Google OAuth and watches
 

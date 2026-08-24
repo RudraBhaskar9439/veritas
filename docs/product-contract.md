@@ -35,7 +35,7 @@ For every monitored claim, Veritas can answer:
 
 - `registered` lineage is captured during generation or explicitly confirmed by a user.
 - `candidate` lineage is model-inferred and cannot be certified until confirmed.
-- Gemini may interpret semantic significance and plan repairs.
+- Gemini 3.5 Flash reviews the already registered impact and typed plan through the Google Gen AI SDK. It may veto ambiguous autonomous work, but it cannot add scope, change deterministic policy, approve a repair, or issue a certificate.
 - Deterministic code owns calculations, versions, graph traversal, policy enforcement, API mutations, idempotency, and certificate eligibility.
 - Consequential or irreversible actions require approval or remain draft-only.
 
@@ -77,4 +77,3 @@ Forbidden:
 ## Success definition
 
 The recorded demonstration must show a real Sheet change producing a persisted event, a correct four-claim blast radius, minimal repair of five real downstream artifacts, preservation of a human-authored paragraph, creation of a correction draft for an already-sent message, independent verification, and a scoped certificate on Google Cloud.
-

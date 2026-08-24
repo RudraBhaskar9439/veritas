@@ -18,5 +18,6 @@ async def capabilities() -> dict[str, object]:
         "service": "agent-worker",
         "processingDriveChanges": components is not None,
         "durableOperations": components is not None,
-        "executingRepairs": False,
+        "executingRepairs": components is not None,
+        "independentVerification": components is not None,
     }

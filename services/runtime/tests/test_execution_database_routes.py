@@ -132,3 +132,10 @@ def test_execution_route_is_fail_closed_without_a_workspace_session() -> None:
         json={"requestId": "execution-request-1"},
     )
     assert response.status_code == 503
+    assert (
+        client.post(
+            "/api/v1/repair-runs/run-1/resume",
+            json={"requestId": "resume-request-1"},
+        ).status_code
+        == 503
+    )

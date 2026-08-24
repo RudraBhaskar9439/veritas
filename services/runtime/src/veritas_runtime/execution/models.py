@@ -72,3 +72,7 @@ class RepairRun(CamelModel):
 
 class ExecuteRepairRequest(CamelModel):
     request_id: str = Field(min_length=1)
+
+
+class ResumeRepairRequest(CamelModel):
+    request_id: str = Field(min_length=1)

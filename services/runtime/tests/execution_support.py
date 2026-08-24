@@ -50,6 +50,12 @@ class MemoryExecutionRepository:
     async def get_by_idempotency_key(self, key: str) -> RepairRun | None:
         return self.runs.get(key)
 
+    async def get_by_run_id(self, subject: str, run_id: str) -> RepairRun:
+        run = next((item for item in self.runs.values() if item.run_id == run_id), None)
+        if run is None or self.subjects.get(run_id) != subject:
+            raise LookupError("run not found")
+        return run
+
     async def start(
         self,
         subject: str,

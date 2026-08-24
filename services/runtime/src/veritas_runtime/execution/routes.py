@@ -2,7 +2,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import APIRouter, HTTPException, Request
 
-from veritas_runtime.execution.models import ExecuteRepairRequest, RepairRun
+from veritas_runtime.execution.models import ExecuteRepairRequest, RepairRun, ResumeRepairRequest
 from veritas_runtime.execution.service import RepairExecutionService
 
 SubjectResolver = Callable[[Request], Awaitable[str]]
@@ -33,6 +33,31 @@ def create_execution_router(
         subject = await subject_resolver(request)
         try:
             return await service.execute(subject, plan_id, payload.request_id)
+        except PermissionError as error:
+            raise HTTPException(status_code=403, detail="Repair execution denied") from error
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+    @router.post(
+        "/api/v1/repair-runs/{run_id}/resume",
+        response_model=RepairRun,
+        tags=["execution"],
+    )
+    async def resume_run(
+        run_id: str,
+        payload: ResumeRepairRequest,
+        request: Request,
+    ) -> RepairRun:
+        if service is None or subject_resolver is None:
+            raise HTTPException(status_code=503, detail="Workspace execution is not configured")
+        try:
+            return await service.resume(
+                await subject_resolver(request),
+                run_id,
+                payload.request_id,
+            )
         except PermissionError as error:
             raise HTTPException(status_code=403, detail="Repair execution denied") from error
         except LookupError as error:
