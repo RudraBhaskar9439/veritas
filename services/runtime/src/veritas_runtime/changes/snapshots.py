@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import NAMESPACE_URL, uuid5
 
 from google.api_core.exceptions import PreconditionFailed
@@ -98,6 +98,9 @@ class GcsSnapshotObjectStore:
     ) -> StoredSnapshotObject:
         return await asyncio.to_thread(self._put_once, object_name, content, sha256)
 
+    async def read(self, snapshot: EvidenceSnapshot) -> bytes:
+        return await asyncio.to_thread(self._read, snapshot)
+
     def _put_once(
         self,
         object_name: str,
@@ -128,6 +131,28 @@ class GcsSnapshotObjectStore:
             object_name=object_name,
             generation=str(blob.generation),
         )
+
+    def _read(self, snapshot: EvidenceSnapshot) -> bytes:
+        if snapshot.storage.bucket != self._bucket_name:
+            raise SnapshotIntegrityError("Snapshot belongs to a different storage bucket")
+        try:
+            generation = int(snapshot.storage.generation)
+        except ValueError as error:
+            raise SnapshotIntegrityError("Snapshot object generation is invalid") from error
+        blob = self._client.bucket(self._bucket_name).blob(
+            snapshot.storage.object_name,
+            generation=generation,
+        )
+        content = cast(
+            bytes,
+            blob.download_as_bytes(
+                if_generation_match=generation,
+                checksum="crc32c",
+            ),
+        )
+        if hashlib.sha256(content).hexdigest() != snapshot.content_hash:
+            raise SnapshotIntegrityError("Snapshot content hash does not match its record")
+        return content
 
 
 def _object_name(capture: EvidenceCapture, exact_hash: str) -> str:

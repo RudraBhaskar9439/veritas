@@ -25,7 +25,7 @@ output "credential_kms_key" {
 
 output "auth_secret_ids" {
   value       = { for name, secret in google_secret_manager_secret.auth : name => secret.secret_id }
-  description = "Secret Manager IDs populated out-of-band during the Phase 2 live gate."
+  description = "OAuth and application-session Secret Manager IDs populated out-of-band during the Phase 2 live gate."
 }
 
 output "deployed_service_uris" {

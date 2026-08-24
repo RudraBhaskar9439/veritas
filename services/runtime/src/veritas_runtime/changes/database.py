@@ -29,6 +29,7 @@ from veritas_runtime.auth.database import metadata
 from veritas_runtime.changes.models import (
     DeltaKind,
     DriveNotification,
+    DriveNotificationOutboxEvent,
     DriveWatchChannel,
     DriveWatchStream,
     EvidenceSnapshot,
@@ -447,6 +448,66 @@ class SqlWatchRepository:
                     updated_at=now,
                 )
             )
+
+    async def pending_notification_events(
+        self,
+        limit: int = 100,
+    ) -> tuple[DriveNotificationOutboxEvent, ...]:
+        if limit < 1 or limit > 500:
+            raise ValueError("Outbox batch size must be between 1 and 500")
+        async with self._engine.connect() as connection:
+            rows = (
+                (
+                    await connection.execute(
+                        select(
+                            drive_notification_outbox,
+                            drive_watch_channels.c.stream_id,
+                            drive_watch_streams.c.subject,
+                        )
+                        .join(
+                            drive_watch_channels,
+                            drive_watch_channels.c.channel_id
+                            == drive_notification_outbox.c.channel_id,
+                        )
+                        .join(
+                            drive_watch_streams,
+                            drive_watch_streams.c.stream_id == drive_watch_channels.c.stream_id,
+                        )
+                        .where(drive_notification_outbox.c.status == "pending")
+                        .order_by(drive_notification_outbox.c.created_at)
+                        .limit(limit)
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return tuple(
+            DriveNotificationOutboxEvent(
+                event_id=str(row["event_id"]),
+                stream_id=str(row["stream_id"]),
+                subject=str(row["subject"]),
+                channel_id=str(row["channel_id"]),
+                message_number=int(row["message_number"]),
+                attempts=int(row["attempts"]),
+                created_at=_utc_datetime(row["created_at"]),
+            )
+            for row in rows
+        )
+
+    async def mark_notification_dispatched(self, event_id: str) -> bool:
+        async with self._engine.begin() as connection:
+            result = await connection.execute(
+                update(drive_notification_outbox)
+                .where(
+                    drive_notification_outbox.c.event_id == event_id,
+                    drive_notification_outbox.c.status == "pending",
+                )
+                .values(
+                    status="dispatched",
+                    attempts=drive_notification_outbox.c.attempts + 1,
+                )
+            )
+        return result.rowcount == 1
 
     async def register_sources(
         self,

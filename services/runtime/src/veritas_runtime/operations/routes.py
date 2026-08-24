@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from typing import Protocol
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -12,6 +13,10 @@ from veritas_runtime.operations.service import ReliableOperationService
 
 SubjectResolver = Callable[[Request], Awaitable[str]]
 ActorResolver = Callable[[Request], Awaitable[str]]
+
+
+class WorkerOperationService(Protocol):
+    async def tick(self, worker_id: str) -> object: ...
 
 
 def create_operations_router(
@@ -70,7 +75,7 @@ def create_operations_router(
     return router
 
 
-def create_worker_operations_router(service: ReliableOperationService | None) -> APIRouter:
+def create_worker_operations_router(service: WorkerOperationService | None) -> APIRouter:
     router = APIRouter()
 
     @router.get("/internal/v1/operations/capabilities", tags=["operations"])

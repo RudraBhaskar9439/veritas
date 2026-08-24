@@ -65,11 +65,15 @@ class DriveChangeProcessor:
         stream_id: str,
         access_token: str,
         now: datetime | None = None,
+        *,
+        expected_subject: str | None = None,
     ) -> tuple[EvidenceSnapshot, ...]:
         current_time = (now or datetime.now(UTC)).astimezone(UTC)
         stream = await self._repository.get_stream(stream_id)
         if stream is None:
             raise LookupError("Drive watch stream was not found")
+        if expected_subject is not None and stream.subject != expected_subject:
+            raise PermissionError("Drive watch stream belongs to another subject")
         cursor = stream.page_token
         captured: list[EvidenceSnapshot] = []
         while True:

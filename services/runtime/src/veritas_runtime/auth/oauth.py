@@ -26,6 +26,8 @@ class GoogleOAuthPort(Protocol):
 
     async def fetch_identity(self, access_token: str) -> GoogleIdentity: ...
 
+    async def refresh_access_token(self, refresh_token: str) -> OAuthTokenSet: ...
+
 
 @dataclass(frozen=True)
 class GoogleOAuthConfig:
@@ -116,6 +118,46 @@ class GoogleOAuthGateway:
         return GoogleIdentity(
             subject=_required_string(payload, "sub"),
             email=_required_string(payload, "email"),
+        )
+
+    async def refresh_access_token(self, refresh_token: str) -> OAuthTokenSet:
+        if not refresh_token:
+            raise OAuthExchangeError("Google refresh token is missing")
+        response = await self._request(
+            "POST",
+            GOOGLE_TOKEN_ENDPOINT,
+            data={
+                "client_id": self._config.client_id,
+                "client_secret": self._config.client_secret,
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+            },
+        )
+        payload = _safe_json(response)
+        if response.is_error:
+            raise OAuthExchangeError("Google rejected the refresh token")
+        access_token = _required_string(payload, "access_token")
+        token_type = _required_string(payload, "token_type")
+        if token_type.casefold() != "bearer":
+            raise OAuthExchangeError("Google returned an unsupported token type")
+        expires_in = payload.get("expires_in")
+        if not isinstance(expires_in, int) or expires_in <= 0:
+            raise OAuthExchangeError("Google returned an invalid token lifetime")
+        raw_scopes = payload.get("scope", " ".join(self._config.scopes))
+        if not isinstance(raw_scopes, str):
+            raise OAuthExchangeError("Google returned invalid granted scopes")
+        granted_scopes = tuple(sorted(set(raw_scopes.split())))
+        if not set(self._config.scopes).issubset(granted_scopes):
+            raise OAuthExchangeError("Google refresh omitted a required capability")
+        rotated_refresh_token = payload.get("refresh_token")
+        if rotated_refresh_token is not None and not isinstance(rotated_refresh_token, str):
+            raise OAuthExchangeError("Google returned an invalid refresh token")
+        return OAuthTokenSet(
+            access_token=access_token,
+            refresh_token=rotated_refresh_token or refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=granted_scopes,
+            token_type="Bearer",
         )
 
     async def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:

@@ -31,6 +31,30 @@ variable "service_images" {
   }
 }
 
+variable "google_oauth_redirect_uri" {
+  description = "Exact HTTPS Google OAuth callback for the deployed API service."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.google_oauth_redirect_uri == null || can(regex("^https://[^/]+/api/v1/auth/google/callback$", var.google_oauth_redirect_uri))
+    error_message = "google_oauth_redirect_uri must be null or an HTTPS /api/v1/auth/google/callback URL"
+  }
+}
+
+variable "drive_webhook_url" {
+  description = "Exact HTTPS Drive notification endpoint for the deployed ingress service."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.drive_webhook_url == null || can(regex("^https://[^/]+/api/v1/integrations/google-drive/notifications$", var.drive_webhook_url))
+    error_message = "drive_webhook_url must be null or the HTTPS Drive notification endpoint"
+  }
+}
+
 variable "database_tier" {
   description = "Cloud SQL machine tier."
   type        = string

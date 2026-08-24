@@ -15,11 +15,15 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     request_id_header: str = Field(default="X-Request-ID", min_length=1)
     database_url: SecretStr | None = None
+    cloud_sql_instance: str | None = None
+    cloud_sql_database: str = "veritas"
+    cloud_sql_user: str | None = None
     google_oauth_client_id: str | None = None
     google_oauth_client_secret: SecretStr | None = None
     google_oauth_redirect_uri: str | None = None
     google_kms_credentials_key: str | None = None
     oauth_ticket_key: SecretStr | None = None
+    application_session_key: SecretStr | None = None
     drive_channel_token_key: SecretStr | None = None
     drive_webhook_url: str | None = None
     snapshot_bucket: str | None = None
@@ -31,7 +35,7 @@ class Settings(BaseSettings):
 
         return all(
             (
-                self.database_url,
+                self.database_configured,
                 self.google_oauth_client_id,
                 self.google_oauth_client_secret,
                 self.google_oauth_redirect_uri,
@@ -41,8 +45,18 @@ class Settings(BaseSettings):
         )
 
     @property
+    def application_session_configured(self) -> bool:
+        return self.application_session_key is not None
+
+    @property
     def drive_ingress_configured(self) -> bool:
-        return bool(self.database_url and self.drive_channel_token_key)
+        return bool(self.database_configured and self.drive_channel_token_key)
+
+    @property
+    def database_configured(self) -> bool:
+        return self.database_url is not None or all(
+            (self.cloud_sql_instance, self.cloud_sql_database, self.cloud_sql_user)
+        )
 
 
 @lru_cache

@@ -37,6 +37,7 @@ class ExecutionContext:
 class WorkspaceSession:
     access_token: str
     authorization: WorkspaceAuthorization
+    email: str | None = None
 
 
 class WorkspaceSessionProvider(Protocol):

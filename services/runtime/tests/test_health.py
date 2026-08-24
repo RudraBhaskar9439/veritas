@@ -45,6 +45,21 @@ def test_readiness_contract(client: TestClient) -> None:
     }
 
 
+def test_readiness_fails_closed_when_runtime_composition_is_missing() -> None:
+    unconfigured = create_app("worker", Settings(environment="test"))
+    unconfigured.state.configuration_ready = False
+
+    response = TestClient(unconfigured).get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "service": "worker",
+        "environment": "test",
+        "checks": {"configuration": "missing"},
+    }
+
+
 def test_request_id_is_generated_and_security_headers_are_set(client: TestClient) -> None:
     response = client.get("/health/live")
 

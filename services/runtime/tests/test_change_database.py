@@ -62,6 +62,16 @@ def test_sql_watch_repository_persists_overlap_sync_and_atomic_outbox_dedup() ->
             )
         assert notification_count == 1
         assert outbox_count == 1
+        pending = await repository.pending_notification_events()
+        assert len(pending) == 1
+        assert pending[0].event_id == f"drive-notification:{old.channel_id}:2"
+        assert pending[0].stream_id == old.stream_id
+        assert pending[0].subject == "subject-1"
+        assert await repository.mark_notification_dispatched(pending[0].event_id) is True
+        assert await repository.mark_notification_dispatched(pending[0].event_id) is False
+        assert await repository.pending_notification_events() == ()
+        with pytest.raises(ValueError, match="batch size"):
+            await repository.pending_notification_events(0)
 
         renewal_time = NOW + timedelta(days=5, hours=1)
 

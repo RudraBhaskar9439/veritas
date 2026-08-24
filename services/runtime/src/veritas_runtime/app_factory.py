@@ -78,12 +78,14 @@ def create_app(service_name: str, settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "service": service_name, "version": resolved.version}
 
     @app.get("/health/ready", tags=["health"])
-    async def readiness() -> dict[str, object]:
-        return {
-            "status": "ready",
+    async def readiness() -> Response:
+        configured = bool(getattr(app.state, "configuration_ready", True))
+        payload = {
+            "status": "ready" if configured else "not_ready",
             "service": service_name,
             "environment": resolved.environment,
-            "checks": {"configuration": "ok"},
+            "checks": {"configuration": "ok" if configured else "missing"},
         }
+        return JSONResponse(status_code=200 if configured else 503, content=payload)
 
     return app

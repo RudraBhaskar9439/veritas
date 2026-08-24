@@ -166,6 +166,8 @@ def test_change_processor_rejects_missing_stream_and_nonadvancing_cursor() -> No
     async def scenario() -> None:
         with pytest.raises(LookupError, match="not found"):
             await processor.process_stream("missing", "access", NOW)
+        with pytest.raises(PermissionError, match="another subject"):
+            await processor.process_stream("stream-1", "access", NOW, expected_subject="subject-2")
         with pytest.raises(InvalidChangePage, match="advance"):
             await processor.process_stream("stream-1", "access", NOW)
 

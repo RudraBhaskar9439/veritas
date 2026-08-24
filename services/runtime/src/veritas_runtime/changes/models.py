@@ -70,6 +70,16 @@ class NotificationDisposition(StrEnum):
     IGNORED = "ignored"
 
 
+class DriveNotificationOutboxEvent(ChangeModel):
+    event_id: str = Field(min_length=1, max_length=255)
+    stream_id: str = Field(min_length=1)
+    subject: str = Field(min_length=1)
+    channel_id: str = Field(min_length=1, max_length=64)
+    message_number: int = Field(ge=1)
+    attempts: int = Field(ge=0)
+    created_at: datetime
+
+
 class DriveChange(ChangeModel):
     change_id: str = Field(min_length=1)
     file_id: str = Field(min_length=1)

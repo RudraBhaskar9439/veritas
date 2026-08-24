@@ -85,6 +85,31 @@ def test_code_exchange_and_verified_identity() -> None:
     assert b"pkce-verifier" in seen[0].content
 
 
+def test_refresh_rotates_access_token_and_preserves_refresh_token() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == GOOGLE_TOKEN_ENDPOINT
+        assert b"grant_type=refresh_token" in request.content
+        assert b"refresh_token=refresh-secret" in request.content
+        return httpx.Response(
+            200,
+            json={
+                "access_token": "refreshed-access",
+                "expires_in": 3600,
+                "scope": "scope-b openid scope-a",
+                "token_type": "Bearer",
+            },
+        )
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            tokens = await GoogleOAuthGateway(CONFIG, client).refresh_access_token("refresh-secret")
+        assert tokens.access_token == "refreshed-access"
+        assert tokens.refresh_token == "refresh-secret"
+        assert tokens.scopes == ("openid", "scope-a", "scope-b")
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize(
     ("payload", "message"),
     [

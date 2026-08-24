@@ -21,15 +21,15 @@ Acceptance evidence:
 
 ## 3. Add secrets out of band
 
-Populate the OAuth client ID/secret, browser-ticket key, and Drive channel-token key directly in Secret Manager. Configure database access with Cloud SQL IAM where supported. Confirm only the intended service identities can access each secret or KMS operation.
+Populate the OAuth client ID/secret, 32-byte browser-ticket key, separate 32-byte application-session key, and Drive channel-token key directly in Secret Manager. API, ingress, and worker use automatic Cloud SQL IAM authentication; do not create a database-password secret. Confirm only the intended service identities can access each secret, database identity, or KMS operation.
 
 ## 4. Build immutable images
 
-Build API, ingress, worker, and web images from the accepted commit. Push immutable digest references to Artifact Registry; do not deploy mutable `latest` tags. Reapply Terraform with the four digest-pinned image references.
+Build API, ingress, worker, and web images from the accepted commit. Push immutable digest references to Artifact Registry; do not deploy mutable `latest` tags. Terraform derives the API OAuth callback and Drive ingress notification endpoints from Cloud Run's predictable service URLs; record those exact values in the Google OAuth client and watch evidence.
 
 ## 5. Migrate and compose services
 
-Apply SQL migrations `0001` through `0008` exactly once through an auditable migration job. Bind runtime configuration and Secret Manager references. Keep ingress and worker private; expose only the intended API/web boundary. Configure Cloud Tasks and Pub/Sub calls with service identity.
+Apply SQL migrations `0001` through `0008` exactly once through an auditable migration job. Bind runtime configuration and Secret Manager references. Keep the worker private; expose the API/web boundary and only the narrow signed Drive notification endpoint on ingress. Confirm Cloud Scheduler invokes the worker with OIDC and that unauthenticated worker calls fail.
 
 ## 6. Configure Google OAuth and watches
 

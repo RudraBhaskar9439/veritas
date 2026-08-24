@@ -10,10 +10,12 @@ from fastapi.testclient import TestClient
 from veritas_runtime.auth.models import GoogleIdentity, OAuthTokenSet, WorkspaceCredentialRecord
 from veritas_runtime.auth.routes import (
     LOCAL_COOKIE_NAME,
+    LOCAL_SESSION_COOKIE_NAME,
     PRODUCTION_COOKIE_NAME,
     create_google_auth_router,
 )
 from veritas_runtime.auth.service import GoogleConnectionService, InvalidAuthorizationAttempt
+from veritas_runtime.auth.sessions import ApplicationSessionCodec
 from veritas_runtime.auth.storage import EncryptedCredentialVault
 from veritas_runtime.auth.tickets import AuthorizationTicketCodec
 
@@ -164,9 +166,19 @@ def test_connection_service_rejects_state_tampering_and_unsafe_return_path() -> 
     asyncio.run(scenario())
 
 
-def _app(service: GoogleConnectionService | None, secure_cookie: bool = False) -> FastAPI:
+def _app(
+    service: GoogleConnectionService | None,
+    secure_cookie: bool = False,
+    session_codec: ApplicationSessionCodec | None = None,
+) -> FastAPI:
     app = FastAPI()
-    app.include_router(create_google_auth_router(service, secure_cookie=secure_cookie))
+    app.include_router(
+        create_google_auth_router(
+            service,
+            secure_cookie=secure_cookie,
+            session_codec=session_codec,
+        )
+    )
     return app
 
 
@@ -209,6 +221,30 @@ def test_routes_set_hardened_cookie_and_complete_callback() -> None:
     assert callback.headers["location"] == "/command-center?incident=123&google=connected"
     assert "subject-1" in credentials.records
     assert client.cookies.get(LOCAL_COOKIE_NAME) is None
+
+
+def test_routes_issue_authenticated_session_and_logout() -> None:
+    service, _, _ = _service()
+    client = TestClient(_app(service, session_codec=ApplicationSessionCodec(bytes(range(32)))))
+    start = client.get("/api/v1/auth/google/start", follow_redirects=False)
+    state = _state(start.headers["location"])
+
+    callback = client.get(
+        "/api/v1/auth/google/callback",
+        params={"code": "google-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    assert client.cookies.get(LOCAL_SESSION_COOKIE_NAME) is not None
+    session = client.get("/api/v1/auth/session")
+    assert session.status_code == 200
+    assert session.json() == {"subject": "subject-1", "email": "owner@example.test"}
+
+    logout = client.post("/api/v1/auth/logout")
+    assert logout.status_code == 204
+    assert client.cookies.get(LOCAL_SESSION_COOKIE_NAME) is None
+    assert client.get("/api/v1/auth/session").status_code == 401
 
 
 def test_routes_reject_bad_inputs_and_production_cookie_is_host_only() -> None:
