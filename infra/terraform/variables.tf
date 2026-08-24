@@ -37,3 +37,25 @@ variable "database_tier" {
   default     = "db-f1-micro"
 }
 
+variable "billing_account_id" {
+  description = "Optional Cloud Billing account ID used for the project-scoped gross-cost warning budget."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.billing_account_id == null || can(regex("^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$", var.billing_account_id))
+    error_message = "billing_account_id must be null or a Google Cloud Billing account ID such as 000000-000000-000000"
+  }
+}
+
+variable "monthly_budget_usd" {
+  description = "Gross monthly cost that triggers preview warnings; this budget does not itself cap spending."
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.monthly_budget_usd >= 5 && var.monthly_budget_usd <= 300 && floor(var.monthly_budget_usd) == var.monthly_budget_usd
+    error_message = "monthly_budget_usd must be a whole-dollar amount between 5 and 300"
+  }
+}

@@ -4,6 +4,7 @@ locals {
   required_services = toset([
     "aiplatform.googleapis.com",
     "artifactregistry.googleapis.com",
+    "billingbudgets.googleapis.com",
     "cloudkms.googleapis.com",
     "cloudtasks.googleapis.com",
     "docs.googleapis.com",
@@ -23,6 +24,18 @@ locals {
 
   service_accounts = toset(["api", "ingress", "worker"])
 
+  runtime_max_instances = var.environment == "production" ? {
+    api     = 5
+    ingress = 5
+    worker  = 20
+    web     = 5
+    } : {
+    api     = 2
+    ingress = 2
+    worker  = 3
+    web     = 2
+  }
+
   api_auth_secrets = toset([
     "google-oauth-client-id",
     "google-oauth-client-secret",
@@ -32,6 +45,40 @@ locals {
   auth_secrets = setunion(local.api_auth_secrets, toset([
     "drive-channel-token-key",
   ]))
+}
+
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
+resource "google_billing_budget" "preview" {
+  count = var.billing_account_id == null ? 0 : 1
+
+  billing_account = var.billing_account_id
+  display_name    = "${local.name}: gross-cost warning budget"
+
+  budget_filter {
+    calendar_period        = "MONTH"
+    projects               = ["projects/${data.google_project.current.number}"]
+    credit_types_treatment = "EXCLUDE_ALL_CREDITS"
+  }
+
+  amount {
+    specified_amount {
+      currency_code = "USD"
+      units         = tostring(var.monthly_budget_usd)
+    }
+  }
+
+  dynamic "threshold_rules" {
+    for_each = toset([0.2, 0.5, 0.8, 1.0])
+    content {
+      threshold_percent = threshold_rules.value
+      spend_basis       = "CURRENT_SPEND"
+    }
+  }
+
+  depends_on = [google_project_service.required]
 }
 
 resource "google_project_service" "required" {
@@ -161,11 +208,12 @@ resource "google_sql_database_instance" "postgres" {
   region           = var.region
 
   settings {
-    tier              = var.database_tier
-    availability_type = var.environment == "production" ? "REGIONAL" : "ZONAL"
-    disk_autoresize   = true
-    disk_type         = "PD_SSD"
-    disk_size         = 10
+    tier                  = var.database_tier
+    availability_type     = var.environment == "production" ? "REGIONAL" : "ZONAL"
+    disk_autoresize       = true
+    disk_autoresize_limit = var.environment == "production" ? 100 : 20
+    disk_type             = "PD_SSD"
+    disk_size             = 10
 
     backup_configuration {
       enabled                        = true
@@ -204,7 +252,7 @@ resource "google_cloud_run_v2_service" "runtime" {
 
     scaling {
       min_instance_count = 0
-      max_instance_count = each.key == "worker" ? 20 : 5
+      max_instance_count = local.runtime_max_instances[each.key]
     }
 
     containers {

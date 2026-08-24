@@ -8,6 +8,7 @@ const requiredFiles = [
   'demo/rehearsal-results.json',
   'docs/architecture.md',
   'docs/architecture-decisions/0012-proof-bound-submission.md',
+  'docs/architecture-decisions/0014-preview-cost-containment.md',
   'docs/runbooks/cloud-deployment.md',
   'docs/submission/checklist.md',
   'docs/submission/claim-evidence-matrix.md',
@@ -72,4 +73,3 @@ console.log('- the four-minute narrative, proof matrix, diagrams, and runbooks a
 console.log('- five deterministic offline rehearsals pass 12/12 checks each');
 console.log('- every unproven live Cloud item remains explicitly pending');
 console.log('- the real video and five live rehearsals require Google Cloud access');
-

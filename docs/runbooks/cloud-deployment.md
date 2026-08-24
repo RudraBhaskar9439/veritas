@@ -10,11 +10,14 @@ Record the project ID, billing account, region, accepted Git commit, operator ac
 
 Use the committed Terraform in `infra/terraform` with a secure remote state backend. Review the plan before applying. The first apply creates APIs, service accounts, Artifact Registry, versioned Storage, Pub/Sub with dead letter handling, Cloud Tasks, KMS, empty Secret Manager resources, Cloud SQL, log metrics, and the dead-letter alert.
 
+Before the first plan, apply [ADR 0014](../architecture-decisions/0014-preview-cost-containment.md): verify the Billing Overview says **Free trial account**, never **Paid account**. Pass the billing account ID only through an uncommitted variable source to create the $50 gross-cost warning budget. Keep preview Cloud Run minimum instances at zero, retain the preview scaling ceilings, and enable a project spend cap in Cloud Billing if the account offers one. A normal budget alert is not a hard cap.
+
 Acceptance evidence:
 
 - clean Terraform plan and apply;
 - service-account role list with no owner/editor grants;
 - bucket versioning, KMS rotation, Cloud SQL backup/PITR, task retry, and Pub/Sub DLQ settings.
+- gross-cost budget thresholds, preview instance ceilings, and the Cloud SQL disk ceiling.
 
 ## 3. Add secrets out of band
 
@@ -50,4 +53,3 @@ Stop on the first failed gate. Preserve logs and IDs; do not reuse a partially r
 ## 8. Freeze proof
 
 Update the cloud proof manifest, phase reports, real evaluation metrics, image digests, architecture links, demo video, and Devpost URLs. Push one release tag only after the latest workflow, public smoke check, and all submission checklist items pass.
-

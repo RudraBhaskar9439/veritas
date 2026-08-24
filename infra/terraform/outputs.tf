@@ -40,3 +40,8 @@ output "operation_metric_names" {
   }
   description = "Log-based metrics used by the Phase 10 operations dashboard and alert policy."
 }
+
+output "gross_cost_budget" {
+  value       = try(google_billing_budget.preview[0].name, null)
+  description = "Project-scoped gross-cost warning budget when billing_account_id is supplied. This is not a hard cap."
+}
