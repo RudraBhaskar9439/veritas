@@ -202,7 +202,20 @@ def test_change_processor_rejects_missing_stream_and_nonadvancing_cursor() -> No
                 NOW,
                 expected_subject="subject-2",
             )
-        with pytest.raises(InvalidChangePage, match="advance"):
+        with pytest.raises(InvalidChangePage, match="omitted"):
             await processor.process_stream("stream-1", "access", "operation-invalid", NOW)
+
+        drive.change_page = DriveChangePage(changes=(), new_start_page_token="page-1")
+        no_op = await processor.process_stream("stream-1", "access", "operation-no-op", NOW)
+        assert no_op == ()
+        replay = await processor.process_stream("stream-1", "access", "operation-no-op", NOW)
+        assert replay == ()
+
+        drive.change_page = DriveChangePage(
+            changes=(DriveChange(change_id="5", file_id="unregistered"),),
+            new_start_page_token="page-1",
+        )
+        with pytest.raises(InvalidChangePage, match="advance"):
+            await processor.process_stream("stream-1", "access", "operation-nonadvancing", NOW)
 
     asyncio.run(scenario())

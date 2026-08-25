@@ -118,7 +118,9 @@ class DriveChangeProcessor:
                 page_snapshots.append(result.snapshot)
 
             next_cursor = page.next_page_token or page.new_start_page_token
-            if next_cursor is None or next_cursor == cursor:
+            if next_cursor is None:
+                raise InvalidChangePage("Drive change page omitted its continuation cursor")
+            if next_cursor == cursor and changes:
                 raise InvalidChangePage("Drive change page did not advance its cursor")
             await self._repository.commit_snapshots_and_cursor(
                 stream.stream_id,
