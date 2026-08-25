@@ -4,6 +4,7 @@ from uuid import NAMESPACE_URL, uuid5
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -28,6 +29,7 @@ from sqlalchemy.sql.base import Executable
 from veritas_runtime.auth.database import metadata
 from veritas_runtime.changes.models import (
     DeltaKind,
+    DriveChangeBatchStatus,
     DriveNotification,
     DriveNotificationOutboxEvent,
     DriveWatchChannel,
@@ -159,6 +161,34 @@ Index(
     evidence_snapshots.c.packet_id,
     evidence_snapshots.c.source_id,
     evidence_snapshots.c.created_at,
+)
+
+drive_change_operation_batches = Table(
+    "drive_change_operation_batches",
+    metadata,
+    Column("operation_id", String(255), primary_key=True),
+    Column("subject", String(255), nullable=False),
+    Column("stream_id", String(255), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint(
+        "status IN ('processing', 'ready')",
+        name="drive_change_operation_batches_status_ck",
+    ),
+)
+Index(
+    "drive_change_operation_batches_stream_idx",
+    drive_change_operation_batches.c.subject,
+    drive_change_operation_batches.c.stream_id,
+)
+
+drive_change_operation_snapshots = Table(
+    "drive_change_operation_snapshots",
+    metadata,
+    Column("operation_id", String(255), primary_key=True),
+    Column("snapshot_id", String(255), primary_key=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
 )
 
 
@@ -608,6 +638,51 @@ class SqlWatchRepository:
             )
         return _snapshot(row) if row is not None else None
 
+    async def operation_snapshots(
+        self,
+        operation_id: str,
+        subject: str,
+        stream_id: str,
+    ) -> tuple[EvidenceSnapshot, ...] | None:
+        async with self._engine.connect() as connection:
+            batch = (
+                (
+                    await connection.execute(
+                        select(drive_change_operation_batches).where(
+                            drive_change_operation_batches.c.operation_id == operation_id
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if batch is None:
+                return None
+            if batch["subject"] != subject or batch["stream_id"] != stream_id:
+                raise SnapshotIntegrityError("Drive operation batch identity cannot be rebound")
+            if batch["status"] != DriveChangeBatchStatus.READY.value:
+                return None
+            rows = (
+                (
+                    await connection.execute(
+                        select(evidence_snapshots)
+                        .join(
+                            drive_change_operation_snapshots,
+                            drive_change_operation_snapshots.c.snapshot_id
+                            == evidence_snapshots.c.snapshot_id,
+                        )
+                        .where(drive_change_operation_snapshots.c.operation_id == operation_id)
+                        .order_by(
+                            evidence_snapshots.c.created_at,
+                            evidence_snapshots.c.snapshot_id,
+                        )
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return tuple(_snapshot(row) for row in rows)
+
     async def persist_baseline_snapshots(
         self,
         snapshots: tuple[EvidenceSnapshot, ...],
@@ -652,6 +727,9 @@ class SqlWatchRepository:
         next_page_token: str,
         snapshots: tuple[EvidenceSnapshot, ...],
         now: datetime,
+        *,
+        operation_id: str,
+        batch_complete: bool,
     ) -> None:
         async with self._engine.begin() as connection:
             if self._engine.dialect.name == "postgresql":
@@ -674,8 +752,50 @@ class SqlWatchRepository:
             if stream["page_token"] != expected_page_token:
                 raise ChangeCursorConflict("Drive cursor was advanced by another worker")
 
+            batch = (
+                (
+                    await connection.execute(
+                        select(drive_change_operation_batches).where(
+                            drive_change_operation_batches.c.operation_id == operation_id
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if batch is None:
+                await connection.execute(
+                    insert(drive_change_operation_batches).values(
+                        operation_id=operation_id,
+                        subject=stream["subject"],
+                        stream_id=stream_id,
+                        status=DriveChangeBatchStatus.PROCESSING.value,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
+            elif batch["subject"] != stream["subject"] or batch["stream_id"] != stream_id:
+                raise SnapshotIntegrityError("Drive operation batch identity cannot be rebound")
+            elif batch["status"] == DriveChangeBatchStatus.READY.value:
+                raise SnapshotIntegrityError("A completed Drive operation batch is immutable")
+
             for snapshot in snapshots:
                 await _persist_snapshot(connection, snapshot)
+                await connection.execute(
+                    _insert_do_nothing(
+                        connection,
+                        drive_change_operation_snapshots,
+                        {
+                            "operation_id": operation_id,
+                            "snapshot_id": snapshot.snapshot_id,
+                            "created_at": now,
+                        },
+                        (
+                            drive_change_operation_snapshots.c.operation_id,
+                            drive_change_operation_snapshots.c.snapshot_id,
+                        ),
+                    )
+                )
             result = await connection.execute(
                 update(drive_watch_streams)
                 .where(
@@ -686,6 +806,18 @@ class SqlWatchRepository:
             )
             if result.rowcount != 1:
                 raise ChangeCursorConflict("Drive cursor was advanced by another worker")
+            await connection.execute(
+                update(drive_change_operation_batches)
+                .where(drive_change_operation_batches.c.operation_id == operation_id)
+                .values(
+                    status=(
+                        DriveChangeBatchStatus.READY.value
+                        if batch_complete
+                        else DriveChangeBatchStatus.PROCESSING.value
+                    ),
+                    updated_at=now,
+                )
+            )
 
 
 async def _persist_snapshot(

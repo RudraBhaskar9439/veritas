@@ -50,7 +50,13 @@ def test_sql_impact_repository_loads_owned_lineage_versions_and_checks_integrity
         )
         baseline = (await snapshot_service.capture(baseline_capture, None, NOW)).snapshot
         await changes.commit_snapshots_and_cursor(
-            stream.stream_id, "page-1", "page-2", (baseline,), NOW
+            stream.stream_id,
+            "page-1",
+            "page-2",
+            (baseline,),
+            NOW,
+            operation_id="operation-baseline",
+            batch_complete=True,
         )
         changed_capture = baseline_capture.model_copy(
             update={"workspace_version": "sheet-v2", "evidence": {"Metrics!B17": 0.09}}
@@ -64,6 +70,8 @@ def test_sql_impact_repository_loads_owned_lineage_versions_and_checks_integrity
             "page-3",
             (changed,),
             NOW + timedelta(minutes=1),
+            operation_id="operation-changed",
+            batch_complete=True,
         )
 
         repository = SqlImpactRepository(engine)

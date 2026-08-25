@@ -10,7 +10,7 @@ from veritas_runtime.changes.models import (
     EvidenceSnapshot,
     EvidenceSourceRegistration,
 )
-from veritas_runtime.changes.snapshots import ImmutableSnapshotService
+from veritas_runtime.changes.snapshots import ImmutableSnapshotService, SnapshotIntegrityError
 
 
 class ChangeCursorConflict(RuntimeError):
@@ -37,6 +37,13 @@ class ChangeProcessingRepository(Protocol):
         source_id: str,
     ) -> EvidenceSnapshot | None: ...
 
+    async def operation_snapshots(
+        self,
+        operation_id: str,
+        subject: str,
+        stream_id: str,
+    ) -> tuple[EvidenceSnapshot, ...] | None: ...
+
     async def commit_snapshots_and_cursor(
         self,
         stream_id: str,
@@ -44,6 +51,9 @@ class ChangeProcessingRepository(Protocol):
         next_page_token: str,
         snapshots: tuple[EvidenceSnapshot, ...],
         now: datetime,
+        *,
+        operation_id: str,
+        batch_complete: bool,
     ) -> None: ...
 
 
@@ -64,6 +74,7 @@ class DriveChangeProcessor:
         self,
         stream_id: str,
         access_token: str,
+        operation_id: str,
         now: datetime | None = None,
         *,
         expected_subject: str | None = None,
@@ -74,8 +85,14 @@ class DriveChangeProcessor:
             raise LookupError("Drive watch stream was not found")
         if expected_subject is not None and stream.subject != expected_subject:
             raise PermissionError("Drive watch stream belongs to another subject")
+        replay = await self._repository.operation_snapshots(
+            operation_id,
+            stream.subject,
+            stream.stream_id,
+        )
+        if replay is not None:
+            return replay
         cursor = stream.page_token
-        captured: list[EvidenceSnapshot] = []
         while True:
             page = await self._drive.list_changes(access_token, cursor)
             changes = _latest_change_per_resource(page.changes)
@@ -109,11 +126,19 @@ class DriveChangeProcessor:
                 next_cursor,
                 tuple(page_snapshots),
                 current_time,
+                operation_id=operation_id,
+                batch_complete=page.next_page_token is None,
             )
-            captured.extend(page_snapshots)
             cursor = next_cursor
             if page.next_page_token is None:
-                return tuple(captured)
+                completed = await self._repository.operation_snapshots(
+                    operation_id,
+                    stream.subject,
+                    stream.stream_id,
+                )
+                if completed is None:
+                    raise SnapshotIntegrityError("Completed Drive batch could not be replayed")
+                return completed
 
 
 def _latest_change_per_resource(changes: tuple[DriveChange, ...]) -> tuple[DriveChange, ...]:

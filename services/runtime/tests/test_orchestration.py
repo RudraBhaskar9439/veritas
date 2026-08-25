@@ -69,7 +69,7 @@ class StaticAgentReview:
             operation_id="operation-placeholder",
             plan_id=plan_id,
             packet_id=packet_id,
-            model="gemini-3.5-flash",
+            model="gemini-2.5-flash",
             prompt_version="consequence-safety-review-v1",
             disposition=AgentDisposition.PROCEED,
             rationale="The registered scope and deterministic policy are internally coherent.",

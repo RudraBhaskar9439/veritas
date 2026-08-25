@@ -75,11 +75,11 @@ def test_gemini_review_is_scope_bound_persisted_and_idempotent() -> None:
         service = GeminiConsequenceReviewService(
             repository,  # type: ignore[arg-type]
             gateway,
-            "gemini-3.5-flash",
+            "gemini-2.5-flash",
         )
         first = await service.review("subject-1", "operation-1", impact, plan, NOW)
         replay = await service.review("subject-1", "operation-1", impact, plan, NOW)
-        assert first.review.model == "gemini-3.5-flash"
+        assert first.review.model == "gemini-2.5-flash"
         assert first.review.disposition == AgentDisposition.PROCEED
         assert replay.reused is True
         assert len(gateway.calls) == 1
@@ -91,7 +91,7 @@ def test_gemini_review_is_scope_bound_persisted_and_idempotent() -> None:
             await GeminiConsequenceReviewService(
                 MemoryReviews(),  # type: ignore[arg-type]
                 gateway,
-                "gemini-3.5-flash",
+                "gemini-2.5-flash",
             ).review("subject-1", "operation-2", impact, plan, NOW)
 
         escalation = StaticReviewGateway(
@@ -106,7 +106,7 @@ def test_gemini_review_is_scope_bound_persisted_and_idempotent() -> None:
             await GeminiConsequenceReviewService(
                 MemoryReviews(),  # type: ignore[arg-type]
                 escalation,
-                "gemini-3.5-flash",
+                "gemini-2.5-flash",
             ).review("subject-1", "operation-3", impact, plan, NOW)
 
     asyncio.run(scenario())
@@ -130,7 +130,7 @@ def test_sql_agent_review_rejects_tampered_reasoning_receipts() -> None:
         created = await GeminiConsequenceReviewService(
             repository,
             gateway,
-            "gemini-3.5-flash",
+            "gemini-2.5-flash",
         ).review("subject-1", "operation-sql", impact, plan, NOW)
         loaded = await repository.get("subject-1", "operation-sql")
         assert loaded is not None
@@ -179,7 +179,7 @@ def test_google_genai_sdk_uses_vertex_structured_output(monkeypatch) -> None:  #
     monkeypatch.setattr("veritas_runtime.agents.gemini.genai.Client", Client)
 
     async def scenario() -> None:
-        gateway = GeminiReviewGateway("project-1", "us-central1", "gemini-3.5-flash")
+        gateway = GeminiReviewGateway("project-1", "us-central1", "gemini-2.5-flash")
         result = await gateway.review({"packetId": "packet-1"})
         assert result == payload
         assert calls[0] == {
@@ -187,7 +187,7 @@ def test_google_genai_sdk_uses_vertex_structured_output(monkeypatch) -> None:  #
             "project": "project-1",
             "location": "us-central1",
         }
-        assert calls[1]["model"] == "gemini-3.5-flash"
+        assert calls[1]["model"] == "gemini-2.5-flash"
         assert calls[1]["config"].response_mime_type == "application/json"
         await gateway.close()
 

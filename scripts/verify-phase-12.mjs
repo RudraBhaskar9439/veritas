@@ -20,6 +20,7 @@ const requiredFiles = [
   'docs/verification/phase-12.md',
   'scripts/rehearse-demo.mjs',
   'services/runtime/migrations/0009_gemini_agent_reviews.sql',
+  'services/runtime/migrations/0010_drive_operation_batches.sql',
   'services/runtime/src/veritas_runtime/migrations.py',
   'services/runtime/src/veritas_runtime/agents/gemini.py',
   'services/runtime/src/veritas_runtime/agents/service.py'
@@ -74,8 +75,8 @@ for (const contract of [
     process.exit(1);
   }
 }
-if (!terraform.includes('VERITAS_GEMINI_MODEL') || !terraform.includes('gemini-3.5-flash')) {
-  console.error('Phase 12 verification failed: Terraform does not bind Gemini 3.5 Flash');
+if (!terraform.includes('VERITAS_GEMINI_MODEL') || !terraform.includes('gemini-2.5-flash')) {
+  console.error('Phase 12 verification failed: Terraform does not bind Gemini 2.5 Flash');
   process.exit(1);
 }
 for (const contract of [

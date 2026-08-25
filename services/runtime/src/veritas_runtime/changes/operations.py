@@ -26,6 +26,7 @@ class DriveStreamProcessor(Protocol):
         self,
         stream_id: str,
         access_token: str,
+        operation_id: str,
         *,
         expected_subject: str | None = None,
     ) -> tuple[EvidenceSnapshot, ...]: ...
@@ -91,6 +92,7 @@ class DriveStreamOperationHandler:
         snapshots = await self._processor.process_stream(
             stream_id,
             session.access_token,
+            operation.operation_id,
             expected_subject=operation.subject,
         )
         if self._orchestrator is not None:

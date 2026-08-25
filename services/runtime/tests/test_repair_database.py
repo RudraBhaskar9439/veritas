@@ -65,6 +65,8 @@ def test_sql_repair_repository_uses_causal_content_and_persists_audited_approval
             "page-2",
             (churn_baseline, previous_baseline),
             NOW,
+            operation_id="operation-baseline",
+            batch_complete=True,
         )
         changed_capture = churn_capture.model_copy(
             update={"workspace_version": "sheet-v2", "evidence": {"Metrics!B17": 0.09}}
@@ -78,6 +80,8 @@ def test_sql_repair_repository_uses_causal_content_and_persists_audited_approval
             "page-3",
             (churn_changed,),
             NOW + timedelta(minutes=1),
+            operation_id="operation-changed",
+            batch_complete=True,
         )
         impact = await ImpactAnalysisService(SqlImpactRepository(engine)).analyze(
             "subject-1",

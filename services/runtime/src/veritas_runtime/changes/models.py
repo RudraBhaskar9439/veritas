@@ -122,6 +122,11 @@ class DeltaKind(StrEnum):
     MEANINGFUL = "meaningful"
 
 
+class DriveChangeBatchStatus(StrEnum):
+    PROCESSING = "processing"
+    READY = "ready"
+
+
 class StoredSnapshotObject(ChangeModel):
     bucket: str = Field(min_length=1)
     object_name: str = Field(min_length=1)

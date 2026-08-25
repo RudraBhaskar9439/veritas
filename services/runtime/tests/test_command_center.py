@@ -95,7 +95,7 @@ def _agent_review(plan_id: str, packet_id: str) -> AgentReview:
         operation_id="operation-command-center",
         plan_id=plan_id,
         packet_id=packet_id,
-        model="gemini-3.5-flash",
+        model="gemini-2.5-flash",
         prompt_version="consequence-safety-review-v1",
         disposition=AgentDisposition.PROCEED,
         rationale="The registered scope and deterministic policy are internally coherent.",
@@ -158,7 +158,7 @@ def test_live_read_model_is_derived_from_the_integrity_chain() -> None:
         assert incident.coverage.targets == 13
         assert incident.certificate is None
         assert incident.agent_review is not None
-        assert incident.agent_review.model == "gemini-3.5-flash"
+        assert incident.agent_review.model == "gemini-2.5-flash"
         assert incident.approvals[0].run_id == run.run_id
         assert await service.latest("another-subject") is None
         with pytest.raises(LookupError, match="not found"):

@@ -170,12 +170,27 @@ def test_sql_watch_repository_persists_overlap_sync_and_atomic_outbox_dedup() ->
         stream = await repository.get_stream(old.stream_id)
         assert stream is not None
         await repository.commit_snapshots_and_cursor(
-            stream.stream_id, stream.page_token, "drive-page-2", (snapshot,), NOW
+            stream.stream_id,
+            stream.page_token,
+            "drive-page-2",
+            (snapshot,),
+            NOW,
+            operation_id="operation-1",
+            batch_complete=True,
         )
         assert await repository.latest_snapshot("subject-1", "packet-1", "source-1") == snapshot
+        assert await repository.operation_snapshots(
+            "operation-1", "subject-1", stream.stream_id
+        ) == (snapshot,)
         with pytest.raises(ChangeCursorConflict, match="another worker"):
             await repository.commit_snapshots_and_cursor(
-                stream.stream_id, stream.page_token, "drive-page-3", (snapshot,), NOW
+                stream.stream_id,
+                stream.page_token,
+                "drive-page-3",
+                (snapshot,),
+                NOW,
+                operation_id="operation-1",
+                batch_complete=True,
             )
         await engine.dispose()
 

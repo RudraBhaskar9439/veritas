@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     snapshot_bucket: str | None = None
     google_cloud_project: str | None = None
     google_cloud_location: str = "us-central1"
-    gemini_model: str = "gemini-3.5-flash"
+    gemini_model: str = "gemini-2.5-flash"
     max_request_bytes: int = Field(default=1_048_576, ge=1024, le=10_485_760)
 
     @property

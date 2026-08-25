@@ -364,7 +364,7 @@ resource "google_cloud_run_v2_service" "runtime" {
         for_each = each.key == "worker" ? {
           VERITAS_GOOGLE_CLOUD_PROJECT  = var.project_id
           VERITAS_GOOGLE_CLOUD_LOCATION = var.region
-          VERITAS_GEMINI_MODEL          = "gemini-3.5-flash"
+          VERITAS_GEMINI_MODEL          = "gemini-2.5-flash"
         } : {}
         content {
           name  = env.key

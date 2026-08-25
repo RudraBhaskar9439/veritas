@@ -63,17 +63,18 @@ class FakeSessions:
 
 class FakeProcessor:
     def __init__(self, snapshots: tuple[EvidenceSnapshot, ...] = ()) -> None:
-        self.calls: list[tuple[str, str, str | None]] = []
+        self.calls: list[tuple[str, str, str, str | None]] = []
         self.snapshots = snapshots
 
     async def process_stream(
         self,
         stream_id: str,
         access_token: str,
+        operation_id: str,
         *,
         expected_subject: str | None = None,
     ) -> tuple[EvidenceSnapshot, ...]:
-        self.calls.append((stream_id, access_token, expected_subject))
+        self.calls.append((stream_id, access_token, operation_id, expected_subject))
         return self.snapshots
 
 
@@ -107,7 +108,9 @@ def test_outbox_dispatches_once_and_worker_processes_subject_bound_stream() -> N
         assert await dispatcher.dispatch() == 0
         tick = await operations.tick("worker-1", NOW)
         assert tick.operation_id is not None
-        assert processor.calls == [("stream-1", "access-token", "subject-1")]
+        assert len(processor.calls) == 1
+        assert processor.calls[0][0:2] == ("stream-1", "access-token")
+        assert processor.calls[0][3] == "subject-1"
 
     asyncio.run(scenario())
 
@@ -131,7 +134,9 @@ def test_worker_runtime_drains_outbox_and_processes_a_bounded_batch() -> None:
         assert len(ticks) == 2
         assert ticks[0].operation_id is not None
         assert ticks[1].operation_id is None
-        assert processor.calls == [("stream-1", "access-token", "subject-1")]
+        assert len(processor.calls) == 1
+        assert processor.calls[0][0:2] == ("stream-1", "access-token")
+        assert processor.calls[0][3] == "subject-1"
 
     asyncio.run(scenario())
 
