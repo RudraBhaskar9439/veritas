@@ -94,7 +94,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
     return () => controller.abort();
   }, [initialIncident, retry]);
 
-  async function generateLivePacket() {
+  async function generateLivePacket(request: typeof generationRequest) {
     setGeneration({ phase: 'running' });
     try {
       const bootstrapResponse = await fetch('/api/v1/evidence/bootstrap', {
@@ -102,8 +102,8 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
-          requestId: `${generationRequest.requestId}-sources`,
-          sources: generationRequest.sources,
+          requestId: `${request.requestId}-sources`,
+          sources: request.sources,
         }),
       });
       if (bootstrapResponse.status === 401) {
@@ -119,7 +119,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ ...generationRequest, sources: bootstrapped.sources }),
+        body: JSON.stringify({ ...request, sources: bootstrapped.sources }),
       });
       if (!packetResponse.ok) throw new Error(await safeApiError(packetResponse));
       setGeneration({
@@ -134,12 +134,27 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
     }
   }
 
+  function generateFreshLivePacket() {
+    const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 12);
+    const request: typeof generationRequest = {
+      ...generationRequest,
+      requestId: `${generationRequest.requestId}-${suffix}`,
+      blueprint: {
+        ...generationRequest.blueprint,
+        packetId: `${generationRequest.blueprint.packetId}-${suffix}`,
+      },
+    };
+    setIncident(null);
+    setState('empty');
+    void generateLivePacket(request);
+  }
+
   if (state !== 'ready' || !incident) {
     return (
       <StartupState
         state={state}
         generation={generation}
-        onGenerate={generateLivePacket}
+        onGenerate={() => void generateLivePacket(generationRequest)}
         onRetry={() => setRetry((value) => value + 1)}
         onDemo={() => {
           setIncident(demoIncident);
@@ -148,15 +163,23 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
       />
     );
   }
-  return <CommandCenter incident={incident} onIncidentChange={setIncident} />;
+  return (
+    <CommandCenter
+      incident={incident}
+      onIncidentChange={setIncident}
+      onNewPacket={generateFreshLivePacket}
+    />
+  );
 }
 
 function CommandCenter({
   incident,
   onIncidentChange,
+  onNewPacket,
 }: {
   incident: Incident;
   onIncidentChange: (incident: Incident) => void;
+  onNewPacket: () => void;
 }) {
   const [view, setView] = useState<ViewId>(storedView);
   const [selectedClaimId, setSelectedClaimId] = useState(() => storedClaim(incident));
@@ -232,6 +255,12 @@ function CommandCenter({
               <span aria-hidden="true">↻</span>
               {isReplaying ? 'Replaying incident' : 'Replay incident'}
             </button>
+            {incident.source === 'live' && (
+              <button className="replayButton" type="button" onClick={onNewPacket}>
+                <span aria-hidden="true">＋</span>
+                New monitored packet
+              </button>
+            )}
           </div>
         </header>
 

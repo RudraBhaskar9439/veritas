@@ -159,6 +159,47 @@ describe('Veritas command center', () => {
     );
   });
 
+  it('can create a fresh isolated evidence boundary after an incident', async () => {
+    const liveIncident: Incident = { ...demoIncident, source: 'live' };
+    const sources = [
+      {
+        sourceId: 'src-churn',
+        kind: 'google_sheet',
+        resourceId: 'fresh-sheet',
+        anchor: 'Metrics!B17',
+        version: '1',
+        value: 0.04,
+      },
+    ];
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('12345678-1234-4000-8000-123456789abc');
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sources })))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            manifest: {
+              packetId: 'packet-q3-executive-review-123456781234',
+              sources,
+              artifacts: [],
+            },
+            checksum: 'b'.repeat(64),
+            reused: false,
+          }),
+        ),
+      );
+    render(<App initialIncident={liveIncident} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'New monitored packet' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Decision packet created and monitored.' }),
+    ).toBeInTheDocument();
+    const bootstrapBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const packetBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(bootstrapBody.requestId).toBe('generate-q3-executive-review-v1-123456781234-sources');
+    expect(packetBody.blueprint.packetId).toBe('packet-q3-executive-review-123456781234');
+  });
+
   it('uses one server-side action for approval, continuation, and verification', async () => {
     const pending: Incident = {
       ...demoIncident,
