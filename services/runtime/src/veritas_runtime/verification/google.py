@@ -394,13 +394,17 @@ def _shape_text(element: dict[str, Any]) -> str:
     elements = text.get("textElements") if isinstance(text, dict) else None
     if not isinstance(elements, list):
         return ""
-    return "".join(
+    statement = "".join(
         run.get("content", "")
         for item in elements
         if isinstance(item, dict)
         for run in [item.get("textRun")]
         if isinstance(run, dict) and isinstance(run.get("content"), str)
     )
+    # Slides exposes the structural paragraph terminator as text even though it
+    # is not part of the inserted claim. Remove exactly that terminator; any
+    # additional whitespace remains observable verification evidence.
+    return statement[:-1] if statement.endswith("\n") else statement
 
 
 def _registered_statement(body: str, expected: str, previous: str) -> str:

@@ -241,7 +241,11 @@ def test_slides_verification_checks_registered_shape_and_protects_other_shapes()
                                 "shape": {
                                     "text": {
                                         "textElements": [
-                                            {"textRun": {"content": step.proposed_statement}}
+                                            {
+                                                "textRun": {
+                                                    "content": f"{step.proposed_statement}\n"
+                                                }
+                                            }
                                         ]
                                     }
                                 },

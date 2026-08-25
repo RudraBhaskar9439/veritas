@@ -109,6 +109,54 @@ def test_source_change_during_repair_marks_run_stale_and_prevents_certificate() 
     asyncio.run(scenario())
 
 
+def test_unaffected_source_accepts_latest_immutable_container_revision() -> None:
+    async def scenario() -> None:
+        context = await canonical_verification_context()
+        sources = tuple(
+            source.model_copy(update={"version": "sheet-v3"})
+            if source.source_id == "src-revenue"
+            else source
+            for source in context.sources
+        )
+        snapshots = tuple(
+            snapshot.model_copy(
+                update={
+                    "snapshot_id": "snapshot-revenue-v3",
+                    "workspace_version": "sheet-v3",
+                }
+            )
+            if snapshot.source_id == "src-revenue"
+            else snapshot
+            for snapshot in context.snapshot_metadata
+        )
+        current_context = VerificationContext(
+            manifest=context.manifest,
+            plan=context.plan,
+            run=context.run,
+            sources=sources,
+            snapshot_metadata=snapshots,
+            baselines=context.baselines,
+        )
+        result = await VerificationService(
+            MemoryVerificationRepository(current_context),
+            StaticWorkspaceSessions(),
+            MemoryIndependentVerifier(current_context),
+        ).verify("subject-1", current_context.run.run_id, "verify-container-revision", NOW)
+
+        assert result.report.status == VerificationStatus.VERIFIED
+        assert result.certificate is not None
+        revenue = next(
+            source
+            for source in result.certificate.evidence_versions
+            if source.source_id == "src-revenue"
+        )
+        assert revenue.workspace_version == "sheet-v3"
+
+    from veritas_runtime.verification.service import VerificationContext
+
+    asyncio.run(scenario())
+
+
 def test_nonterminal_run_and_protected_region_change_cannot_certify() -> None:
     async def scenario() -> None:
         context = await canonical_verification_context()

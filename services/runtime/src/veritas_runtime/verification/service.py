@@ -688,9 +688,7 @@ def _run_check(context: VerificationContext) -> VerificationCheck:
 def _freshness_checks(
     context: VerificationContext,
 ) -> tuple[list[VerificationCheck], bool]:
-    expected: dict[str, tuple[str, str | None, str | None]] = {
-        source.source_id: (source.version, None, None) for source in context.manifest.sources
-    }
+    expected: dict[str, tuple[str, str | None, str | None]] = {}
     for step in context.plan.steps:
         for source_ref in step.source_versions:
             prior = expected.get(source_ref.source_id)
@@ -706,10 +704,22 @@ def _freshness_checks(
     snapshots = {snapshot.source_id: snapshot for snapshot in context.snapshot_metadata}
     checks: list[VerificationCheck] = []
     stale = False
-    for source_id in sorted(expected):
-        version, snapshot_id, content_hash = expected[source_id]
+    for source_id in sorted(sources):
         source = sources.get(source_id)
         snapshot = snapshots.get(source_id)
+        # Sources that influenced a repair are pinned to the exact causal
+        # snapshot carried by the plan. Other registered sources are checked
+        # against their latest immutable snapshot: a file-level Sheet revision
+        # may advance when another cell changes, while this source's value and
+        # all of its registered targets remain consistent.
+        version, snapshot_id, content_hash = expected.get(
+            source_id,
+            (
+                source.version if source is not None else "missing",
+                snapshot.snapshot_id if snapshot is not None else None,
+                snapshot.content_hash if snapshot is not None else None,
+            ),
+        )
         ok = bool(
             source is not None
             and snapshot is not None
