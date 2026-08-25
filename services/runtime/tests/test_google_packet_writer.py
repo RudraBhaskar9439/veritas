@@ -165,12 +165,21 @@ def test_google_packet_writer_reuses_idempotent_artifacts_without_creating_dupli
 def test_google_packet_writer_fails_closed_on_workspace_errors() -> None:
     async def scenario() -> None:
         transport = httpx.MockTransport(
-            lambda _: httpx.Response(503, json={"error": {"message": "secret detail"}})
+            lambda _: httpx.Response(
+                503,
+                json={
+                    "error": {
+                        "message": "secret detail",
+                        "errors": [{"reason": "rateLimitExceeded"}],
+                    }
+                },
+            )
         )
         async with httpx.AsyncClient(transport=transport) as client:
             writer = GoogleWorkspacePacketWriter("access", "owner@example.test", client)
             with pytest.raises(WorkspacePacketWriteError, match="status 503") as raised:
                 await writer.materialize(_draft(ArtifactKind.GOOGLE_DOC), "request-1")
             assert "secret detail" not in str(raised.value)
+            assert "rateLimitExceeded" in str(raised.value)
 
     asyncio.run(scenario())

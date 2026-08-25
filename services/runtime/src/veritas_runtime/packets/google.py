@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import re
 from email.message import EmailMessage
 from typing import Any, cast
 from urllib.parse import quote, urlsplit
@@ -320,8 +321,10 @@ class GoogleWorkspacePacketWriter:
             response.raise_for_status()
         except httpx.HTTPError as error:
             service = urlsplit(url).netloc.split(".", 1)[0] or "workspace"
+            reason = _workspace_error_reason(response)
             raise WorkspacePacketWriteError(
-                f"Workspace packet write failed in {service} with status {response.status_code}"
+                f"Workspace packet write failed in {service} with status "
+                f"{response.status_code} ({reason})"
             ) from error
         try:
             payload = response.json()
@@ -364,3 +367,21 @@ def _required_string(payload: dict[str, Any], key: str, label: str) -> str:
     if not isinstance(value, str) or not value:
         raise WorkspacePacketWriteError(f"{label} is missing")
     return value
+
+
+def _workspace_error_reason(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        return "unknown"
+    if not isinstance(payload, dict) or not isinstance(payload.get("error"), dict):
+        return "unknown"
+    error = payload["error"]
+    candidates: list[object] = [error.get("status")]
+    errors = error.get("errors")
+    if isinstance(errors, list) and errors and isinstance(errors[0], dict):
+        candidates.insert(0, errors[0].get("reason"))
+    for candidate in candidates:
+        if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,63}", candidate):
+            return candidate
+    return "unknown"
