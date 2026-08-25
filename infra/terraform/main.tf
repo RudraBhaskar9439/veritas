@@ -509,6 +509,12 @@ resource "google_storage_bucket_iam_member" "api_snapshot_read" {
   member = "serviceAccount:${google_service_account.runtime["api"].email}"
 }
 
+resource "google_storage_bucket_iam_member" "api_snapshot_create" {
+  bucket = google_storage_bucket.snapshots.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.runtime["api"].email}"
+}
+
 resource "google_kms_crypto_key_iam_member" "api_credentials" {
   crypto_key_id = google_kms_crypto_key.credentials.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
