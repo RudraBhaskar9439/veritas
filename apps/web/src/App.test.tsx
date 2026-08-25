@@ -239,4 +239,31 @@ describe('Veritas command center', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('Decision-changing consequences need your approval')).toBeNull();
   });
+
+  it('retries independent verification without changing the completed repair run', async () => {
+    const pending: Incident = {
+      ...demoIncident,
+      source: 'live',
+      status: 'repairing',
+      certificate: null,
+      coverage: { ...demoIncident.coverage, verifiedTargets: 9 },
+    };
+    const completed: Incident = { ...demoIncident, source: 'live' };
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ report: { status: 'verified' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify(completed)));
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000002');
+    render(<App initialIncident={pending} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry independent verification' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[0][0]).toBe(`/api/v1/repair-runs/${pending.runId}/verify`);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+      requestId: '00000000-0000-4000-8000-000000000002',
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/command-center/incidents/latest');
+    expect(await screen.findByRole('button', { name: 'View certificate record' })).toBeVisible();
+  });
 });

@@ -12,6 +12,7 @@ const VIEW_STORAGE_KEY = 'veritas.command-center.view';
 const CLAIM_STORAGE_KEY = 'veritas.command-center.claim';
 
 type StartupStatus = 'loading' | 'ready' | 'unauthorized' | 'empty' | 'error';
+type VerificationRetryState = 'idle' | 'running' | 'error';
 
 interface PacketResource {
   artifactId?: string;
@@ -185,6 +186,7 @@ function CommandCenter({
   const [selectedClaimId, setSelectedClaimId] = useState(() => storedClaim(incident));
   const [replayStage, setReplayStage] = useState<number>(incident.timeline.length);
   const [isReplaying, setIsReplaying] = useState(false);
+  const [verificationRetry, setVerificationRetry] = useState<VerificationRetryState>('idle');
   const selectedClaim =
     incident.claims.find((claim) => claim.id === selectedClaimId) ?? incident.claims[0];
 
@@ -220,6 +222,34 @@ function CommandCenter({
     setReplayStage(0);
     setIsReplaying(true);
     setView('overview');
+  }
+
+  async function retryVerification() {
+    if (incident.source !== 'live' || !incident.runId || incident.certificate) return;
+    setVerificationRetry('running');
+    try {
+      const response = await fetch(
+        `/api/v1/repair-runs/${encodeURIComponent(incident.runId)}/verify`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ requestId: crypto.randomUUID() }),
+        },
+      );
+      if (!response.ok) throw new Error(`verification_${response.status}`);
+      const refreshed = await fetch('/api/v1/command-center/incidents/latest', {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (!refreshed.ok) throw new Error(`refresh_${refreshed.status}`);
+      const result = (await refreshed.json()) as Incident | null;
+      if (!result) throw new Error('incident_missing');
+      onIncidentChange(result);
+      setVerificationRetry('idle');
+    } catch {
+      setVerificationRetry('error');
+    }
   }
 
   const visibleClaims = replayStage >= 2 ? incident.claims.length : 0;
@@ -320,10 +350,17 @@ function CommandCenter({
               visibleArtifacts={visibleArtifacts}
               verifiedTargets={verifiedTargets}
               onIncidentChange={onIncidentChange}
+              onRetryVerification={() => void retryVerification()}
+              verificationRetry={verificationRetry}
             />
           )}
           {view === 'lineage' && <LineageView />}
-          {view === 'verification' && <VerificationView />}
+          {view === 'verification' && (
+            <VerificationView
+              onRetryVerification={() => void retryVerification()}
+              verificationRetry={verificationRetry}
+            />
+          )}
         </main>
 
         <div className="srOnly" role="status" aria-live="polite">
@@ -492,6 +529,8 @@ interface OverviewProps {
   visibleArtifacts: number;
   verifiedTargets: number;
   onIncidentChange: (incident: Incident) => void;
+  onRetryVerification: () => void;
+  verificationRetry: VerificationRetryState;
 }
 
 function Overview({
@@ -502,6 +541,8 @@ function Overview({
   visibleArtifacts,
   verifiedTargets,
   onIncidentChange,
+  onRetryVerification,
+  verificationRetry,
 }: OverviewProps) {
   const incident = useIncident();
   const source = incident.evidence[0];
@@ -681,7 +722,10 @@ function Overview({
           </div>
         </section>
 
-        <CertificateCard />
+        <CertificateCard
+          onRetryVerification={onRetryVerification}
+          verificationRetry={verificationRetry}
+        />
       </div>
 
       <section className="panel activityPanel" aria-labelledby="activity-title">
@@ -983,7 +1027,13 @@ function Timeline({ activeStage }: { activeStage: number }) {
   );
 }
 
-function CertificateCard() {
+function CertificateCard({
+  onRetryVerification,
+  verificationRetry,
+}: {
+  onRetryVerification: () => void;
+  verificationRetry: VerificationRetryState;
+}) {
   const incident = useIncident();
   const certificate = incident.certificate;
   return (
@@ -1029,9 +1079,29 @@ function CertificateCard() {
       <p className="certificateScope">
         Candidate lineage and unregistered prose are explicitly outside this certificate.
       </p>
-      <button className="secondaryButton" type="button" onClick={() => window.print()}>
-        View certificate record <span aria-hidden="true">↗</span>
-      </button>
+      {certificate ? (
+        <button className="secondaryButton" type="button" onClick={() => window.print()}>
+          View certificate record <span aria-hidden="true">↗</span>
+        </button>
+      ) : incident.source === 'live' && incident.runId ? (
+        <button
+          className="secondaryButton"
+          type="button"
+          onClick={onRetryVerification}
+          disabled={verificationRetry === 'running'}
+        >
+          {verificationRetry === 'running'
+            ? 'Re-reading every registered target…'
+            : 'Retry independent verification'}
+          <span aria-hidden="true">↻</span>
+        </button>
+      ) : null}
+      {verificationRetry === 'error' && (
+        <p className="actionError" role="alert">
+          Verification could not be completed. No evidence or repair was changed; it is safe to
+          retry.
+        </p>
+      )}
     </aside>
   );
 }
@@ -1144,7 +1214,13 @@ function LineageView() {
   );
 }
 
-function VerificationView() {
+function VerificationView({
+  onRetryVerification,
+  verificationRetry,
+}: {
+  onRetryVerification: () => void;
+  verificationRetry: VerificationRetryState;
+}) {
   const incident = useIncident();
   return (
     <>
@@ -1180,7 +1256,10 @@ function VerificationView() {
             ))}
           </ol>
         </div>
-        <CertificateCard />
+        <CertificateCard
+          onRetryVerification={onRetryVerification}
+          verificationRetry={verificationRetry}
+        />
       </section>
 
       <section className="panel evidencePanel" aria-labelledby="evidence-title">
