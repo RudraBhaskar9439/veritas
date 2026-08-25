@@ -95,7 +95,9 @@ def test_docs_and_slides_use_fresh_revision_preconditions() -> None:
                                             "textElements": [
                                                 {
                                                     "textRun": {
-                                                        "content": slide_step.before_statement
+                                                        "content": (
+                                                            slide_step.before_statement + "\n"
+                                                        )
                                                     }
                                                 }
                                             ]
@@ -122,6 +124,7 @@ def test_docs_and_slides_use_fresh_revision_preconditions() -> None:
         doc_state = await gateway.read("token", doc_step)
         doc_receipt = await gateway.apply("token", doc_step, doc_state)
         slide_state = await gateway.read("token", slide_step)
+        assert slide_state.statement == slide_step.before_statement
         slide_receipt = await gateway.apply("token", slide_step, slide_state)
         assert doc_receipt.revision_id == "doc-revision-2"
         assert slide_receipt.revision_id == "slides-revision-2"

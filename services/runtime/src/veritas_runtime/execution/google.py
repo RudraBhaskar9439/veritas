@@ -441,6 +441,10 @@ def _slides_text(presentation: dict[str, Any], object_id: str) -> str:
                 and isinstance(run["textRun"].get("content"), str)
             ]
             statement = "".join(fragments)
+            # Google Slides materializes a paragraph terminator after inserted shape text.
+            # It is structural API output, not part of the registered claim statement.
+            if statement.endswith("\n"):
+                statement = statement[:-1]
             if statement:
                 return statement
     raise WorkspaceExecutionError(f"Slides registered shape {object_id} was not found")
