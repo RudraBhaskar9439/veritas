@@ -75,7 +75,11 @@ def test_source_change_during_repair_marks_run_stale_and_prevents_certificate() 
         )
         snapshots = tuple(
             snapshot.model_copy(
-                update={"snapshot_id": "snapshot-churn-v3", "workspace_version": "sheet-v3"}
+                update={
+                    "snapshot_id": "snapshot-churn-v3",
+                    "workspace_version": "sheet-v3",
+                    "content_hash": "0" * 64,
+                }
             )
             if snapshot.source_id == "src-churn"
             else snapshot
@@ -157,11 +161,22 @@ def test_unaffected_source_accepts_latest_immutable_container_revision() -> None
     asyncio.run(scenario())
 
 
-def test_duplicate_capture_of_same_causal_version_remains_fresh() -> None:
+def test_planned_anchor_remains_fresh_when_only_container_revision_advances() -> None:
     async def scenario() -> None:
         context = await canonical_verification_context()
+        sources = tuple(
+            source.model_copy(update={"version": "sheet-v3"})
+            if source.source_id == "src-churn"
+            else source
+            for source in context.sources
+        )
         snapshots = tuple(
-            snapshot.model_copy(update={"snapshot_id": "duplicate-capture-same-version"})
+            snapshot.model_copy(
+                update={
+                    "snapshot_id": "duplicate-capture-later-container-version",
+                    "workspace_version": "sheet-v3",
+                }
+            )
             if snapshot.source_id == "src-churn"
             else snapshot
             for snapshot in context.snapshot_metadata
@@ -170,7 +185,7 @@ def test_duplicate_capture_of_same_causal_version_remains_fresh() -> None:
             manifest=context.manifest,
             plan=context.plan,
             run=context.run,
-            sources=context.sources,
+            sources=sources,
             snapshot_metadata=snapshots,
             baselines=context.baselines,
         )
@@ -182,6 +197,12 @@ def test_duplicate_capture_of_same_causal_version_remains_fresh() -> None:
 
         assert result.report.status == VerificationStatus.VERIFIED
         assert result.certificate is not None
+        churn = next(
+            source
+            for source in result.certificate.evidence_versions
+            if source.source_id == "src-churn"
+        )
+        assert churn.workspace_version == "sheet-v3"
 
     from veritas_runtime.verification.service import VerificationContext
 

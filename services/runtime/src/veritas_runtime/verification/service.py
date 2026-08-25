@@ -718,14 +718,17 @@ def _freshness_checks(
                 snapshot.content_hash if snapshot is not None else None,
             ),
         )
+        same_container_revision = bool(
+            source is not None and snapshot is not None and source.version == version
+        )
         ok = bool(
             source is not None
             and snapshot is not None
-            and source.version == version
-            and snapshot.workspace_version == version
+            and source.version == snapshot.workspace_version
             # A provider may deliver the same file revision more than once.
-            # Snapshot IDs identify captures, while causal identity is bound by
-            # the provider version and content hash below.
+            # It may also advance a Sheet's file revision after an unrelated
+            # cell changes. Causal freshness is therefore bound to the exact
+            # registered-anchor content hash, not the containing file alone.
             and (content_hash is None or snapshot.content_hash == content_hash)
         )
         stale = stale or not ok
@@ -736,12 +739,17 @@ def _freshness_checks(
                 ok,
                 (
                     "The latest immutable source snapshot matches the repair's causal version."
+                    if ok and same_container_revision
+                    else (
+                        "The registered source anchor remains byte-identical to the repair's "
+                        "causal snapshot; only its containing file revision advanced."
+                    )
                     if ok
                     else "The source changed after planning or its causal snapshot is unavailable."
                 ),
                 source_id=source_id,
-                expected=version,
-                observed=(snapshot.workspace_version if snapshot is not None else "missing"),
+                expected_hash=content_hash,
+                observed_hash=(snapshot.content_hash if snapshot is not None else None),
             )
         )
     return checks, stale
