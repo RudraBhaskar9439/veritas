@@ -157,6 +157,37 @@ def test_unaffected_source_accepts_latest_immutable_container_revision() -> None
     asyncio.run(scenario())
 
 
+def test_duplicate_capture_of_same_causal_version_remains_fresh() -> None:
+    async def scenario() -> None:
+        context = await canonical_verification_context()
+        snapshots = tuple(
+            snapshot.model_copy(update={"snapshot_id": "duplicate-capture-same-version"})
+            if snapshot.source_id == "src-churn"
+            else snapshot
+            for snapshot in context.snapshot_metadata
+        )
+        duplicate_context = VerificationContext(
+            manifest=context.manifest,
+            plan=context.plan,
+            run=context.run,
+            sources=context.sources,
+            snapshot_metadata=snapshots,
+            baselines=context.baselines,
+        )
+        result = await VerificationService(
+            MemoryVerificationRepository(duplicate_context),
+            StaticWorkspaceSessions(),
+            MemoryIndependentVerifier(duplicate_context),
+        ).verify("subject-1", duplicate_context.run.run_id, "verify-duplicate-capture", NOW)
+
+        assert result.report.status == VerificationStatus.VERIFIED
+        assert result.certificate is not None
+
+    from veritas_runtime.verification.service import VerificationContext
+
+    asyncio.run(scenario())
+
+
 def test_nonterminal_run_and_protected_region_change_cannot_certify() -> None:
     async def scenario() -> None:
         context = await canonical_verification_context()

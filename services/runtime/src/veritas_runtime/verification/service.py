@@ -688,16 +688,15 @@ def _run_check(context: VerificationContext) -> VerificationCheck:
 def _freshness_checks(
     context: VerificationContext,
 ) -> tuple[list[VerificationCheck], bool]:
-    expected: dict[str, tuple[str, str | None, str | None]] = {}
+    expected: dict[str, tuple[str, str | None]] = {}
     for step in context.plan.steps:
         for source_ref in step.source_versions:
             prior = expected.get(source_ref.source_id)
             resolved = (
                 source_ref.workspace_version,
-                source_ref.snapshot_id,
                 source_ref.content_hash,
             )
-            if prior is not None and prior[1] is not None and prior != resolved:
+            if prior is not None and prior != resolved:
                 raise VerificationIntegrityError("Repair plan contains conflicting source versions")
             expected[source_ref.source_id] = resolved
     sources = {source.source_id: source for source in context.sources}
@@ -712,11 +711,10 @@ def _freshness_checks(
         # against their latest immutable snapshot: a file-level Sheet revision
         # may advance when another cell changes, while this source's value and
         # all of its registered targets remain consistent.
-        version, snapshot_id, content_hash = expected.get(
+        version, content_hash = expected.get(
             source_id,
             (
                 source.version if source is not None else "missing",
-                snapshot.snapshot_id if snapshot is not None else None,
                 snapshot.content_hash if snapshot is not None else None,
             ),
         )
@@ -725,7 +723,9 @@ def _freshness_checks(
             and snapshot is not None
             and source.version == version
             and snapshot.workspace_version == version
-            and (snapshot_id is None or snapshot.snapshot_id == snapshot_id)
+            # A provider may deliver the same file revision more than once.
+            # Snapshot IDs identify captures, while causal identity is bound by
+            # the provider version and content hash below.
             and (content_hash is None or snapshot.content_hash == content_hash)
         )
         stale = stale or not ok

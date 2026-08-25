@@ -255,7 +255,7 @@ def test_slides_verification_checks_registered_shape_and_protects_other_shapes()
                                 "shape": {
                                     "text": {
                                         "textElements": [
-                                            {"textRun": {"content": "Founder commentary"}}
+                                            {"textRun": {"content": "Founder commentary\n"}}
                                         ]
                                     }
                                 },

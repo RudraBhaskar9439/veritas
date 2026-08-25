@@ -353,7 +353,11 @@ def _slides_text(presentation: dict[str, Any], object_id: str) -> str:
         if element.get("objectId") == object_id:
             statement = _shape_text(element)
             if statement:
-                return statement
+                # Slides exposes the structural paragraph terminator as text
+                # even though it is not part of the inserted claim. Normalize
+                # only the registered statement read; protected human-owned
+                # shape content must remain byte-observable for hashing.
+                return statement[:-1] if statement.endswith("\n") else statement
             raise WorkspaceVerificationReadError("Slides registered shape is empty")
     raise WorkspaceVerificationReadError(f"Slides registered shape {object_id} was not found")
 
@@ -394,17 +398,13 @@ def _shape_text(element: dict[str, Any]) -> str:
     elements = text.get("textElements") if isinstance(text, dict) else None
     if not isinstance(elements, list):
         return ""
-    statement = "".join(
+    return "".join(
         run.get("content", "")
         for item in elements
         if isinstance(item, dict)
         for run in [item.get("textRun")]
         if isinstance(run, dict) and isinstance(run.get("content"), str)
     )
-    # Slides exposes the structural paragraph terminator as text even though it
-    # is not part of the inserted claim. Remove exactly that terminator; any
-    # additional whitespace remains observable verification evidence.
-    return statement[:-1] if statement.endswith("\n") else statement
 
 
 def _registered_statement(body: str, expected: str, previous: str) -> str:
