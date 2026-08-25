@@ -106,9 +106,7 @@ def build_api_components(settings: Settings) -> ApiComponents | None:
         watch_coordinator = DriveWatchCoordinator(
             GoogleDriveChangesClient(http),
             watch_repository,
-            ChannelTokenCodec.from_base64(
-                settings.drive_channel_token_key.get_secret_value()
-            ),
+            ChannelTokenCodec.from_base64(settings.drive_channel_token_key.get_secret_value()),
         )
     verification_repository = SqlVerificationRepository(engine, snapshots)
     verification_gateway = GoogleWorkspaceVerificationGateway(http)

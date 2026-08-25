@@ -178,15 +178,23 @@ class GoogleWorkspacePacketWriter:
     async def _gmail_draft(self, draft: PacketArtifactDraft, key: str) -> MaterializedArtifact:
         message_id = f"<veritas-packet-{key[:32]}@veritas.invalid>"
         listed = await self._get(
-            f"{self._gmail_root}/users/me/messages",
+            f"{self._gmail_root}/users/me/drafts",
             params={"q": f"in:drafts rfc822msgid:{message_id}", "maxResults": 1},
         )
-        messages = listed.get("messages")
+        drafts = listed.get("drafts")
+        draft_id: str | None = None
         resource_id: str | None = None
-        if isinstance(messages, list) and messages and isinstance(messages[0], dict):
-            candidate = messages[0].get("id")
-            resource_id = candidate if isinstance(candidate, str) and candidate else None
-        if resource_id is None:
+        if isinstance(drafts, list) and drafts and isinstance(drafts[0], dict):
+            candidate = drafts[0].get("id")
+            message = drafts[0].get("message")
+            message_candidate = message.get("id") if isinstance(message, dict) else None
+            draft_id = candidate if isinstance(candidate, str) and candidate else None
+            resource_id = (
+                message_candidate
+                if isinstance(message_candidate, str) and message_candidate
+                else None
+            )
+        if draft_id is None or resource_id is None:
             message = EmailMessage()
             message["To"] = self._email
             message["Subject"] = draft.title
@@ -203,15 +211,20 @@ class GoogleWorkspacePacketWriter:
             message_payload = created.get("message")
             if not isinstance(message_payload, dict):
                 raise WorkspacePacketWriteError("Gmail draft omitted its message")
+            draft_id = _required_string(created, "id", "Gmail draft ID")
             resource_id = _required_string(message_payload, "id", "Gmail message ID")
-        message_state = await self._get(
-            f"{self._gmail_root}/users/me/messages/{quote(resource_id, safe='')}",
+        draft_state = await self._get(
+            f"{self._gmail_root}/users/me/drafts/{quote(draft_id, safe='')}",
             params={"format": "minimal"},
         )
-        revision = str(message_state.get("historyId") or resource_id)
+        message_state = draft_state.get("message")
+        if not isinstance(message_state, dict):
+            raise WorkspacePacketWriteError("Gmail draft state omitted its message")
+        revision = str(message_state.get("historyId") or draft_id)
         return MaterializedArtifact(
             artifact_id=draft.artifact_id,
             resource_id=resource_id,
+            container_id=draft_id,
             revision_id=revision,
             anchors={
                 block.claim_id: f"workspace://gmail/{resource_id}#{block.slot}"

@@ -196,15 +196,22 @@ def test_correction_verification_reads_the_created_draft_without_sending() -> No
         assert not request.url.path.endswith("/send")
         return httpx.Response(
             200,
-            json={"id": "draft-message-1", "historyId": "history-2", "raw": raw},
+            json={
+                "id": "draft-1",
+                "message": {
+                    "id": "draft-message-1",
+                    "historyId": "history-2",
+                    "raw": raw,
+                },
+            },
         )
 
     async def scenario() -> None:
         gateway = GoogleWorkspaceVerificationGateway(
             client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
         )
-        observed = await gateway.read_correction("token", step, "draft-message-1")
-        assert observed.resource_id == "draft-message-1"
+        observed = await gateway.read_correction("token", step, "draft-1")
+        assert observed.resource_id == "draft-1"
         assert observed.statement == step.proposed_statement
 
     asyncio.run(scenario())

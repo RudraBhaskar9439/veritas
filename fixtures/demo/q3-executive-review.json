@@ -14,7 +14,7 @@
   "artifacts": [
     {"artifactId": "artifact-board-memo", "kind": "google_doc", "resourceId": "demo-board-memo", "baseRevisionId": "board-memo-v1", "mutability": "editable"},
     {"artifactId": "artifact-exec-deck", "kind": "google_slides", "resourceId": "demo-exec-deck", "baseRevisionId": "exec-deck-v1", "mutability": "editable"},
-    {"artifactId": "artifact-investor-email", "kind": "gmail", "resourceId": "demo-sent-email", "baseRevisionId": "sent-email-v1", "mutability": "immutable"},
+    {"artifactId": "artifact-investor-email", "kind": "gmail", "resourceId": "demo-sent-email", "containerId": "demo-gmail-draft", "baseRevisionId": "sent-email-v1", "mutability": "immutable"},
     {"artifactId": "artifact-acquisition-task", "kind": "google_task", "resourceId": "demo-acquisition-task", "containerId": "demo-task-list", "baseRevisionId": "acquisition-task-v1", "mutability": "editable"},
     {"artifactId": "artifact-retention-plan", "kind": "google_doc", "resourceId": "demo-retention-plan", "baseRevisionId": "retention-plan-v1", "mutability": "editable"}
   ],

@@ -147,14 +147,21 @@ def test_gmail_creates_only_an_idempotent_correction_draft() -> None:
     created_messages: list[EmailMessage] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.method == "GET" and request.url.path.endswith(step.resource_id):
+        if request.method == "GET" and request.url.path.endswith(str(step.container_id)):
             return httpx.Response(
                 200,
-                json={"id": step.resource_id, "historyId": "history-1", "raw": raw_original},
+                json={
+                    "id": step.container_id,
+                    "message": {
+                        "id": step.resource_id,
+                        "historyId": "history-1",
+                        "raw": raw_original,
+                    },
+                },
             )
-        if request.method == "GET" and request.url.path.endswith("/messages"):
+        if request.method == "GET" and request.url.path.endswith("/drafts"):
             assert "in%3Adrafts" in str(request.url)
-            return httpx.Response(200, json={"resultSizeEstimate": 0})
+            return httpx.Response(200, json={"drafts": [], "resultSizeEstimate": 0})
         if request.method == "POST" and request.url.path.endswith("/drafts"):
             payload = json.loads(request.content)
             raw = payload["message"]["raw"]
@@ -171,6 +178,7 @@ def test_gmail_creates_only_an_idempotent_correction_draft() -> None:
         state = await gateway.read("token", step)
         receipt = await gateway.apply("token", step, state)
         assert receipt.revision_id == "draft-1"
+        assert receipt.external_id == "draft-1"
 
     import asyncio
 

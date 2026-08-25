@@ -72,13 +72,16 @@ def test_google_packet_writer_creates_native_anchored_artifacts() -> None:
         if path.startswith("/drive/v3/files/") and request.method == "PATCH":
             assert json.loads(request.content)["appProperties"].get("veritasRequest")
             return httpx.Response(200, json={"id": path.rsplit("/", 1)[-1]})
-        if path == "/gmail/v1/users/me/messages" and request.method == "GET":
-            return httpx.Response(200, json={"messages": []})
+        if path == "/gmail/v1/users/me/drafts" and request.method == "GET":
+            return httpx.Response(200, json={"drafts": []})
         if path == "/gmail/v1/users/me/drafts" and request.method == "POST":
             assert json.loads(request.content)["message"]["raw"]
             return httpx.Response(200, json={"id": "draft-1", "message": {"id": "msg-1"}})
-        if path == "/gmail/v1/users/me/messages/msg-1":
-            return httpx.Response(200, json={"id": "msg-1", "historyId": "history-1"})
+        if path == "/gmail/v1/users/me/drafts/draft-1":
+            return httpx.Response(
+                200,
+                json={"message": {"id": "msg-1", "historyId": "history-1"}},
+            )
         if path == "/tasks/v1/users/@me/lists" and request.method == "GET":
             return httpx.Response(200, json={"items": []})
         if path == "/tasks/v1/users/@me/lists" and request.method == "POST":
@@ -106,6 +109,7 @@ def test_google_packet_writer_creates_native_anchored_artifacts() -> None:
         assert slides.resource_id == "slides-1"
         assert slides.anchors["claim-1"].startswith("workspace://slides/slides-1#v_")
         assert gmail.resource_id == "msg-1"
+        assert gmail.container_id == "draft-1"
         assert gmail.revision_id == "history-1"
         assert task.resource_id == "task-1"
         assert task.container_id == "list-1"
@@ -133,10 +137,13 @@ def test_google_packet_writer_reuses_idempotent_artifacts_without_creating_dupli
             return httpx.Response(200, json={"revisionId": "doc-r2"})
         if path == "/v1/presentations/existing-slides":
             return httpx.Response(200, json={"revisionId": "slides-r2"})
-        if path == "/gmail/v1/users/me/messages":
-            return httpx.Response(200, json={"messages": [{"id": "existing-message"}]})
-        if path == "/gmail/v1/users/me/messages/existing-message":
-            return httpx.Response(200, json={"historyId": "history-r2"})
+        if path == "/gmail/v1/users/me/drafts":
+            return httpx.Response(
+                200,
+                json={"drafts": [{"id": "existing-draft", "message": {"id": "existing-message"}}]},
+            )
+        if path == "/gmail/v1/users/me/drafts/existing-draft":
+            return httpx.Response(200, json={"message": {"historyId": "history-r2"}})
         if path == "/tasks/v1/users/@me/lists":
             return httpx.Response(200, json={"items": [{"id": "list-1", "title": "Veritas"}]})
         if path == "/tasks/v1/lists/list-1/tasks":

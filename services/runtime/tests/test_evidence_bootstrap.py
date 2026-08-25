@@ -71,8 +71,7 @@ def test_bootstrap_materializes_sheet_and_doc_with_real_versions() -> None:
     doc_write = next(
         request
         for request in requests
-        if request.url.host == "docs.googleapis.com"
-        and request.url.path.endswith(":batchUpdate")
+        if request.url.host == "docs.googleapis.com" and request.url.path.endswith(":batchUpdate")
     )
     assert b'"name":"launch-date"' in doc_write.content
 
@@ -91,9 +90,9 @@ def test_bootstrap_reuses_uniquely_marked_workspace_sources() -> None:
 
     async def scenario() -> tuple[SourceSnapshot, ...]:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            return await GoogleWorkspaceEvidenceBootstrapper(
-                "access-token", client
-            ).materialize("request-1", _sources())
+            return await GoogleWorkspaceEvidenceBootstrapper("access-token", client).materialize(
+                "request-1", _sources()
+            )
 
     resolved = asyncio.run(scenario())
     assert {source.resource_id for source in resolved} == {"existing-sheet", "existing-doc"}
@@ -127,9 +126,9 @@ def test_bootstrap_rejects_invalid_evidence_and_workspace_responses() -> None:
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(ambiguous)) as client:
             try:
-                await GoogleWorkspaceEvidenceBootstrapper(
-                    "access-token", client
-                ).materialize("request", (sheet,))
+                await GoogleWorkspaceEvidenceBootstrapper("access-token", client).materialize(
+                    "request", (sheet,)
+                )
             except EvidenceBootstrapError as error:
                 assert "ambiguous" in str(error)
             else:
@@ -140,9 +139,9 @@ def test_bootstrap_rejects_invalid_evidence_and_workspace_responses() -> None:
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(rejected)) as client:
             try:
-                await GoogleWorkspaceEvidenceBootstrapper(
-                    "access-token", client
-                ).materialize("request", (sheet,))
+                await GoogleWorkspaceEvidenceBootstrapper("access-token", client).materialize(
+                    "request", (sheet,)
+                )
             except EvidenceBootstrapError as error:
                 assert "status 403" in str(error)
             else:
@@ -188,9 +187,12 @@ def test_evidence_bootstrap_route_authenticates_and_fails_closed() -> None:
     async def subject(_request: Request) -> str:
         return "subject-1"
 
-    assert TestClient(_route_app(None, None)).post(
-        "/api/v1/evidence/bootstrap", json=_route_payload()
-    ).status_code == 503
+    assert (
+        TestClient(_route_app(None, None))
+        .post("/api/v1/evidence/bootstrap", json=_route_payload())
+        .status_code
+        == 503
+    )
     response = TestClient(_route_app(RecordingBootstrapService(), subject)).post(
         "/api/v1/evidence/bootstrap", json=_route_payload()
     )

@@ -189,12 +189,14 @@ class GoogleWorkspaceRepairGateway:
         )
 
     async def _read_gmail(self, token: str, step: RepairStep) -> ArtifactState:
+        if not step.container_id:
+            raise WorkspaceExecutionError("Gmail artifact is missing its draft ID")
         response = await self._client.get(
-            f"{self._gmail_root}/users/me/messages/{quote(step.resource_id, safe='')}",
+            f"{self._gmail_root}/users/me/drafts/{quote(step.container_id, safe='')}",
             headers=_authorization(token),
             params={"format": "raw"},
         )
-        payload = _response_object(response)
+        payload = _draft_message(_response_object(response))
         raw = _required_string(payload, "raw", "Gmail raw message")
         message = BytesParser(policy=policy.default).parsebytes(_decode_base64url(raw))
         body = _plain_body(message)
@@ -219,14 +221,14 @@ class GoogleWorkspaceRepairGateway:
             raise WorkspaceExecutionError("Gmail execution is correction-draft-only")
         message_id = _deterministic_message_id(step.execution_key)
         existing = await self._client.get(
-            f"{self._gmail_root}/users/me/messages",
+            f"{self._gmail_root}/users/me/drafts",
             headers=_authorization(token),
             params={"q": f"in:drafts rfc822msgid:{message_id}", "maxResults": 1},
         )
         existing_payload = _response_object(existing)
-        messages = existing_payload.get("messages")
-        if isinstance(messages, list) and messages and isinstance(messages[0], dict):
-            existing_id = messages[0].get("id")
+        drafts = existing_payload.get("drafts")
+        if isinstance(drafts, list) and drafts and isinstance(drafts[0], dict):
+            existing_id = drafts[0].get("id")
             if isinstance(existing_id, str) and existing_id:
                 return MutationReceipt(
                     resource_id=step.resource_id,
@@ -264,11 +266,12 @@ class GoogleWorkspaceRepairGateway:
         payload = _response_object(response)
         draft_id = _required_string(payload, "id", "Gmail draft ID")
         message_payload = payload.get("message")
-        external_id = message_payload.get("id") if isinstance(message_payload, dict) else draft_id
+        if not isinstance(message_payload, dict):
+            raise WorkspaceExecutionError("Gmail correction draft omitted its message")
         return MutationReceipt(
             resource_id=step.resource_id,
             revision_id=draft_id,
-            external_id=external_id if isinstance(external_id, str) else draft_id,
+            external_id=draft_id,
         )
 
     async def _read_task(self, token: str, step: RepairStep) -> ArtifactState:
@@ -484,6 +487,13 @@ def _task_list(step: RepairStep) -> str:
     if not step.container_id:
         raise WorkspaceExecutionError("Google Task repair requires a registered task list ID")
     return step.container_id
+
+
+def _draft_message(payload: dict[str, Any]) -> dict[str, Any]:
+    message = payload.get("message")
+    if not isinstance(message, dict):
+        raise WorkspaceExecutionError("Gmail draft omitted its message")
+    return cast(dict[str, Any], message)
 
 
 def _utf16_length(value: str) -> int:

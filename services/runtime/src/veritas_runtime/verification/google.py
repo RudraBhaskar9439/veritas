@@ -79,11 +79,11 @@ class GoogleWorkspaceVerificationGateway:
         external_id: str,
     ) -> ObservedStatement:
         response = await self._client.get(
-            f"{self._gmail_root}/users/me/messages/{quote(external_id, safe='')}",
+            f"{self._gmail_root}/users/me/drafts/{quote(external_id, safe='')}",
             headers=_authorization(access_token),
             params={"format": "raw"},
         )
-        payload = _response_object(response)
+        payload = _draft_message(_response_object(response))
         raw = _required_string(payload, "raw", "Gmail correction raw message")
         message = BytesParser(policy=policy.default).parsebytes(_decode_base64url(raw))
         body = _plain_body(message)
@@ -150,8 +150,10 @@ class GoogleWorkspaceVerificationGateway:
                 headers=headers,
             )
         elif artifact.kind == ArtifactKind.GMAIL:
+            if not artifact.container_id:
+                raise WorkspaceVerificationReadError("Gmail artifact is missing its draft ID")
             response = await self._client.get(
-                f"{self._gmail_root}/users/me/messages/{quote(artifact.resource_id, safe='')}",
+                f"{self._gmail_root}/users/me/drafts/{quote(artifact.container_id, safe='')}",
                 headers=headers,
                 params={"format": "raw"},
             )
@@ -165,7 +167,15 @@ class GoogleWorkspaceVerificationGateway:
             )
         else:
             raise WorkspaceVerificationReadError(f"Unsupported artifact kind: {artifact.kind}")
-        return _response_object(response)
+        payload = _response_object(response)
+        return _draft_message(payload) if artifact.kind == ArtifactKind.GMAIL else payload
+
+
+def _draft_message(payload: dict[str, Any]) -> dict[str, Any]:
+    message = payload.get("message")
+    if not isinstance(message, dict):
+        raise WorkspaceVerificationReadError("Gmail draft omitted its message")
+    return cast(dict[str, Any], message)
 
 
 def _authorization(token: str) -> dict[str, str]:
