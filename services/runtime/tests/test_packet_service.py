@@ -9,6 +9,7 @@ from packet_support import (
     RecordingArtifactWriter,
     load_generation_request,
 )
+from veritas_runtime.changes.models import EvidenceSourceRegistration
 from veritas_runtime.execution.service import WorkspaceSession
 from veritas_runtime.packets.service import WorkspacePacketGenerationService
 from veritas_runtime.workspace.contracts import WorkspaceAuthorization
@@ -68,3 +69,71 @@ def test_subject_packet_service_rejects_session_without_verified_email() -> None
                 await service.generate_for_subject("subject-1", request_id, blueprint, sources)
 
     asyncio.run(scenario())
+
+
+def test_subject_packet_service_registers_watch_before_capturing_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+    writer = RecordingArtifactWriter()
+
+    monkeypatch.setattr(
+        packet_service,
+        "GoogleWorkspacePacketWriter",
+        lambda _token, _email, _http: writer,
+    )
+    request_id, blueprint, sources = load_generation_request()
+
+    class Registrar:
+        async def register(self, subject: str, manifest: object) -> tuple[object, ...]:
+            events.append("register")
+            return tuple(
+                EvidenceSourceRegistration(
+                    subject=subject,
+                    packet_id=manifest.packet_id,  # type: ignore[attr-defined]
+                    source_id=source.source_id,
+                    kind=source.kind,
+                    resource_id=source.resource_id,
+                    anchor=source.anchor,
+                    registered_at=manifest.created_at,  # type: ignore[attr-defined]
+                )
+                for source in manifest.sources  # type: ignore[attr-defined]
+            )
+
+    class Watch:
+        async def start(self, subject: str, token: str, url: str) -> None:
+            assert (subject, token, url) == (
+                "subject-1",
+                "access-token",
+                "https://veritas.test/drive",
+            )
+            events.append("watch")
+
+    class Baseline:
+        async def capture(
+            self,
+            registrations: tuple[object, ...],
+            packet_sources: tuple[object, ...],
+            token: str,
+        ) -> tuple[object, ...]:
+            assert len(registrations) == len(sources)
+            assert packet_sources == sources
+            assert token == "access-token"
+            events.append("baseline")
+            return ()
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient() as client:
+            service = WorkspacePacketGenerationService(
+                StaticSessions(),
+                MemoryManifestRepository(),
+                client,
+                Registrar(),  # type: ignore[arg-type]
+                Watch(),  # type: ignore[arg-type]
+                "https://veritas.test/drive",
+                Baseline(),  # type: ignore[arg-type]
+            )
+            await service.generate_for_subject("subject-1", request_id, blueprint, sources)
+
+    asyncio.run(scenario())
+    assert events == ["register", "watch", "baseline"]

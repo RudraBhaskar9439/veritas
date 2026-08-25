@@ -514,7 +514,9 @@ function Overview({
             <code>{source?.anchor ?? 'registered anchor'}</code>
           </div>
           <div className="valueTransition">
-            <span className="srOnly">Source value changed from 4 percent to 9 percent</span>
+            <span className="srOnly">
+              The registered source value changed; exact claim diffs follow
+            </span>
             <s>{incident.claims[0]?.before ?? 'previous value'}</s>
             <span aria-hidden="true">→</span>
             <strong>{incident.claims[0]?.after ?? 'recomputed value'}</strong>

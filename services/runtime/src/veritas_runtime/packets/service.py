@@ -1,6 +1,10 @@
 import httpx
 
-from veritas_runtime.changes.registration import ManifestEvidenceRegistrar
+from veritas_runtime.changes.models import EvidenceSourceRegistration
+from veritas_runtime.changes.registration import (
+    EvidenceBaselineCaptureService,
+    ManifestEvidenceRegistrar,
+)
 from veritas_runtime.changes.service import DriveWatchCoordinator
 from veritas_runtime.execution.service import WorkspaceSessionProvider
 from veritas_runtime.packets.generator import (
@@ -28,6 +32,7 @@ class WorkspacePacketGenerationService:
         evidence_registrar: ManifestEvidenceRegistrar | None = None,
         watch_coordinator: DriveWatchCoordinator | None = None,
         drive_webhook_url: str | None = None,
+        baseline_capture: EvidenceBaselineCaptureService | None = None,
     ) -> None:
         self._sessions = sessions
         self._manifests = manifests
@@ -35,6 +40,7 @@ class WorkspacePacketGenerationService:
         self._evidence_registrar = evidence_registrar
         self._watch_coordinator = watch_coordinator
         self._drive_webhook_url = drive_webhook_url
+        self._baseline_capture = baseline_capture
 
     async def generate_for_subject(
         self,
@@ -53,13 +59,24 @@ class WorkspacePacketGenerationService:
                 blueprint,
                 sources,
             )
+            registrations: tuple[EvidenceSourceRegistration, ...] = ()
             if self._evidence_registrar is not None:
-                await self._evidence_registrar.register(subject, result.manifest)
+                registrations = await self._evidence_registrar.register(subject, result.manifest)
             if self._watch_coordinator is not None and self._drive_webhook_url is not None:
                 await self._watch_coordinator.start(
                     subject,
                     session.access_token,
                     self._drive_webhook_url,
+                )
+            if self._baseline_capture is not None:
+                if not registrations:
+                    raise PacketGenerationError(
+                        "Evidence registration is required before baseline capture"
+                    )
+                await self._baseline_capture.capture(
+                    registrations,
+                    sources,
+                    session.access_token,
                 )
             return result
         except WorkspacePacketWriteError as error:

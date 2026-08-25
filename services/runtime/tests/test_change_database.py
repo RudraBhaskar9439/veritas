@@ -133,6 +133,40 @@ def test_sql_watch_repository_persists_overlap_sync_and_atomic_outbox_dedup() ->
         snapshot = (
             await ImmutableSnapshotService(MemorySnapshotObjects()).capture(capture, None, NOW)
         ).snapshot
+        await repository.persist_baseline_snapshots((snapshot,))
+        await repository.persist_baseline_snapshots((snapshot,))
+        assert await repository.latest_snapshot("subject-1", "packet-1", "source-1") == snapshot
+
+        conflicting_baseline = (
+            await ImmutableSnapshotService(MemorySnapshotObjects()).capture(
+                capture.model_copy(
+                    update={
+                        "workspace_version": "sheet-v2",
+                        "evidence": {"Metrics!B17": 0.09},
+                    }
+                ),
+                None,
+                NOW + timedelta(seconds=1),
+            )
+        ).snapshot
+        with pytest.raises(SnapshotIntegrityError, match="cannot replace"):
+            await repository.persist_baseline_snapshots((conflicting_baseline,))
+
+        meaningful = (
+            await ImmutableSnapshotService(MemorySnapshotObjects()).capture(
+                capture.model_copy(
+                    update={
+                        "workspace_version": "sheet-v2",
+                        "evidence": {"Metrics!B17": 0.09},
+                    }
+                ),
+                snapshot,
+                NOW + timedelta(seconds=1),
+            )
+        ).snapshot
+        with pytest.raises(SnapshotIntegrityError, match="Only baseline"):
+            await repository.persist_baseline_snapshots((meaningful,))
+
         stream = await repository.get_stream(old.stream_id)
         assert stream is not None
         await repository.commit_snapshots_and_cursor(

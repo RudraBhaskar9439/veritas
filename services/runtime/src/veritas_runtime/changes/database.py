@@ -608,6 +608,43 @@ class SqlWatchRepository:
             )
         return _snapshot(row) if row is not None else None
 
+    async def persist_baseline_snapshots(
+        self,
+        snapshots: tuple[EvidenceSnapshot, ...],
+    ) -> None:
+        if any(snapshot.delta_kind != DeltaKind.BASELINE for snapshot in snapshots):
+            raise SnapshotIntegrityError("Only baseline snapshots can initialize evidence history")
+        async with self._engine.begin() as connection:
+            for snapshot in snapshots:
+                if self._engine.dialect.name == "postgresql":
+                    lock_key = f"{snapshot.subject}:{snapshot.packet_id}:{snapshot.source_id}"
+                    await connection.execute(
+                        select(func.pg_advisory_xact_lock(func.hashtext(lock_key)))
+                    )
+                existing = (
+                    (
+                        await connection.execute(
+                            select(evidence_snapshots)
+                            .where(
+                                evidence_snapshots.c.subject == snapshot.subject,
+                                evidence_snapshots.c.packet_id == snapshot.packet_id,
+                                evidence_snapshots.c.source_id == snapshot.source_id,
+                            )
+                            .order_by(evidence_snapshots.c.created_at.desc())
+                            .limit(1)
+                        )
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
+                if existing is not None:
+                    if not _same_snapshot_identity(existing, snapshot):
+                        raise SnapshotIntegrityError(
+                            "Baseline cannot replace existing evidence history"
+                        )
+                    continue
+                await _persist_snapshot(connection, snapshot)
+
     async def commit_snapshots_and_cursor(
         self,
         stream_id: str,
@@ -638,52 +675,7 @@ class SqlWatchRepository:
                 raise ChangeCursorConflict("Drive cursor was advanced by another worker")
 
             for snapshot in snapshots:
-                existing = (
-                    (
-                        await connection.execute(
-                            select(evidence_snapshots).where(
-                                evidence_snapshots.c.subject == snapshot.subject,
-                                evidence_snapshots.c.packet_id == snapshot.packet_id,
-                                evidence_snapshots.c.source_id == snapshot.source_id,
-                                (
-                                    evidence_snapshots.c.workspace_version
-                                    == snapshot.workspace_version
-                                )
-                                | (evidence_snapshots.c.content_hash == snapshot.content_hash),
-                            )
-                        )
-                    )
-                    .mappings()
-                    .first()
-                )
-                if existing is not None:
-                    if (
-                        existing["content_hash"] != snapshot.content_hash
-                        or existing["semantic_hash"] != snapshot.semantic_hash
-                        or existing["object_name"] != snapshot.storage.object_name
-                        or existing["object_generation"] != snapshot.storage.generation
-                    ):
-                        raise SnapshotIntegrityError(
-                            "Persisted snapshot identity conflicts with immutable content"
-                        )
-                    continue
-                await connection.execute(
-                    insert(evidence_snapshots).values(
-                        snapshot_id=snapshot.snapshot_id,
-                        subject=snapshot.subject,
-                        packet_id=snapshot.packet_id,
-                        source_id=snapshot.source_id,
-                        resource_id=snapshot.resource_id,
-                        workspace_version=snapshot.workspace_version,
-                        content_hash=snapshot.content_hash,
-                        semantic_hash=snapshot.semantic_hash,
-                        bucket=snapshot.storage.bucket,
-                        object_name=snapshot.storage.object_name,
-                        object_generation=snapshot.storage.generation,
-                        delta_kind=snapshot.delta_kind.value,
-                        created_at=snapshot.created_at,
-                    )
-                )
+                await _persist_snapshot(connection, snapshot)
             result = await connection.execute(
                 update(drive_watch_streams)
                 .where(
@@ -694,6 +686,62 @@ class SqlWatchRepository:
             )
             if result.rowcount != 1:
                 raise ChangeCursorConflict("Drive cursor was advanced by another worker")
+
+
+async def _persist_snapshot(
+    connection: AsyncConnection,
+    snapshot: EvidenceSnapshot,
+) -> None:
+    existing = (
+        (
+            await connection.execute(
+                select(evidence_snapshots).where(
+                    evidence_snapshots.c.subject == snapshot.subject,
+                    evidence_snapshots.c.packet_id == snapshot.packet_id,
+                    evidence_snapshots.c.source_id == snapshot.source_id,
+                    (evidence_snapshots.c.workspace_version == snapshot.workspace_version)
+                    | (evidence_snapshots.c.content_hash == snapshot.content_hash),
+                )
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if existing is not None:
+        if not _same_snapshot_identity(existing, snapshot):
+            raise SnapshotIntegrityError(
+                "Persisted snapshot identity conflicts with immutable content"
+            )
+        return
+    await connection.execute(
+        insert(evidence_snapshots).values(
+            snapshot_id=snapshot.snapshot_id,
+            subject=snapshot.subject,
+            packet_id=snapshot.packet_id,
+            source_id=snapshot.source_id,
+            resource_id=snapshot.resource_id,
+            workspace_version=snapshot.workspace_version,
+            content_hash=snapshot.content_hash,
+            semantic_hash=snapshot.semantic_hash,
+            bucket=snapshot.storage.bucket,
+            object_name=snapshot.storage.object_name,
+            object_generation=snapshot.storage.generation,
+            delta_kind=snapshot.delta_kind.value,
+            created_at=snapshot.created_at,
+        )
+    )
+
+
+def _same_snapshot_identity(existing: RowMapping, snapshot: EvidenceSnapshot) -> bool:
+    return all(
+        (
+            existing["content_hash"] == snapshot.content_hash,
+            existing["semantic_hash"] == snapshot.semantic_hash,
+            existing["bucket"] == snapshot.storage.bucket,
+            existing["object_name"] == snapshot.storage.object_name,
+            existing["object_generation"] == snapshot.storage.generation,
+        )
+    )
 
 
 async def _channel_row(
