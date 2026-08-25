@@ -69,6 +69,7 @@ def test_bootstrap_materializes_sheet_and_doc_with_real_versions() -> None:
                 StaticSessions(),
                 client,
                 version_settle_interval_seconds=0,
+                version_settle_observations=2,
             )
             return await service.bootstrap_for_subject("subject-1", "request-1", _sources())
 
