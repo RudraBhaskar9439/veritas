@@ -13,7 +13,7 @@ Veritas needs real Google Cloud proof without silently turning a demo deployment
 The preview environment uses layered containment:
 
 1. The billing account must remain an unupgraded **Free trial account**. A paid account is a deployment stop condition.
-2. The project receives a $50 monthly gross-cost warning budget. Credits are excluded from threshold calculations so consumption remains visible before offsets. Alerts fire at $10, $25, $40, and $50.
+2. The project receives a monthly gross-cost warning budget in the billing account's native currency. Credits are excluded from threshold calculations so consumption remains visible before offsets. The current INR preview uses ₹4,000, with alerts at ₹800, ₹2,000, ₹3,200, and ₹4,000.
 3. Cloud Run keeps minimum instances at zero. Preview API, ingress, and web services are capped at two instances; the worker is capped at three.
 4. Preview Cloud SQL uses the smallest accepted tier, a 10 GB initial disk, and a 20 GB autosize ceiling.
 5. Only the APIs listed in Terraform may be enabled. Marketplace products, prepayment, paid-account activation, and quota increases are outside the preview runbook.

@@ -73,13 +73,24 @@ variable "billing_account_id" {
   }
 }
 
-variable "monthly_budget_usd" {
-  description = "Gross monthly cost that triggers preview warnings; this budget does not itself cap spending."
+variable "budget_currency_code" {
+  description = "ISO 4217 currency code of the billing account used for the warning budget."
+  type        = string
+  default     = "USD"
+
+  validation {
+    condition     = can(regex("^[A-Z]{3}$", var.budget_currency_code))
+    error_message = "budget_currency_code must be a three-letter uppercase ISO 4217 currency code"
+  }
+}
+
+variable "monthly_budget_amount" {
+  description = "Gross monthly amount that triggers preview warnings in budget_currency_code; this budget does not itself cap spending."
   type        = number
   default     = 50
 
   validation {
-    condition     = var.monthly_budget_usd >= 5 && var.monthly_budget_usd <= 300 && floor(var.monthly_budget_usd) == var.monthly_budget_usd
-    error_message = "monthly_budget_usd must be a whole-dollar amount between 5 and 300"
+    condition     = var.monthly_budget_amount >= 1 && var.monthly_budget_amount <= 1000000 && floor(var.monthly_budget_amount) == var.monthly_budget_amount
+    error_message = "monthly_budget_amount must be a positive whole-currency amount no greater than 1,000,000"
   }
 }

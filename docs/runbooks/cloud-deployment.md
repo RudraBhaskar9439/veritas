@@ -10,7 +10,7 @@ Record the project ID, billing account, region, accepted Git commit, operator ac
 
 Use the committed Terraform in `infra/terraform` with a secure remote state backend. Review the plan before applying. The first apply creates APIs, service accounts, Artifact Registry, versioned Storage, Pub/Sub with dead letter handling, Cloud Tasks, KMS, empty Secret Manager resources, Cloud SQL, log metrics, and the dead-letter alert.
 
-Before the first plan, apply [ADR 0014](../architecture-decisions/0014-preview-cost-containment.md): verify the Billing Overview says **Free trial account**, never **Paid account**. Pass the billing account ID only through an uncommitted variable source to create the $50 gross-cost warning budget. Keep preview Cloud Run minimum instances at zero, retain the preview scaling ceilings, and enable a project spend cap in Cloud Billing if the account offers one. A normal budget alert is not a hard cap.
+Before the first plan, apply [ADR 0014](../architecture-decisions/0014-preview-cost-containment.md): verify the Billing Overview says **Free trial account**, never **Paid account**. Pass the billing account ID, account currency, and a locally approved amount only through an uncommitted variable source to create the gross-cost warning budget. The current INR preview uses a ₹4,000 ceiling. Keep preview Cloud Run minimum instances at zero, retain the preview scaling ceilings, and enable a project spend cap in Cloud Billing if the account offers one. A normal budget alert is not a hard cap.
 
 Acceptance evidence:
 

@@ -6,11 +6,13 @@ locals {
     "artifactregistry.googleapis.com",
     "billingbudgets.googleapis.com",
     "cloudkms.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
     "cloudscheduler.googleapis.com",
     "cloudtasks.googleapis.com",
     "docs.googleapis.com",
     "drive.googleapis.com",
     "gmail.googleapis.com",
+    "iam.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
     "pubsub.googleapis.com",
@@ -90,8 +92,8 @@ resource "google_billing_budget" "preview" {
 
   amount {
     specified_amount {
-      currency_code = "USD"
-      units         = tostring(var.monthly_budget_usd)
+      currency_code = var.budget_currency_code
+      units         = tostring(var.monthly_budget_amount)
     }
   }
 
@@ -233,6 +235,7 @@ resource "google_sql_database_instance" "postgres" {
   region           = var.region
 
   settings {
+    edition               = "ENTERPRISE"
     tier                  = var.database_tier
     availability_type     = var.environment == "production" ? "REGIONAL" : "ZONAL"
     disk_autoresize       = true
@@ -648,14 +651,14 @@ resource "google_monitoring_alert_policy" "operation_dead_letter" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public" {
-  for_each = {
-    for name, service in google_cloud_run_v2_service.runtime : name => service
+  for_each = toset([
+    for name in keys(var.service_images) : name
     if contains(["api", "ingress", "web"], name)
-  }
+  ])
 
   project  = var.project_id
   location = var.region
-  name     = each.value.name
+  name     = google_cloud_run_v2_service.runtime[each.value].name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
