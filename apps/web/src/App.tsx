@@ -33,7 +33,7 @@ interface PacketGenerationResult {
 type GenerationState =
   | { phase: 'idle' }
   | { phase: 'running' }
-  | { phase: 'error' }
+  | { phase: 'error'; message: string }
   | { phase: 'complete'; result: PacketGenerationResult };
 
 const views: ReadonlyArray<{ id: ViewId; label: string; index: string }> = [
@@ -111,7 +111,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
         setGeneration({ phase: 'idle' });
         return;
       }
-      if (!bootstrapResponse.ok) throw new Error(`evidence_${bootstrapResponse.status}`);
+      if (!bootstrapResponse.ok) throw new Error(await safeApiError(bootstrapResponse));
       const bootstrapped = (await bootstrapResponse.json()) as {
         sources: ReadonlyArray<PacketResource & { value: unknown }>;
       };
@@ -121,13 +121,16 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ ...generationRequest, sources: bootstrapped.sources }),
       });
-      if (!packetResponse.ok) throw new Error(`packet_${packetResponse.status}`);
+      if (!packetResponse.ok) throw new Error(await safeApiError(packetResponse));
       setGeneration({
         phase: 'complete',
         result: (await packetResponse.json()) as PacketGenerationResult,
       });
-    } catch {
-      setGeneration({ phase: 'error' });
+    } catch (error: unknown) {
+      setGeneration({
+        phase: 'error',
+        message: error instanceof Error ? error.message : 'Live generation failed.',
+      });
     }
   }
 
@@ -371,7 +374,7 @@ function StartupState({
       </div>
       {generation.phase === 'error' && (
         <p className="actionError" role="alert">
-          Live generation failed safely. No demonstration data was substituted.
+          {generation.message} No demonstration data was substituted.
         </p>
       )}
       {generation.phase === 'complete' && (
@@ -379,6 +382,18 @@ function StartupState({
       )}
     </main>
   );
+}
+
+async function safeApiError(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as { detail?: unknown };
+    if (typeof payload.detail === 'string' && payload.detail.length <= 240) {
+      return payload.detail;
+    }
+  } catch {
+    // A bounded status message remains available when an upstream response is not JSON.
+  }
+  return `Live Workspace request failed with status ${response.status}.`;
 }
 
 function GeneratedPacket({

@@ -2,7 +2,7 @@ import base64
 import hashlib
 from email.message import EmailMessage
 from typing import Any, cast
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import httpx
 
@@ -319,8 +319,9 @@ class GoogleWorkspacePacketWriter:
         try:
             response.raise_for_status()
         except httpx.HTTPError as error:
+            service = urlsplit(url).netloc.split(".", 1)[0] or "workspace"
             raise WorkspacePacketWriteError(
-                f"Workspace packet write failed with status {response.status_code}"
+                f"Workspace packet write failed in {service} with status {response.status_code}"
             ) from error
         try:
             payload = response.json()
