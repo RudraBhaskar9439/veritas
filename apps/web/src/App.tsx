@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import generationRequest from '../../../fixtures/demo/q3-generation-request.json';
 import {
   type ClaimChange,
   demoIncident,
@@ -9,6 +10,31 @@ import {
 
 const VIEW_STORAGE_KEY = 'veritas.command-center.view';
 const CLAIM_STORAGE_KEY = 'veritas.command-center.claim';
+
+type StartupStatus = 'loading' | 'ready' | 'unauthorized' | 'empty' | 'error';
+
+interface PacketResource {
+  artifactId?: string;
+  sourceId?: string;
+  kind: 'google_doc' | 'google_slides' | 'gmail' | 'google_task' | 'google_sheet';
+  resourceId: string;
+}
+
+interface PacketGenerationResult {
+  manifest: {
+    packetId: string;
+    artifacts: ReadonlyArray<PacketResource>;
+    sources: ReadonlyArray<PacketResource>;
+  };
+  checksum: string;
+  reused: boolean;
+}
+
+type GenerationState =
+  | { phase: 'idle' }
+  | { phase: 'running' }
+  | { phase: 'error' }
+  | { phase: 'complete'; result: PacketGenerationResult };
 
 const views: ReadonlyArray<{ id: ViewId; label: string; index: string }> = [
   { id: 'overview', label: 'Command center', index: '01' },
@@ -38,9 +64,8 @@ function useIncident(): Incident {
 
 export function App({ initialIncident }: { initialIncident?: Incident }) {
   const [incident, setIncident] = useState<Incident | null>(initialIncident ?? null);
-  const [state, setState] = useState<'loading' | 'ready' | 'unauthorized' | 'empty' | 'error'>(
-    initialIncident ? 'ready' : 'loading',
-  );
+  const [state, setState] = useState<StartupStatus>(initialIncident ? 'ready' : 'loading');
+  const [generation, setGeneration] = useState<GenerationState>({ phase: 'idle' });
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
@@ -69,10 +94,49 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
     return () => controller.abort();
   }, [initialIncident, retry]);
 
+  async function generateLivePacket() {
+    setGeneration({ phase: 'running' });
+    try {
+      const bootstrapResponse = await fetch('/api/v1/evidence/bootstrap', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          requestId: `${generationRequest.requestId}-sources`,
+          sources: generationRequest.sources,
+        }),
+      });
+      if (bootstrapResponse.status === 401) {
+        setState('unauthorized');
+        setGeneration({ phase: 'idle' });
+        return;
+      }
+      if (!bootstrapResponse.ok) throw new Error(`evidence_${bootstrapResponse.status}`);
+      const bootstrapped = (await bootstrapResponse.json()) as {
+        sources: ReadonlyArray<PacketResource & { value: unknown }>;
+      };
+      const packetResponse = await fetch('/api/v1/packets', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ ...generationRequest, sources: bootstrapped.sources }),
+      });
+      if (!packetResponse.ok) throw new Error(`packet_${packetResponse.status}`);
+      setGeneration({
+        phase: 'complete',
+        result: (await packetResponse.json()) as PacketGenerationResult,
+      });
+    } catch {
+      setGeneration({ phase: 'error' });
+    }
+  }
+
   if (state !== 'ready' || !incident) {
     return (
       <StartupState
         state={state}
+        generation={generation}
+        onGenerate={generateLivePacket}
         onRetry={() => setRetry((value) => value + 1)}
         onDemo={() => {
           setIncident(demoIncident);
@@ -242,10 +306,14 @@ function CommandCenter({
 
 function StartupState({
   state,
+  generation,
+  onGenerate,
   onRetry,
   onDemo,
 }: {
-  state: 'loading' | 'ready' | 'unauthorized' | 'empty' | 'error';
+  state: StartupStatus;
+  generation: GenerationState;
+  onGenerate: () => void;
   onRetry: () => void;
   onDemo: () => void;
 }) {
@@ -283,14 +351,93 @@ function StartupState({
             Retry live data
           </button>
         )}
+        {state === 'empty' && generation.phase !== 'complete' && (
+          <button
+            className="primaryButton"
+            type="button"
+            onClick={onGenerate}
+            disabled={generation.phase === 'running'}
+          >
+            {generation.phase === 'running'
+              ? 'Creating real Workspace packet…'
+              : 'Generate real Workspace packet'}
+          </button>
+        )}
         {state !== 'loading' && (
           <button className="secondaryButton" type="button" onClick={onDemo}>
             Open offline judge demo
           </button>
         )}
       </div>
+      {generation.phase === 'error' && (
+        <p className="actionError" role="alert">
+          Live generation failed safely. No demonstration data was substituted.
+        </p>
+      )}
+      {generation.phase === 'complete' && (
+        <GeneratedPacket result={generation.result} onRetry={onGenerate} />
+      )}
     </main>
   );
+}
+
+function GeneratedPacket({
+  result,
+  onRetry,
+}: {
+  result: PacketGenerationResult;
+  onRetry: () => void;
+}) {
+  const resources = [...result.manifest.sources, ...result.manifest.artifacts];
+  return (
+    <section className="generatedPacket" aria-labelledby="generated-title">
+      <span className="sectionKicker">Live Workspace proof</span>
+      <h2 id="generated-title">Decision packet created and monitored.</h2>
+      <p>
+        The source Sheet, policy Doc, five downstream artifacts, registered lineage, and Drive
+        change watch now use real Google resource IDs.
+      </p>
+      <div className="generatedLinks">
+        {resources.map((resource) => {
+          const url = workspaceResourceUrl(resource);
+          const label = resource.sourceId ?? resource.artifactId ?? resource.kind;
+          return url ? (
+            <a
+              key={`${resource.kind}:${resource.resourceId}`}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span>{resource.kind.replace('google_', '').replace('_', ' ')}</span>
+              <strong>{label}</strong>
+              <small>Open real artifact ↗</small>
+            </a>
+          ) : null;
+        })}
+      </div>
+      <div className="startupActions">
+        <button className="secondaryButton" type="button" onClick={onRetry}>
+          Verify idempotent replay
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function workspaceResourceUrl(resource: PacketResource): string | null {
+  if (resource.kind === 'google_sheet') {
+    return `https://docs.google.com/spreadsheets/d/${resource.resourceId}/edit`;
+  }
+  if (resource.kind === 'google_doc') {
+    return `https://docs.google.com/document/d/${resource.resourceId}/edit`;
+  }
+  if (resource.kind === 'google_slides') {
+    return `https://docs.google.com/presentation/d/${resource.resourceId}/edit`;
+  }
+  if (resource.kind === 'gmail') {
+    return `https://mail.google.com/mail/u/0/#drafts/${resource.resourceId}`;
+  }
+  return null;
 }
 
 interface OverviewProps {

@@ -8,6 +8,7 @@ COPY apps/web/package.json apps/web/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY biome.json ./
+COPY fixtures fixtures
 COPY apps/web apps/web
 RUN pnpm --filter @veritas/web build
 

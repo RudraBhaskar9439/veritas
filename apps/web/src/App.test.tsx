@@ -100,6 +100,65 @@ describe('Veritas command center', () => {
     ).toBeInTheDocument();
   });
 
+  it('creates real evidence before generating and monitoring a live packet', async () => {
+    const sources = [
+      {
+        sourceId: 'src-churn',
+        kind: 'google_sheet',
+        resourceId: 'real-sheet',
+        anchor: 'Metrics!B17',
+        version: '7',
+        value: 0.04,
+      },
+      {
+        sourceId: 'src-launch',
+        kind: 'google_doc',
+        resourceId: 'real-doc',
+        anchor: 'launch-date',
+        version: '9',
+        value: '2026-10-15',
+      },
+    ];
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(new Response('null'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sources })))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            manifest: {
+              packetId: 'packet-q3-executive-review',
+              sources,
+              artifacts: [
+                {
+                  artifactId: 'board-brief',
+                  kind: 'google_slides',
+                  resourceId: 'real-slides',
+                },
+              ],
+            },
+            checksum: 'a'.repeat(64),
+            reused: false,
+          }),
+        ),
+      );
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate real Workspace packet' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Decision packet created and monitored.' }),
+    ).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/v1/command-center/incidents/latest',
+      '/api/v1/evidence/bootstrap',
+      '/api/v1/packets',
+    ]);
+    expect(screen.getByRole('link', { name: /src-churn/ })).toHaveAttribute(
+      'href',
+      'https://docs.google.com/spreadsheets/d/real-sheet/edit',
+    );
+  });
+
   it('uses one server-side action for approval, continuation, and verification', async () => {
     const pending: Incident = {
       ...demoIncident,

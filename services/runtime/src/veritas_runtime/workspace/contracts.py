@@ -23,7 +23,7 @@ CAPABILITY_SCOPES: dict[WorkspaceCapability, frozenset[str]] = {
     WorkspaceCapability.EVIDENCE_READ: frozenset(
         {
             "https://www.googleapis.com/auth/drive.file",
-            "https://www.googleapis.com/auth/spreadsheets.readonly",
+            "https://www.googleapis.com/auth/spreadsheets",
         }
     ),
     WorkspaceCapability.DOCS_REPAIR: frozenset(

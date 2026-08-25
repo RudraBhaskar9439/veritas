@@ -1,5 +1,6 @@
 from veritas_runtime.app_factory import create_app
 from veritas_runtime.auth.routes import create_google_auth_router
+from veritas_runtime.changes.routes_bootstrap import create_evidence_bootstrap_router
 from veritas_runtime.command_center.routes import create_command_center_router
 from veritas_runtime.composition import (
     approval_actor_resolver,
@@ -28,6 +29,7 @@ app.include_router(
     )
 )
 if components is None:
+    app.include_router(create_evidence_bootstrap_router(None, None))
     app.include_router(create_packet_router(None))
     app.include_router(create_impact_router(None, None))
     app.include_router(create_repair_router(None, None, None))
@@ -37,6 +39,7 @@ if components is None:
     app.include_router(create_command_center_router(None, None))
 else:
     resolve_subject = subject_resolver(components.session_codec, secure_cookie=secure_cookie)
+    app.include_router(create_evidence_bootstrap_router(components.evidence, resolve_subject))
     app.include_router(create_packet_router(None, components.packets, resolve_subject))
     app.include_router(create_impact_router(components.impact, resolve_subject))
     app.include_router(

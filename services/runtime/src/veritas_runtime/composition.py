@@ -15,7 +15,13 @@ from veritas_runtime.auth.sessions import (
     InvalidApplicationSession,
     SessionPrincipal,
 )
+from veritas_runtime.changes.bootstrap import WorkspaceEvidenceBootstrapService
+from veritas_runtime.changes.database import SqlWatchRepository
+from veritas_runtime.changes.drive import GoogleDriveChangesClient
+from veritas_runtime.changes.registration import ManifestEvidenceRegistrar
+from veritas_runtime.changes.service import DriveWatchCoordinator
 from veritas_runtime.changes.snapshots import GcsSnapshotObjectStore
+from veritas_runtime.changes.tokens import ChannelTokenCodec
 from veritas_runtime.command_center.database import SqlCommandCenterRepository
 from veritas_runtime.command_center.service import CommandCenterService
 from veritas_runtime.database_runtime import DatabaseRuntime, build_database_runtime
@@ -58,6 +64,7 @@ class ApiComponents:
     http: httpx.AsyncClient
     auth: GoogleAuthComponents
     session_codec: ApplicationSessionCodec
+    evidence: WorkspaceEvidenceBootstrapService
     packets: WorkspacePacketGenerationService
     impact: ImpactAnalysisService
     repairs: RepairPlanningService
@@ -93,6 +100,16 @@ def build_api_components(settings: Settings) -> ApiComponents | None:
     snapshots = GcsSnapshotObjectStore(settings.snapshot_bucket)
     sessions = EncryptedWorkspaceSessionProvider(auth.vault, auth.oauth)
     http = httpx.AsyncClient(timeout=httpx.Timeout(20, connect=5))
+    watch_repository = SqlWatchRepository(engine)
+    watch_coordinator = None
+    if settings.drive_channel_token_key is not None and settings.drive_webhook_url is not None:
+        watch_coordinator = DriveWatchCoordinator(
+            GoogleDriveChangesClient(http),
+            watch_repository,
+            ChannelTokenCodec.from_base64(
+                settings.drive_channel_token_key.get_secret_value()
+            ),
+        )
     verification_repository = SqlVerificationRepository(engine, snapshots)
     verification_gateway = GoogleWorkspaceVerificationGateway(http)
     repairs = RepairPlanningService(SqlRepairRepository(engine, snapshots))
@@ -120,10 +137,14 @@ def build_api_components(settings: Settings) -> ApiComponents | None:
         http=http,
         auth=auth,
         session_codec=session_codec,
+        evidence=WorkspaceEvidenceBootstrapService(sessions, http),
         packets=WorkspacePacketGenerationService(
             sessions,
             SqlManifestRepository(engine),
             http,
+            ManifestEvidenceRegistrar(watch_repository),
+            watch_coordinator,
+            settings.drive_webhook_url,
         ),
         impact=ImpactAnalysisService(SqlImpactRepository(engine)),
         repairs=repairs,

@@ -64,6 +64,7 @@ locals {
 
   api_auth_secrets = toset([
     "application-session-key",
+    "drive-channel-token-key",
     "google-oauth-client-id",
     "google-oauth-client-secret",
     "oauth-ticket-key",
@@ -382,7 +383,7 @@ resource "google_cloud_run_v2_service" "runtime" {
       }
 
       dynamic "env" {
-        for_each = each.key == "ingress" ? {
+        for_each = contains(["api", "ingress"], each.key) ? {
           VERITAS_DRIVE_WEBHOOK_URL = local.drive_webhook_url
         } : {}
         content {
@@ -394,6 +395,7 @@ resource "google_cloud_run_v2_service" "runtime" {
       dynamic "env" {
         for_each = each.key == "api" ? {
           VERITAS_APPLICATION_SESSION_KEY    = google_secret_manager_secret.auth["application-session-key"].secret_id
+          VERITAS_DRIVE_CHANNEL_TOKEN_KEY    = google_secret_manager_secret.auth["drive-channel-token-key"].secret_id
           VERITAS_GOOGLE_OAUTH_CLIENT_ID     = google_secret_manager_secret.auth["google-oauth-client-id"].secret_id
           VERITAS_GOOGLE_OAUTH_CLIENT_SECRET = google_secret_manager_secret.auth["google-oauth-client-secret"].secret_id
           VERITAS_OAUTH_TICKET_KEY           = google_secret_manager_secret.auth["oauth-ticket-key"].secret_id

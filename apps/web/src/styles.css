@@ -183,9 +183,20 @@ dd {
 }
 
 .replayButton,
-.secondaryButton {
+.secondaryButton,
+.primaryButton {
   border: 0;
   cursor: pointer;
+}
+
+.primaryButton {
+  padding: 11px 16px;
+  border-radius: 8px;
+  color: #f3fbf7;
+  background: var(--green);
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(22, 118, 81, 0.2);
 }
 
 .replayButton {
@@ -2166,6 +2177,61 @@ code {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.generatedPacket {
+  width: min(920px, calc(100vw - 56px));
+  margin-top: 14px;
+  padding: 26px;
+  border: 1px solid rgba(22, 118, 81, 0.24);
+  border-radius: 18px;
+  background: rgba(247, 248, 244, 0.88);
+  box-shadow: var(--shadow);
+}
+
+.generatedPacket h2 {
+  margin: 9px 0 8px;
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.generatedPacket > p {
+  max-width: 760px;
+  font-size: 0.9rem;
+}
+
+.generatedLinks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 9px;
+  margin: 19px 0;
+}
+
+.generatedLinks a {
+  display: grid;
+  gap: 4px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-strong);
+}
+
+.generatedLinks a:hover {
+  border-color: rgba(22, 118, 81, 0.42);
+}
+
+.generatedLinks span,
+.generatedLinks small {
+  color: var(--soft);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.generatedLinks strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .approvalPanel {
