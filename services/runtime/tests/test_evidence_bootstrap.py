@@ -49,11 +49,11 @@ def test_bootstrap_materializes_sheet_and_doc_with_real_versions() -> None:
         if request.method == "POST" and path.endswith(":batchUpdate"):
             return httpx.Response(200, json={})
         if request.method == "PATCH":
-            return httpx.Response(200, json={"id": path.rsplit("/", 1)[-1]})
-        if request.method == "GET" and path.endswith("/real-sheet"):
-            return httpx.Response(200, json={"version": 7})
-        if request.method == "GET" and path.endswith("/real-doc"):
-            return httpx.Response(200, json={"version": "9"})
+            version = 7 if path.endswith("/real-sheet") else "9"
+            return httpx.Response(
+                200,
+                json={"id": path.rsplit("/", 1)[-1], "version": version},
+            )
         raise AssertionError(f"Unexpected Workspace request: {request.method} {request.url}")
 
     async def scenario() -> tuple[SourceSnapshot, ...]:
@@ -64,6 +64,8 @@ def test_bootstrap_materializes_sheet_and_doc_with_real_versions() -> None:
     resolved = asyncio.run(scenario())
     assert {source.resource_id for source in resolved} == {"real-sheet", "real-doc"}
     assert {source.version for source in resolved} == {"7", "9"}
+    mark_requests = [request for request in requests if request.method == "PATCH"]
+    assert all(request.url.params["fields"] == "id,version" for request in mark_requests)
     sheet_write = next(
         request for request in requests if request.url.path.endswith("values:batchUpdate")
     )

@@ -52,12 +52,12 @@ class GoogleWorkspaceEvidenceBootstrapper:
             kind = next(iter(kinds))
             key = hashlib.sha256(f"{request_id}:{logical_id}".encode()).hexdigest()
             if kind == SourceKind.GOOGLE_SHEET:
-                resource_id = await self._sheet(tuple(group), key)
+                resource_id, version = await self._sheet(tuple(group), key)
             elif kind == SourceKind.GOOGLE_DOC:
-                resource_id = await self._document(tuple(group), key)
+                resource_id, version = await self._document(tuple(group), key)
             else:
                 raise EvidenceBootstrapError(f"Unsupported evidence source kind: {kind}")
-            resolved[logical_id] = (resource_id, await self._drive_version(resource_id))
+            resolved[logical_id] = (resource_id, version)
 
         return tuple(
             source.model_copy(
@@ -69,10 +69,10 @@ class GoogleWorkspaceEvidenceBootstrapper:
             for source in sources
         )
 
-    async def _sheet(self, sources: tuple[SourceSnapshot, ...], key: str) -> str:
+    async def _sheet(self, sources: tuple[SourceSnapshot, ...], key: str) -> tuple[str, str]:
         existing = await self._find_file(key, "application/vnd.google-apps.spreadsheet")
         if existing is not None:
-            return existing
+            return existing, await self._drive_version(existing)
         sheet_names = {source.anchor.split("!", 1)[0].strip("'") for source in sources}
         if len(sheet_names) != 1 or any("!" not in source.anchor for source in sources):
             raise EvidenceBootstrapError("Sheet evidence must use one explicit sheet name")
@@ -97,13 +97,12 @@ class GoogleWorkspaceEvidenceBootstrapper:
                 ],
             },
         )
-        await self._mark_file(resource_id, key)
-        return resource_id
+        return resource_id, await self._mark_file(resource_id, key)
 
-    async def _document(self, sources: tuple[SourceSnapshot, ...], key: str) -> str:
+    async def _document(self, sources: tuple[SourceSnapshot, ...], key: str) -> tuple[str, str]:
         existing = await self._find_file(key, "application/vnd.google-apps.document")
         if existing is not None:
-            return existing
+            return existing, await self._drive_version(existing)
         created = await self._request(
             "POST",
             f"{self._docs_root}/documents",
@@ -128,8 +127,7 @@ class GoogleWorkspaceEvidenceBootstrapper:
             f"{self._docs_root}/documents/{quote(resource_id, safe='')}:batchUpdate",
             json={"requests": requests},
         )
-        await self._mark_file(resource_id, key)
-        return resource_id
+        return resource_id, await self._mark_file(resource_id, key)
 
     async def _find_file(self, key: str, mime_type: str) -> str | None:
         escaped_key = key.replace("'", "\\'")
@@ -154,13 +152,17 @@ class GoogleWorkspaceEvidenceBootstrapper:
             raise EvidenceBootstrapError("Workspace evidence idempotency key is ambiguous")
         return _required_string(files[0], "id", "Drive evidence file ID")
 
-    async def _mark_file(self, resource_id: str, key: str) -> None:
-        await self._request(
+    async def _mark_file(self, resource_id: str, key: str) -> str:
+        payload = await self._request(
             "PATCH",
             f"{self._drive_root}/files/{quote(resource_id, safe='')}",
-            params={"fields": "id"},
+            params={"fields": "id,version"},
             json={"appProperties": {"veritasEvidenceRequest": key}},
         )
+        version = payload.get("version")
+        if not isinstance(version, (str, int)):
+            raise EvidenceBootstrapError("Marked Drive evidence version is missing")
+        return str(version)
 
     async def _drive_version(self, resource_id: str) -> str:
         payload = await self._request(
