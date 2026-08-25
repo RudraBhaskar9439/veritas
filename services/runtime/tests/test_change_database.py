@@ -70,6 +70,13 @@ def test_sql_watch_repository_persists_overlap_sync_and_atomic_outbox_dedup() ->
         assert await repository.mark_notification_dispatched(pending[0].event_id) is True
         assert await repository.mark_notification_dispatched(pending[0].event_id) is False
         assert await repository.pending_notification_events() == ()
+        async with engine.connect() as connection:
+            outbox_status = await connection.scalar(
+                select(drive_notification_outbox.c.status).where(
+                    drive_notification_outbox.c.event_id == pending[0].event_id
+                )
+            )
+        assert outbox_status == "published"
         with pytest.raises(ValueError, match="batch size"):
             await repository.pending_notification_events(0)
 

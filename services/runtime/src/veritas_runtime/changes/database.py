@@ -503,7 +503,7 @@ class SqlWatchRepository:
                     drive_notification_outbox.c.status == "pending",
                 )
                 .values(
-                    status="dispatched",
+                    status="published",
                     attempts=drive_notification_outbox.c.attempts + 1,
                 )
             )
