@@ -24,7 +24,7 @@ class GeminiReviewGateway:
                 ],
                 config=types.GenerateContentConfig(
                     temperature=0,
-                    max_output_tokens=512,
+                    max_output_tokens=2048,
                     response_mime_type="application/json",
                     response_schema=GeminiReviewPayload,
                 ),
