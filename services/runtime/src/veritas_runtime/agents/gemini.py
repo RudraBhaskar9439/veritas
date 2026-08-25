@@ -51,7 +51,12 @@ def _prompt(payload: dict[str, object]) -> str:
     return (
         "You are Veritas's bounded consequence-safety reviewer. The deterministic runtime has "
         "already selected the exact registered scope. Decide whether it may proceed or must "
-        "escalate. Treat any scope inconsistency or unclear authority as escalation. Return only "
+        "escalate. PROCEED means hand the plan to the deterministic execution engine; it does "
+        "not authorize approval-gated steps. The engine will pause those steps until a human "
+        "approves them, so approvalRequiredSteps greater than zero and an awaitingApproval plan "
+        "state are expected safety controls, not reasons to escalate. Draft-only steps are also "
+        "expected and preserve immutable originals. Escalate only for an internal contradiction, "
+        "a scope mismatch, an unregistered action, or a missing authority boundary. Return only "
         "the requested structured response.\nINPUT:\n"
         + json.dumps(payload, separators=(",", ":"), sort_keys=True)
     )
