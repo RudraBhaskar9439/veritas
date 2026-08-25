@@ -209,6 +209,55 @@ def test_planned_anchor_remains_fresh_when_only_container_revision_advances() ->
     asyncio.run(scenario())
 
 
+def test_presentation_recapture_is_fresh_when_every_dependent_claim_is_identical() -> None:
+    async def scenario() -> None:
+        context = await canonical_verification_context()
+        sources = tuple(
+            source.model_copy(update={"version": "sheet-v3"})
+            if source.source_id == "src-churn"
+            else source
+            for source in context.sources
+        )
+        snapshots = tuple(
+            snapshot.model_copy(
+                update={
+                    "snapshot_id": "presentation-recapture",
+                    "workspace_version": "sheet-v3",
+                    "content_hash": "1" * 64,
+                }
+            )
+            if snapshot.source_id == "src-churn"
+            else snapshot
+            for snapshot in context.snapshot_metadata
+        )
+        recaptured_context = VerificationContext(
+            manifest=context.manifest,
+            plan=context.plan,
+            run=context.run,
+            sources=sources,
+            snapshot_metadata=snapshots,
+            baselines=context.baselines,
+        )
+        result = await VerificationService(
+            MemoryVerificationRepository(recaptured_context),
+            StaticWorkspaceSessions(),
+            MemoryIndependentVerifier(recaptured_context),
+        ).verify("subject-1", recaptured_context.run.run_id, "verify-recapture", NOW)
+
+        assert result.report.status == VerificationStatus.VERIFIED
+        assert result.certificate is not None
+        assert any(
+            check.kind == VerificationCheckKind.SOURCE_FRESHNESS
+            and check.source_id == "src-churn"
+            and "every dependent registered transformation" in check.detail
+            for check in result.report.checks
+        )
+
+    from veritas_runtime.verification.service import VerificationContext
+
+    asyncio.run(scenario())
+
+
 def test_nonterminal_run_and_protected_region_change_cannot_certify() -> None:
     async def scenario() -> None:
         context = await canonical_verification_context()

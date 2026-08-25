@@ -232,10 +232,9 @@ class VerificationService:
         session = await self._sessions.get(subject)
         checks: list[VerificationCheck] = []
         checks.append(_run_check(context))
-        freshness_checks, is_stale = _freshness_checks(context)
-        checks.extend(freshness_checks)
-
         expected_statements, deterministic_checks = self._recompute_claims(context)
+        freshness_checks, is_stale = _freshness_checks(context, expected_statements)
+        checks.extend(freshness_checks)
         checks.extend(deterministic_checks)
         (
             target_checks,
@@ -687,6 +686,7 @@ def _run_check(context: VerificationContext) -> VerificationCheck:
 
 def _freshness_checks(
     context: VerificationContext,
+    expected_statements: dict[str, str],
 ) -> tuple[list[VerificationCheck], bool]:
     expected: dict[str, tuple[str, str | None]] = {}
     for step in context.plan.steps:
@@ -721,6 +721,22 @@ def _freshness_checks(
         same_container_revision = bool(
             source is not None and snapshot is not None and source.version == version
         )
+        relevant_steps = tuple(
+            step
+            for step in context.plan.steps
+            if any(ref.source_id == source_id for ref in step.source_versions)
+        )
+        semantically_unchanged = bool(
+            relevant_steps
+            and all(
+                expected_statements.get(step.claim_id) == step.proposed_statement
+                for step in relevant_steps
+            )
+        )
+        content_unchanged = bool(
+            snapshot is not None
+            and (content_hash is None or snapshot.content_hash == content_hash)
+        )
         ok = bool(
             source is not None
             and snapshot is not None
@@ -729,7 +745,7 @@ def _freshness_checks(
             # It may also advance a Sheet's file revision after an unrelated
             # cell changes. Causal freshness is therefore bound to the exact
             # registered-anchor content hash, not the containing file alone.
-            and (content_hash is None or snapshot.content_hash == content_hash)
+            and (content_unchanged or semantically_unchanged)
         )
         stale = stale or not ok
         checks.append(
@@ -743,6 +759,11 @@ def _freshness_checks(
                     else (
                         "The registered source anchor remains byte-identical to the repair's "
                         "causal snapshot; only its containing file revision advanced."
+                    )
+                    if ok and content_unchanged
+                    else (
+                        "The source capture changed, but every dependent registered "
+                        "transformation still reproduces the repair's exact claim statement."
                     )
                     if ok
                     else "The source changed after planning or its causal snapshot is unavailable."
