@@ -1,10 +1,12 @@
 import asyncio
+from types import SimpleNamespace
 
 import httpx
 import pytest
 
 import veritas_runtime.packets.service as packet_service
 from packet_support import (
+    NOW,
     MemoryManifestRepository,
     RecordingArtifactWriter,
     load_generation_request,
@@ -85,19 +87,24 @@ def test_subject_packet_service_registers_watch_before_capturing_baseline(
     request_id, blueprint, sources = load_generation_request()
 
     class Registrar:
-        async def register(self, subject: str, manifest: object) -> tuple[object, ...]:
+        async def register_snapshots(
+            self,
+            subject: str,
+            packet_id: str,
+            packet_sources: tuple[object, ...],
+        ) -> tuple[object, ...]:
             events.append("register")
             return tuple(
                 EvidenceSourceRegistration(
                     subject=subject,
-                    packet_id=manifest.packet_id,  # type: ignore[attr-defined]
+                    packet_id=packet_id,
                     source_id=source.source_id,
                     kind=source.kind,
                     resource_id=source.resource_id,
                     anchor=source.anchor,
-                    registered_at=manifest.created_at,  # type: ignore[attr-defined]
+                    registered_at=NOW,
                 )
-                for source in manifest.sources  # type: ignore[attr-defined]
+                for source in packet_sources
             )
 
     class Watch:
@@ -115,12 +122,23 @@ def test_subject_packet_service_registers_watch_before_capturing_baseline(
             registrations: tuple[object, ...],
             packet_sources: tuple[object, ...],
             token: str,
+            *,
+            reconcile_workspace_versions: bool,
+            include_existing: bool,
         ) -> tuple[object, ...]:
             assert len(registrations) == len(sources)
             assert packet_sources == sources
             assert token == "access-token"
+            assert reconcile_workspace_versions is True
+            assert include_existing is True
             events.append("baseline")
-            return ()
+            return tuple(
+                SimpleNamespace(
+                    source_id=source.source_id,
+                    workspace_version=f"settled-{source.source_id}",
+                )
+                for source in sources
+            )
 
     async def scenario() -> None:
         async with httpx.AsyncClient() as client:
@@ -133,7 +151,12 @@ def test_subject_packet_service_registers_watch_before_capturing_baseline(
                 "https://veritas.test/drive",
                 Baseline(),  # type: ignore[arg-type]
             )
-            await service.generate_for_subject("subject-1", request_id, blueprint, sources)
+            result = await service.generate_for_subject(
+                "subject-1", request_id, blueprint, sources
+            )
+            assert {source.version for source in result.manifest.sources} == {
+                f"settled-{source.source_id}" for source in sources
+            }
 
     asyncio.run(scenario())
     assert events == ["register", "watch", "baseline"]

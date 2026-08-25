@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 from collections import defaultdict
 from typing import Any, cast
@@ -25,28 +24,14 @@ class GoogleWorkspaceEvidenceBootstrapper:
         drive_root: str = "https://www.googleapis.com/drive/v3",
         sheets_root: str = "https://sheets.googleapis.com/v4",
         docs_root: str = "https://docs.googleapis.com/v1",
-        version_settle_interval_seconds: float = 0.75,
-        version_settle_attempts: int = 12,
-        version_settle_observations: int = 6,
     ) -> None:
         if not access_token:
             raise ValueError("Workspace evidence bootstrap requires an access token")
-        if (
-            version_settle_interval_seconds < 0
-            or version_settle_observations < 2
-            or version_settle_attempts < version_settle_observations
-        ):
-            raise ValueError(
-                "Drive version settling requires a valid interval and observation window"
-            )
         self._token = access_token
         self._client = client
         self._drive_root = drive_root.rstrip("/")
         self._sheets_root = sheets_root.rstrip("/")
         self._docs_root = docs_root.rstrip("/")
-        self._version_settle_interval_seconds = version_settle_interval_seconds
-        self._version_settle_attempts = version_settle_attempts
-        self._version_settle_observations = version_settle_observations
 
     async def materialize(
         self,
@@ -112,8 +97,7 @@ class GoogleWorkspaceEvidenceBootstrapper:
                 ],
             },
         )
-        marked_version = await self._mark_file(resource_id, key)
-        return resource_id, await self._settled_drive_version(resource_id, marked_version)
+        return resource_id, await self._mark_file(resource_id, key)
 
     async def _document(self, sources: tuple[SourceSnapshot, ...], key: str) -> tuple[str, str]:
         existing = await self._find_file(key, "application/vnd.google-apps.document")
@@ -143,8 +127,7 @@ class GoogleWorkspaceEvidenceBootstrapper:
             f"{self._docs_root}/documents/{quote(resource_id, safe='')}:batchUpdate",
             json={"requests": requests},
         )
-        marked_version = await self._mark_file(resource_id, key)
-        return resource_id, await self._settled_drive_version(resource_id, marked_version)
+        return resource_id, await self._mark_file(resource_id, key)
 
     async def _find_file(self, key: str, mime_type: str) -> str | None:
         escaped_key = key.replace("'", "\\'")
@@ -192,28 +175,6 @@ class GoogleWorkspaceEvidenceBootstrapper:
             raise EvidenceBootstrapError("Drive evidence version is missing")
         return str(version)
 
-    async def _settled_drive_version(self, resource_id: str, initial: str) -> str:
-        """Wait for Workspace's asynchronous native-file commits to become observable.
-
-        Sheets and Docs can acknowledge their content write before Drive publishes the
-        final monotonically increasing file version. Returning that intermediate version
-        would make an unchanged packet fail its own immutable baseline check.
-        """
-
-        previous = initial
-        unchanged_observations = 0
-        for _ in range(self._version_settle_attempts):
-            await asyncio.sleep(self._version_settle_interval_seconds)
-            current = await self._drive_version(resource_id)
-            if current == previous:
-                unchanged_observations += 1
-                if unchanged_observations >= self._version_settle_observations:
-                    return current
-            else:
-                unchanged_observations = 1
-            previous = current
-        raise EvidenceBootstrapError("Drive evidence version did not settle after creation")
-
     async def _request(self, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
         response = await self._client.request(
             method,
@@ -238,16 +199,9 @@ class WorkspaceEvidenceBootstrapService:
         self,
         sessions: WorkspaceSessionProvider,
         http: httpx.AsyncClient,
-        *,
-        version_settle_interval_seconds: float = 0.75,
-        version_settle_attempts: int = 12,
-        version_settle_observations: int = 6,
     ) -> None:
         self._sessions = sessions
         self._http = http
-        self._version_settle_interval_seconds = version_settle_interval_seconds
-        self._version_settle_attempts = version_settle_attempts
-        self._version_settle_observations = version_settle_observations
 
     async def bootstrap_for_subject(
         self,
@@ -259,9 +213,6 @@ class WorkspaceEvidenceBootstrapService:
         return await GoogleWorkspaceEvidenceBootstrapper(
             session.access_token,
             self._http,
-            version_settle_interval_seconds=self._version_settle_interval_seconds,
-            version_settle_attempts=self._version_settle_attempts,
-            version_settle_observations=self._version_settle_observations,
         ).materialize(f"{subject}:{request_id}", sources)
 
 

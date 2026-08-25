@@ -33,10 +33,6 @@ def _sources() -> tuple[SourceSnapshot, ...]:
 
 def test_bootstrap_materializes_sheet_and_doc_with_real_versions() -> None:
     requests: list[httpx.Request] = []
-    drive_versions = {
-        "real-sheet": iter(("8", "8")),
-        "real-doc": iter(("10", "10")),
-    }
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
@@ -58,24 +54,16 @@ def test_bootstrap_materializes_sheet_and_doc_with_real_versions() -> None:
                 200,
                 json={"id": path.rsplit("/", 1)[-1], "version": version},
             )
-        if request.method == "GET" and path.startswith("/drive/v3/files/"):
-            resource_id = path.rsplit("/", 1)[-1]
-            return httpx.Response(200, json={"version": next(drive_versions[resource_id])})
         raise AssertionError(f"Unexpected Workspace request: {request.method} {request.url}")
 
     async def scenario() -> tuple[SourceSnapshot, ...]:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = WorkspaceEvidenceBootstrapService(
-                StaticSessions(),
-                client,
-                version_settle_interval_seconds=0,
-                version_settle_observations=2,
-            )
+            service = WorkspaceEvidenceBootstrapService(StaticSessions(), client)
             return await service.bootstrap_for_subject("subject-1", "request-1", _sources())
 
     resolved = asyncio.run(scenario())
     assert {source.resource_id for source in resolved} == {"real-sheet", "real-doc"}
-    assert {source.version for source in resolved} == {"8", "10"}
+    assert {source.version for source in resolved} == {"7", "9"}
     mark_requests = [request for request in requests if request.method == "PATCH"]
     assert all(request.url.params["fields"] == "id,version" for request in mark_requests)
     sheet_write = next(

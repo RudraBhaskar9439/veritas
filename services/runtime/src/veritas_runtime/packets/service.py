@@ -52,31 +52,58 @@ class WorkspacePacketGenerationService:
         session = await self._sessions.get(subject)
         if not session.email:
             raise PermissionError("Connected Google account has no verified email")
+        if self._baseline_capture is not None and self._evidence_registrar is None:
+            raise PacketGenerationError(
+                "Evidence registration is required before baseline capture"
+            )
         writer = GoogleWorkspacePacketWriter(session.access_token, session.email, self._http)
         try:
+            registrations: tuple[EvidenceSourceRegistration, ...] = ()
+            packet_sources = sources
+            if self._evidence_registrar is not None and self._baseline_capture is not None:
+                registrations = await self._evidence_registrar.register_snapshots(
+                    subject,
+                    blueprint.packet_id,
+                    sources,
+                )
+                if self._watch_coordinator is not None and self._drive_webhook_url is not None:
+                    await self._watch_coordinator.start(
+                        subject,
+                        session.access_token,
+                        self._drive_webhook_url,
+                    )
+                baselines = await self._baseline_capture.capture(
+                    registrations,
+                    sources,
+                    session.access_token,
+                    reconcile_workspace_versions=True,
+                    include_existing=True,
+                )
+                versions = {
+                    snapshot.source_id: snapshot.workspace_version for snapshot in baselines
+                }
+                if set(versions) != {source.source_id for source in sources}:
+                    raise PacketGenerationError("Every registered source requires a baseline")
+                packet_sources = tuple(
+                    source.model_copy(update={"version": versions[source.source_id]})
+                    for source in sources
+                )
             result = await DecisionPacketGenerator(writer, self._manifests).generate(
                 f"{subject}:{request_id}",
                 blueprint,
-                sources,
+                packet_sources,
             )
-            registrations: tuple[EvidenceSourceRegistration, ...] = ()
-            if self._evidence_registrar is not None:
+            if self._evidence_registrar is not None and not registrations:
                 registrations = await self._evidence_registrar.register(subject, result.manifest)
-            if self._watch_coordinator is not None and self._drive_webhook_url is not None:
+            if (
+                self._watch_coordinator is not None
+                and self._drive_webhook_url is not None
+                and self._baseline_capture is None
+            ):
                 await self._watch_coordinator.start(
                     subject,
                     session.access_token,
                     self._drive_webhook_url,
-                )
-            if self._baseline_capture is not None:
-                if not registrations:
-                    raise PacketGenerationError(
-                        "Evidence registration is required before baseline capture"
-                    )
-                await self._baseline_capture.capture(
-                    registrations,
-                    sources,
-                    session.access_token,
                 )
             return result
         except WorkspacePacketWriteError as error:

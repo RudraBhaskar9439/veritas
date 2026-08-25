@@ -55,6 +55,17 @@ def test_manifest_sources_become_subject_and_packet_scoped_registrations() -> No
         with pytest.raises(ValueError, match="subject"):
             await ManifestEvidenceRegistrar(repository).register("", result.manifest, NOW)
 
+        snapshot_registrations = await ManifestEvidenceRegistrar(repository).register_snapshots(
+            "workspace-subject-1",
+            "packet-before-artifacts",
+            sources,
+            NOW,
+        )
+        assert len(snapshot_registrations) == 6
+        assert {item.packet_id for item in snapshot_registrations} == {
+            "packet-before-artifacts"
+        }
+
     asyncio.run(scenario())
 
 
@@ -127,6 +138,35 @@ def test_baseline_capture_binds_live_evidence_and_never_rebaselines_history() ->
         replay = await service.capture((registration,), (source,), "access-token", NOW)
         assert replay == ()
         assert extractor.calls == 1
+
+        drift_repository = MemoryBaselines()
+        drift_capture = capture.model_copy(update={"workspace_version": "8"})
+        drift_extractor = StaticExtractor(drift_capture)
+        drift_service = EvidenceBaselineCaptureService(
+            drift_repository,  # type: ignore[arg-type]
+            drift_extractor,
+            ImmutableSnapshotService(MemorySnapshotObjects()),
+        )
+        with pytest.raises(SnapshotIntegrityError, match="changed before"):
+            await drift_service.capture((registration,), (source,), "access-token", NOW)
+        reconciled = await drift_service.capture(
+            (registration,),
+            (source,),
+            "access-token",
+            NOW,
+            reconcile_workspace_versions=True,
+            include_existing=True,
+        )
+        assert reconciled[0].workspace_version == "8"
+        replay_with_existing = await drift_service.capture(
+            (registration,),
+            (source,),
+            "access-token",
+            NOW,
+            reconcile_workspace_versions=True,
+            include_existing=True,
+        )
+        assert replay_with_existing == reconciled
 
         mismatched = EvidenceBaselineCaptureService(
             MemoryBaselines(),  # type: ignore[arg-type]

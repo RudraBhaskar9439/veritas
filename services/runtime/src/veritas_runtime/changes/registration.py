@@ -60,6 +60,31 @@ class ManifestEvidenceRegistrar:
         await self._repository.register_sources(registrations)
         return registrations
 
+    async def register_snapshots(
+        self,
+        subject: str,
+        packet_id: str,
+        sources: tuple[SourceSnapshot, ...],
+        now: datetime | None = None,
+    ) -> tuple[EvidenceSourceRegistration, ...]:
+        if not subject or not packet_id:
+            raise ValueError("Workspace subject and packet are required for evidence registration")
+        registered_at = (now or datetime.now(UTC)).astimezone(UTC)
+        registrations = tuple(
+            EvidenceSourceRegistration(
+                subject=subject,
+                packet_id=packet_id,
+                source_id=source.source_id,
+                kind=source.kind,
+                resource_id=source.resource_id,
+                anchor=source.anchor,
+                registered_at=registered_at,
+            )
+            for source in sources
+        )
+        await self._repository.register_sources(registrations)
+        return registrations
+
 
 class EvidenceBaselineCaptureService:
     """Captures the packet's real Workspace evidence before change processing begins."""
@@ -80,6 +105,9 @@ class EvidenceBaselineCaptureService:
         sources: tuple[SourceSnapshot, ...],
         access_token: str,
         now: datetime | None = None,
+        *,
+        reconcile_workspace_versions: bool = False,
+        include_existing: bool = False,
     ) -> tuple[EvidenceSnapshot, ...]:
         if not access_token:
             raise ValueError("Google access token is required for evidence baseline capture")
@@ -92,6 +120,7 @@ class EvidenceBaselineCaptureService:
 
         current_time = (now or datetime.now(UTC)).astimezone(UTC)
         baselines: list[EvidenceSnapshot] = []
+        new_baselines: list[EvidenceSnapshot] = []
         for registration in registrations:
             source = source_by_id[registration.source_id]
             if (
@@ -106,10 +135,15 @@ class EvidenceBaselineCaptureService:
                 registration.source_id,
             )
             if existing is not None:
+                if include_existing:
+                    baselines.append(existing)
                 continue
 
             capture = await self._extractor.extract(access_token, registration)
-            if capture.workspace_version != source.version:
+            if (
+                capture.workspace_version != source.version
+                and not reconcile_workspace_versions
+            ):
                 raise SnapshotIntegrityError("Workspace evidence changed before baseline capture")
             if capture.evidence != {registration.anchor: source.value}:
                 raise SnapshotIntegrityError(
@@ -119,6 +153,7 @@ class EvidenceBaselineCaptureService:
             if result.snapshot.delta_kind != DeltaKind.BASELINE:
                 raise SnapshotIntegrityError("Initial evidence snapshot was not a baseline")
             baselines.append(result.snapshot)
+            new_baselines.append(result.snapshot)
 
-        await self._repository.persist_baseline_snapshots(tuple(baselines))
+        await self._repository.persist_baseline_snapshots(tuple(new_baselines))
         return tuple(baselines)
