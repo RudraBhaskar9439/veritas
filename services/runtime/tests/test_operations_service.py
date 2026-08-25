@@ -95,9 +95,11 @@ def test_unknown_failure_is_redacted_and_exhaustion_dead_letters() -> None:
     async def scenario() -> None:
         repository = MemoryOperationRepository()
         secret_error = RuntimeError("access_token=super-secret")
+        telemetry = RecordingTelemetry()
         service = ReliableOperationService(
             repository,
             {"repair.execute": ScriptedHandler(secret_error, secret_error)},
+            telemetry=telemetry,
         )
         operation, _ = await service.enqueue(request(max_attempts=2), NOW)
         first = await service.tick("worker-1", NOW)
@@ -108,6 +110,23 @@ def test_unknown_failure_is_redacted_and_exhaustion_dead_letters() -> None:
         assert persisted.last_error_code == "unhandled_operation_failure"
         assert persisted.diagnostic_fingerprint
         assert "super-secret" not in persisted.model_dump_json()
+        failures = [fields for event, fields in telemetry.events if event == "operation.failed"]
+        assert failures == [
+            {
+                "operation_id": operation.operation_id,
+                "kind": "repair.execute",
+                "attempt": 1,
+                "error_type": "RuntimeError",
+                "diagnostic_fingerprint": persisted.diagnostic_fingerprint,
+            },
+            {
+                "operation_id": operation.operation_id,
+                "kind": "repair.execute",
+                "attempt": 2,
+                "error_type": "RuntimeError",
+                "diagnostic_fingerprint": persisted.diagnostic_fingerprint,
+            },
+        ]
 
     asyncio.run(scenario())
 

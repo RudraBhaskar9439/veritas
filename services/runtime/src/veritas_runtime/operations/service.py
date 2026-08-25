@@ -192,11 +192,20 @@ class ReliableOperationService:
                 error.retry_after_seconds,
             )
         except Exception as error:
+            fingerprint = _fingerprint(error)
+            await self._telemetry.emit(
+                "operation.failed",
+                operation_id=operation.operation_id,
+                kind=operation.kind,
+                attempt=operation.attempt,
+                error_type=type(error).__name__,
+                diagnostic_fingerprint=fingerprint,
+            )
             return await self._retry_or_quarantine(
                 operation,
                 worker_id,
                 "unhandled_operation_failure",
-                _fingerprint(error),
+                fingerprint,
                 current,
                 recovered,
                 None,
