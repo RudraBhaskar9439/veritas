@@ -999,6 +999,21 @@ function Overview({
   );
 }
 
+function taskTitleFromClaim(statement?: string, artifactId?: string): string {
+  const fallback = artifactId
+    ?.replace(/^artifact-/, '')
+    .replace(/-task$/, '')
+    .replaceAll('-', ' ');
+  const withoutPunctuation = statement?.trim().replace(/[.!?]+$/, '') ?? '';
+  const concise = withoutPunctuation
+    .replace(/^the company should\s+/i, '')
+    .replace(/^we should\s+/i, '')
+    .replace(/^please\s+/i, '')
+    .trim();
+  const value = concise || fallback || 'registered task';
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function EmailTaskAutomation() {
   const incident = useIncident();
   const [opened, setOpened] = useState(false);
@@ -1072,16 +1087,25 @@ function EmailTaskAutomation() {
   const activeWorkflow = setup?.workflows.find(
     (workflow) => workflow.packetId === incident.packetId && workflow.status === 'active',
   );
+  const activeRoute = activeWorkflow
+    ? setup?.routes.find(
+        (item) =>
+          item.claimId === activeWorkflow.claimId && item.artifactId === activeWorkflow.artifactId,
+      )
+    : undefined;
   const route = setup?.routes.find(
     (item) => `${item.claimId}:${item.artifactId}` === selectedRoute,
   );
+  const boundTaskTitle = taskTitleFromClaim(
+    activeRoute?.claimStatement,
+    activeWorkflow?.artifactId,
+  );
   const subject = activeWorkflow
-    ? `[${activeWorkflow.routingKey}] Update customer delivery`
-    : '[Routing code appears after activation] Update customer delivery';
-  const exampleBody =
-    'Hi team, please move the customer onboarding review to Friday at 3 PM. The customer has confirmed the new time.';
+    ? `[${activeWorkflow.routingKey}] Update: ${boundTaskTitle}`
+    : '[Routing code appears after activation] Update registered task';
+  const exampleBody = `Hi team, new customer information affects the “${boundTaskTitle}” task. Please pause the current plan until the revised details are confirmed. Keep the existing owner and due date unchanged.`;
   const composeUrl = activeWorkflow
-    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(activeWorkflow.mailboxEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(exampleBody)}`
+    ? `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(activeWorkflow.authorizedSender)}&view=cm&fs=1&to=${encodeURIComponent(activeWorkflow.mailboxEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(exampleBody)}`
     : null;
 
   async function registerWorkflow() {
@@ -1127,7 +1151,7 @@ function EmailTaskAutomation() {
 
   async function copyExample() {
     if (!activeWorkflow) return;
-    const value = `To: ${activeWorkflow.mailboxEmail}\nSubject: ${subject}\n\n${exampleBody}`;
+    const value = `From: ${activeWorkflow.authorizedSender}\nTo: ${activeWorkflow.mailboxEmail}\nSubject: ${subject}\n\n${exampleBody}`;
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
@@ -1216,11 +1240,16 @@ function EmailTaskAutomation() {
             <i aria-hidden="true">→</i>
             <div>
               <span>Manifest-bound task</span>
-              <strong>{activeWorkflow.artifactId.replaceAll('-', ' ')}</strong>
+              <strong>{boundTaskTitle}</strong>
+              <small>Google Tasks · {activeWorkflow.artifactId}</small>
             </div>
           </section>
 
           <div className="emailDemoCard">
+            <div className="emailField">
+              <span>From</span>
+              <strong>{activeWorkflow.authorizedSender}</strong>
+            </div>
             <div className="emailField">
               <span>To</span>
               <strong>{activeWorkflow.mailboxEmail}</strong>
@@ -1233,6 +1262,10 @@ function EmailTaskAutomation() {
               <span>Body</span>
               <p>{exampleBody}</p>
             </div>
+            <p className="emailSenderGuard">
+              Test email only. Send it from the authorized customer address above; mail from any
+              other account is rejected and cannot change the task.
+            </p>
             <div className="emailDemoActions">
               <a
                 className="primaryButton"
@@ -1240,7 +1273,7 @@ function EmailTaskAutomation() {
                 target="_blank"
                 rel="noreferrer"
               >
-                Open ready-to-send Gmail ↗
+                Compose as authorized customer ↗
               </a>
               <button className="secondaryButton" type="button" onClick={() => void copyExample()}>
                 {copied ? 'Copied' : 'Copy email example'}

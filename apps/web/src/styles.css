@@ -2544,10 +2544,17 @@ code {
 }
 
 .automationRoute strong {
-  overflow: hidden;
   font-size: 0.78rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.automationRoute small {
+  color: var(--soft);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .automationRoute > i {
@@ -2589,6 +2596,16 @@ code {
 .emailBodyField p {
   color: var(--muted);
   line-height: 1.55;
+}
+
+.emailSenderGuard {
+  margin: 0;
+  padding: 11px 16px;
+  border-bottom: 1px solid #e5e9e5;
+  color: #8a5a18;
+  background: #fff9ed;
+  font-size: 0.7rem;
+  line-height: 1.5;
 }
 
 .emailDemoActions {

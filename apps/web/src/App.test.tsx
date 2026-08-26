@@ -574,7 +574,7 @@ describe('Veritas command center', () => {
     const live: Incident = { ...demoIncident, source: 'live' };
     const route = {
       claimId: 'claim-scale-acquisition',
-      claimStatement: 'The company should pause the planned increase in acquisition spend.',
+      claimStatement: 'The company should increase acquisition spend.',
       claimRisk: 'decision',
       artifactId: 'artifact-acquisition-task',
       taskId: 'task-42',
@@ -617,10 +617,19 @@ describe('Veritas command center', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Activate customer email route' }));
 
-    expect(await screen.findByText('[VX-A1B2C3D4E5F6] Update customer delivery')).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Open ready-to-send Gmail ↗' })).toHaveAttribute(
+    expect(
+      await screen.findByText('[VX-A1B2C3D4E5F6] Update: Increase acquisition spend'),
+    ).toBeVisible();
+    expect(screen.getAllByText('Increase acquisition spend').length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        'Hi team, new customer information affects the “Increase acquisition spend” task. Please pause the current plan until the revised details are confirmed. Keep the existing owner and due date unchanged.',
+      ),
+    ).toBeVisible();
+    expect(screen.getByText(/Send it from the authorized customer address above/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Compose as authorized customer ↗' })).toHaveAttribute(
       'href',
-      expect.stringContaining('operator%40example.com'),
+      expect.stringMatching(/authuser=customer%40example\.com.*to=operator%40example\.com/),
     );
     expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toEqual({
       packetId: live.packetId,
