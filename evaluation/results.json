@@ -13,7 +13,7 @@
   },
   "datasetChecksum": "2fa0c41b5da5b9d1c8a6b991798ed81d7434bd479a00db12bf92c1e372cf21c5",
   "failedScenarioIds": [],
-  "liveMetricsStatus": "pending_google_cloud",
+  "liveMetricsStatus": "partial_live_samples",
   "metrics": {
     "cosmeticChangeSuppression": 1.0,
     "falseCertificationRate": 0.0,

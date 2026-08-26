@@ -2,7 +2,7 @@
 
 **Tagline:** When evidence changes, repair every consequence.
 
-> Submission integrity note: this draft becomes final only after every item in `cloud-proof-manifest.json` is complete. Do not remove that gate or claim live evidence early.
+> Submission integrity note: this draft is release-ready, but the video URL and final submission confirmation must still be added. Partial proof items remain labeled in `cloud-proof-manifest.json`.
 
 ## Inspiration
 
@@ -34,7 +34,7 @@ The repair agent also cannot certify itself. An independent, read-only verifier 
 
 ## How we built it
 
-- **Gemini 3.5 Flash on Vertex AI + Google Gen AI SDK:** schema-bound consequence safety review. Gemini may stop ambiguous work, but exact scope, policy, approvals, writes, and certification remain deterministic.
+- **Gemini 2.5 Flash on Vertex AI + Google Gen AI SDK:** schema-bound consequence safety review. Gemini may stop ambiguous work, but exact scope, policy, approvals, writes, and certification remain deterministic.
 - **Cloud Run:** separately deployable control API, event ingress, agent worker, and Command Center.
 - **Cloud SQL for PostgreSQL:** Claim Manifests, impact reports, repair plans, approvals, execution journals, verification reports, durable worker leases, dead letters, and audit events.
 - **Pub/Sub and Cloud Tasks:** asynchronous change capture and bounded command delivery.
@@ -77,9 +77,10 @@ Expand registered packet templates beyond executive reviews, add organization-co
 - Secondary: **Best Architectural Design** — explicit trust boundaries, event-driven state, credential custody, failure recovery, and independent verification.
 - Additional eligible targets: **Individual/Hobbyist** and **Best Multimodal UX**.
 
-## Links to insert only after proof
+## Links
 
-- Live application: pending Cloud Run deployment
-- Demo video: pending five clean live rehearsals
-- Source repository: private during development; provide judge access as required
-- Architecture and reproducibility instructions: included in the repository
+- Live application: <https://veritas-preview-web-602044424209.us-central1.run.app/>
+- Demo video: **add after recording and upload**
+- Source repository: <https://github.com/RudraBhaskar9439/veritas> (private; grant judges access if required)
+- Architecture: [`docs/architecture.md`](../architecture.md)
+- Reproducibility and live proof: [`live-proof-report.md`](live-proof-report.md)

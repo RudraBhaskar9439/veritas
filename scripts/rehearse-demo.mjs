@@ -21,6 +21,18 @@ const repair = JSON.parse(raw.repair);
 const evaluation = JSON.parse(raw.evaluation);
 const cloudProof = JSON.parse(raw.cloudProof);
 const demoIncident = raw.incident.slice(raw.incident.indexOf('export const demoIncident'));
+const proofById = new Map(cloudProof.requiredEvidence.map((item) => [item.id, item]));
+const completeProofIds = [
+  'public-url',
+  'immutable-images',
+  'workspace-generation',
+  'drive-event',
+  'native-repair',
+  'human-preservation',
+  'correction-draft',
+  'certificate'
+];
+const partialProofIds = ['failure-injection', 'five-runs', 'browser-audit', 'cost-latency'];
 
 const contiguous = contract.beats.every((beat, index) => {
   if (index === 0) return beat.start === 0;
@@ -43,7 +55,12 @@ const checks = [
   ],
   ['independent checks', raw.incident.includes("detail: '13 Workspace targets match'") && raw.incident.includes("detail: '5 protected projections unchanged'")],
   ['published benchmark', evaluation.scenarioCount === 40 && evaluation.passed === 40],
-  ['cloud-proof honesty', cloudProof.status === 'pending_google_cloud' && cloudProof.requiredEvidence.every((item) => item.status === 'pending')]
+  [
+    'cloud-proof honesty',
+    cloudProof.status === 'live_proof_partial' &&
+      completeProofIds.every((id) => proofById.get(id)?.status === 'complete') &&
+      partialProofIds.every((id) => proofById.get(id)?.status === 'partial')
+  ]
 ];
 
 const inputChecksum = createHash('sha256')
@@ -68,8 +85,9 @@ const results = {
   runs,
   passedRuns: runs.filter((run) => run.passed).length,
   failedChecks,
-  liveWorkspaceMutations: false,
-  liveRehearsalsStatus: 'pending_google_cloud'
+  liveWorkspaceMutations: true,
+  liveRehearsalsStatus: 'partial_not_five_consecutive',
+  liveProofStatus: cloudProof.status
 };
 
 if (process.argv.includes('--check')) {
@@ -92,5 +110,5 @@ if (process.argv.includes('--emit')) {
     `Phase 12 offline rehearsal passed: ${results.passedRuns}/5 deterministic runs, ` +
       `${checks.length}/${checks.length} checks each, ${contract.durationSeconds}s script.`
   );
-  console.log('Live Workspace rehearsals remain pending Google Cloud access.');
+  console.log('Live Workspace proof exists; five consecutive clean production rehearsals remain partial.');
 }

@@ -3,16 +3,16 @@
 ## Eligibility and positioning
 
 - [ ] Entrant registration and country eligibility reconfirmed.
-- [ ] Primary track is written exactly as **The Taskmaster**.
+- [x] Primary track is written exactly as **The Taskmaster**.
 - [ ] Secondary prize choices match the current Devpost rules.
 - [ ] All contributors, reused components, and licenses are disclosed.
 
 ## Product proof
 
-- [ ] `cloud-proof-manifest.json` has no pending item.
+- [x] `cloud-proof-manifest.json` has no pending item; four incomplete claims are explicitly `partial`.
 - [ ] Public URL works in a signed-out browser and on phone width.
-- [ ] Accepted commit matches deployed image digests.
-- [ ] Real Workspace APIs generate and repair the packet.
+- [x] Accepted commit matches deployed image digests.
+- [x] Real Workspace APIs generate and repair the packet.
 - [ ] Five consecutive clean live runs are recorded.
 - [ ] Formatting-only, wrong repair, duplicate event, worker interruption, and stale-source negatives pass.
 - [ ] Accessibility, keyboard, refresh, and responsive checks pass on the hosted URL.
@@ -31,13 +31,13 @@
 
 ## Devpost page
 
-- [ ] Tagline explains consequence repair, not generic AI automation.
-- [ ] “What it does” matches the recorded product exactly.
-- [ ] Google Cloud and Workspace services are named with real proof.
-- [ ] Benchmark language says deterministic/offline where appropriate.
+- [x] Tagline explains consequence repair, not generic AI automation.
+- [x] “What it does” matches the implemented product exactly; recheck against the final recording.
+- [x] Google Cloud and Workspace services are named with real proof.
+- [x] Benchmark language says deterministic/offline where appropriate.
 - [ ] Repository access instructions work for judges.
 - [ ] Video, live URL, architecture diagram, screenshots, and test instructions are linked.
-- [ ] No sentence claims universal truth or guaranteed correctness.
+- [x] No sentence claims universal truth or guaranteed correctness.
 
 ## Final freeze
 
@@ -46,4 +46,3 @@
 - [ ] Submission was reread once as a Taskmaster judge and once as an architecture judge.
 - [ ] Devpost preview was checked after saving.
 - [ ] Submission confirmation and final URLs are archived.
-

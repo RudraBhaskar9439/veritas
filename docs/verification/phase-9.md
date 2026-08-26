@@ -1,6 +1,6 @@
 # Phase 9 verification report
 
-- Status: live read-model implementation passed; hosted browser E2E and accessibility audit pending
+- Status: hosted production E2E and desktop audit passed; final phone/keyboard accessibility recording remains partial
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-9.mjs`
 - Accepted implementation commit: `a82e429a7a952ea3b7112d1885c15db7e61e8c23`
@@ -33,6 +33,4 @@ Observed result: web lint, strict TypeScript, eight interaction tests, and the V
 
 ## Open hard gate
 
-The required real-browser E2E, responsive screenshot inspection, refresh test, keyboard pass, and automated accessibility audit are not accepted yet. The approved browser-control surface rejected `http://localhost:5173` under its network policy, and no alternate browser or raw automation path was used to bypass that restriction. Complete this gate against the final hosted Cloud Run URL once Google Cloud access is available.
-
-The production API wiring is complete. Cloud-hosted proof remains mandatory before the final demo; the explicit offline judge dataset must never be represented as a live Google Workspace run.
+The hosted Command Center was exercised against real production incidents on 2026-08-26. Refresh persistence, real-time incident updates, visible approval controls, recovery controls, semantic landmarks, labelled buttons, heading structure, certificate persistence, and desktop horizontal overflow were inspected in the signed-in browser; signed-out root and readiness checks returned HTTP 200. The explicit offline judge dataset was never substituted for these live records. A final phone-width screenshot, complete keyboard-only path, and automated accessibility recording remain partial and are not claimed as passed.

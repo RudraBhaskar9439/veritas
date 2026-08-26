@@ -1,6 +1,6 @@
 # Phase 5 verification report
 
-- Status: registered-lineage implementation passed; Google live dependency pending
+- Status: registered-lineage implementation and live dependency passed
 - Verified locally: 2026-08-21
 - Accepted implementation commit: `1642d22ffd021b2cd62f64a4498a474e49f68e57`
 - Clean Linux workflow: [verified-build run 32469970879](https://github.com/RudraBhaskar9439/veritas/actions/runs/32469970879)
@@ -26,4 +26,4 @@ Observed local result: 92 runtime tests passed with 94.92% statement coverage; s
 
 ## Upstream live dependency
 
-The traversal implementation itself is deterministic and locally complete. End-to-end acceptance remains dependent on the Phase 2-4 live gates so the recorded demo's report is driven by a real Workspace source change and real immutable Cloud Storage snapshot rather than a test fixture.
+The live dependency passed on 2026-08-26. Real Sheets changes and immutable snapshots produced exactly four affected claims, five affected artifacts, nine registered paths, and zero candidate paths in the hosted Command Center. No fixture was substituted for the live run.

@@ -1,6 +1,6 @@
 # Phase 6 verification report
 
-- Status: typed repair implementation passed; Google live dependency pending
+- Status: typed repair implementation and live planning proof passed
 - Verified locally: 2026-08-21
 - Accepted implementation commit: `1642d22ffd021b2cd62f64a4498a474e49f68e57`
 - Clean Linux workflow: [verified-build run 32469970879](https://github.com/RudraBhaskar9439/veritas/actions/runs/32469970879)
@@ -26,4 +26,4 @@ Observed local result: 107 runtime tests passed with 93%+ statement coverage; st
 
 ## Upstream live dependency
 
-Planning is locally complete. End-to-end acceptance still depends on the Phase 2-4 live gates: the recorded plan must be built from a real Workspace change, a real immutable Cloud Storage snapshot, and real writer-returned artifact revisions. Phase 7 execution cannot pass its real-run gate without those Google resources.
+The live dependency passed on 2026-08-26. Production impact records from real Workspace evidence produced the canonical nine-step plan: three automatic steps, four approval-gated steps, and two draft-only corrections. Gemini 2.5 Flash returned a checksummed exact-scope review before execution; deterministic policy retained authority over approvals and writes.

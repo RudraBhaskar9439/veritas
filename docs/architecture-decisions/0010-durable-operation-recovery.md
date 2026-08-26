@@ -33,5 +33,4 @@ The HTTP boundary now rejects oversized requests, replaces unsafe correlation ID
 - Operators can recover poison work without modifying history or performing an unaudited retry.
 - Diagnostic correlation remains useful without storing exception text or Workspace payloads in logs.
 - Cloud Tasks retry is transport-level; the operation ledger remains the domain-level source of truth.
-- Applying the alert policy, observing real Cloud Logging entries, and proving Cloud Tasks/Cloud SQL recovery remain pending until the Google Cloud project is available.
-
+- The alert policy and structured Cloud Logging are deployed. Real Gemini outages proved bounded retries, dead-letter quarantine, packet-scoped recovery, and audited replay. Separate live Cloud Run termination, duplicate-delivery, OAuth-expiry, 429, and partial-write injections remain to be recorded.

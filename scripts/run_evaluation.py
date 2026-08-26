@@ -345,7 +345,7 @@ def build_results(scenarios: list[dict[str, Any]]) -> dict[str, Any]:
             "offlineEvaluationUsd": 0.0,
             "liveGoogleCloudUsd": "pending",
         },
-        "liveMetricsStatus": "pending_google_cloud",
+        "liveMetricsStatus": "partial_live_samples",
         "failedScenarioIds": [item["id"] for item in details if not item["passed"]],
     }
 

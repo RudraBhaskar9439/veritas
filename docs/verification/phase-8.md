@@ -1,6 +1,6 @@
 # Phase 8 verification report
 
-- Status: pre-live implementation accepted; real Workspace verification pending
+- Status: live independent verification and certificate path passed; live destructive negatives remain partial
 - Verified locally: 2026-08-21
 - Accepted implementation commit: `d5f10ae3e7d3e72469924450e5ff7f1a6ca7a92b`
 - Clean Linux workflow: [verified-build run 32472264691](https://github.com/RudraBhaskar9439/veritas/actions/runs/32472264691)
@@ -26,4 +26,4 @@ Observed local result: 130 runtime tests passed with 90.44% statement coverage; 
 
 ## Remaining live evidence
 
-Phase 8 cannot be called production-accepted until Google credentials are available and Phase 7 completes five consecutive real Workspace repair runs. Each live run must then be independently re-read, prove all registered targets and protected regions, reject an intentionally incorrect repair, demonstrate a source-change-during-repair stale result, and issue no false certificate. Google Cloud credits are not required for the completed local implementation, but they are required for the final hosted proof.
+The production verifier now re-reads real Workspace targets and has issued multiple scoped certificates. Final-release certificate `370C1A51AD95` covers 8 registered claims, 13/13 targets, 6 pinned evidence versions, and 5/5 protected projections. The UI retains explicit scoped language and no mutation receipt is treated as observed truth. Intentionally wrong repair and source-change-during-repair cases pass automated fail-closed tests; their separate live destructive demonstrations remain partial.

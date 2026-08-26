@@ -1,6 +1,6 @@
 # Phase 3 verification report
 
-- Status: pre-live implementation passed; real Google Workspace generation gate pending
+- Status: live Google Workspace generation gate passed
 - Verified locally: 2026-08-21
 - Accepted implementation commit: `3175d88615084c7db099f2ea07433d6a3c7c27c2`
 - Clean Linux workflow: [verified-build run 32466743025](https://github.com/RudraBhaskar9439/veritas/actions/runs/32466743025)
@@ -25,4 +25,4 @@ Observed local result: 52 runtime tests passed with 96.43% statement coverage; s
 
 ## Live gate
 
-Phase 3 is not accepted until a configured Google Workspace writer creates the five native artifacts in the dedicated test account, returns real anchors and resource IDs, and the resulting artifacts and Claim Manifest are re-opened and validated. No recording writer, fixture ID, or UI-only preview may be presented as this evidence.
+Phase 3's live gate passed on 2026-08-26. The production API created fresh native Sheets, Docs, Slides, Gmail draft, and Tasks resources in the connected Google account, returned their real resource IDs and anchors, persisted the Claim Manifest, and exposed direct links from the Command Center. The final deployed release proof is bound to commit `c880e5f` in [`../submission/live-proof-report.md`](../submission/live-proof-report.md).

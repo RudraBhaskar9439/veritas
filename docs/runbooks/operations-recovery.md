@@ -30,7 +30,8 @@
 - Provider `Retry-After` values are honored only within that cap.
 - Repeated human-edit conflicts and source movement are never blindly retried.
 
-## Live proof still required
+## Live proof status
 
-After Google Cloud access arrives, inject a Cloud Run worker termination, a Cloud Tasks duplicate, a Google 429, an expired OAuth token, and one partial Workspace write. Record Cloud SQL transitions, Cloud Logging events, alert delivery, resumed execution, and the final independently verified certificate.
+Real Gemini dependency outages have exercised bounded retries, dead-letter quarantine, diagnostic fingerprinting, packet-scoped recovery, audited replay, and successful post-recovery certification. The accepted evidence is recorded in [`../submission/live-proof-report.md`](../submission/live-proof-report.md).
 
+Still record separate Cloud Run worker termination, Cloud Tasks duplicate delivery, Google 429, expired OAuth token, and one partial Workspace write before marking the full failure matrix complete. Capture Cloud SQL transitions, Cloud Logging events, alert delivery, resumed execution, and the final independently verified certificate for each destructive injection.

@@ -16,6 +16,7 @@ const requiredFiles = [
   'docs/submission/cloud-proof-manifest.json',
   'docs/submission/demo-script.md',
   'docs/submission/devpost-draft.md',
+  'docs/submission/live-proof-report.md',
   'docs/submission/recording-runbook.md',
   'docs/verification/phase-12.md',
   'scripts/rehearse-demo.mjs',
@@ -41,12 +42,27 @@ if (contract.durationSeconds > 240 || contract.beats.length !== 12) {
 const proof = JSON.parse(
   readFileSync(resolve(root, 'docs/submission/cloud-proof-manifest.json'), 'utf8')
 );
+const allowedProofStatuses = new Set(['complete', 'partial', 'pending']);
+const proofById = new Map(proof.requiredEvidence.map((item) => [item.id, item]));
+const completeProofIds = [
+  'public-url',
+  'immutable-images',
+  'workspace-generation',
+  'drive-event',
+  'native-repair',
+  'human-preservation',
+  'correction-draft',
+  'certificate'
+];
+const partialProofIds = ['failure-injection', 'five-runs', 'browser-audit', 'cost-latency'];
 if (
-  proof.status !== 'pending_google_cloud' ||
+  proof.status !== 'live_proof_partial' ||
   proof.requiredEvidence.length !== 12 ||
-  proof.requiredEvidence.some((item) => item.status !== 'pending')
+  proof.requiredEvidence.some((item) => !allowedProofStatuses.has(item.status)) ||
+  completeProofIds.some((id) => proofById.get(id)?.status !== 'complete') ||
+  partialProofIds.some((id) => proofById.get(id)?.status !== 'partial')
 ) {
-  console.error('Phase 12 verification failed: unproven Cloud evidence was marked complete');
+  console.error('Phase 12 verification failed: Cloud proof status does not match the recorded live evidence');
   process.exit(1);
 }
 const devpost = readFileSync(resolve(root, 'docs/submission/devpost-draft.md'), 'utf8');
@@ -107,8 +123,8 @@ for (const [label, command, args] of checks) {
   }
 }
 
-console.log('\nPhase 12 credit-independent submission verification passed.');
-console.log('- the four-minute narrative, proof matrix, diagrams, and runbooks are complete');
+console.log('\nPhase 12 release submission verification passed.');
+console.log('- the four-minute narrative, proof matrix, live report, diagrams, and runbooks are complete');
 console.log('- five deterministic offline rehearsals pass 12/12 checks each');
-console.log('- every unproven live Cloud item remains explicitly pending');
-console.log('- the real video and five live rehearsals require Google Cloud access');
+console.log('- eight production proof items are complete and four residual items remain explicitly partial');
+console.log('- the real video, five consecutive clean runs, final browser audit, and cost metrics remain entrant/release work');

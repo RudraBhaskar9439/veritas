@@ -1,6 +1,6 @@
 # Phase 11 verification report
 
-- Status: deterministic forty-scenario evaluation passed; live benchmark pending
+- Status: deterministic forty-scenario evaluation passed; live latency/cost benchmark partial
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-11.mjs`
 - Dataset checksum: `2fa0c41b5da5b9d1c8a6b991798ed81d7434bd479a00db12bf92c1e372cf21c5`
@@ -35,4 +35,4 @@ All five strata pass 8/8 cases. A representative local run completed in 2.209 ms
 
 ## Pending live metrics
 
-Google Workspace semantic recall on real edits, native repair correctness, end-to-end p50/p95 latency, Gemini token usage, Google Cloud cost, and repeated-run reliability cannot be measured without the preview project. They remain unclaimed and must be appended to this report after deployment.
+Real production runs now prove Workspace semantic-change handling and native repair correctness. The final-release clean run was detected at 08:48:03 UTC and certified at 08:49:20 UTC. Multiple other clean and recovered certificates are listed in [`../submission/live-proof-report.md`](../submission/live-proof-report.md). The sample is not yet sufficient for a defensible p50/p95, and Gemini token totals and delayed Cloud billing cost remain unclaimed.

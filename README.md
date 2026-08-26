@@ -4,7 +4,7 @@
 
 Veritas is a continuous evidence-integrity agent for AI-created knowledge work. It records claim-level provenance when a decision packet is created, watches registered evidence for meaningful changes, calculates the downstream blast radius, performs minimal repairs across Google Workspace artifacts, preserves human edits, and independently verifies the repaired packet.
 
-The production worker uses Gemini 3.5 Flash on Vertex AI through Google's Gen AI SDK as a bounded safety-reasoning gate. Gemini may veto ambiguous work and force escalation, but it cannot expand registered scope, override policy, approve its own action, or certify its own repairs. Every structured model decision is schema-validated, checksummed, and persisted as an inspectable reasoning receipt.
+The production worker uses Gemini 2.5 Flash on Vertex AI through Google's Gen AI SDK as a bounded safety-reasoning gate. Gemini may veto ambiguous work and force escalation, but it cannot expand registered scope, override policy, approve its own action, or certify its own repairs. Every structured model decision is schema-validated, checksummed, and persisted as an inspectable reasoning receipt.
 
 ## Hackathon target
 
@@ -21,7 +21,7 @@ evidence change
   -> semantic delta
   -> registered lineage traversal
   -> typed repair plan
-  -> Gemini 3.5 bounded safety review
+  -> Gemini 2.5 bounded safety review
   -> policy/approval gate
   -> minimal cross-artifact execution
   -> independent verification
@@ -30,7 +30,7 @@ evidence change
 
 ## Current status
 
-Phases 0 and 1 are accepted. Phase 2's OAuth security, signed application sessions, KMS-encrypted credential custody, automatic token refresh, passwordless Cloud SQL IAM path, SQL persistence, and Workspace capability contracts pass locally. The isolated preview project and its read-only Terraform foundation plan are verified, but its billing account is still disabled and no Cloud resources have been applied. Phases 3-8 implement native Workspace packet creation, immutable change capture, registered-lineage impact analysis, typed policy-bound planning, conflict-aware execution, durable approval continuation, and independent verification. Phase 9's judge-first Command Center now reads subject-scoped checksummed production records; it never silently substitutes demo data, and its approval action advances the durable run through verification. Phase 10 adds durable operation leases, bounded retries, dead-letter quarantine, audited replay, safe telemetry, and security hardening. The production worker automatically advances each meaningful Drive snapshot through impact → plan → execute → verify, while stopping safely at human authority boundaries. A dedicated migration job applies the complete schema under a PostgreSQL advisory lock and immutable checksum ledger. Phase 11 publishes a checksummed forty-scenario benchmark, and Phase 12 provides the credit-independent submission package. Only Cloud deployment, real Google Workspace gates, hosted browser/accessibility proof, live failure injection, five live rehearsals, and the final video/submission remain open.
+Veritas is deployed in Google Cloud project `project-c0f0f832-e02b-4eac-ae2` at [the public Command Center](https://veritas-preview-web-602044424209.us-central1.run.app/). The accepted release commit is `c880e5f`; Cloud Build produced immutable runtime and web images, four Cloud Run services serve those digests, and the production migration job completed successfully. Real Google Workspace runs now generate native Sheets, Docs, Slides, Gmail drafts, and Tasks; a real Sheet edit autonomously drives impact analysis, guarded repair, two human approvals, independent re-read, and a scoped certificate. Live Gemini outages have also exercised bounded retry, dead-letter quarantine, and audited replay. The deterministic forty-scenario benchmark and the complete local verification suite remain green. The repository intentionally reports the five-consecutive-run proof, phone/keyboard accessibility audit, exact live cost and model usage, recorded video, and final Devpost submission as unfinished until their evidence exists.
 
 See:
 
@@ -39,6 +39,8 @@ See:
 - [Phase gates](docs/phases.md)
 - [Verification strategy](docs/verification-strategy.md)
 - [Claim Manifest decision record](docs/architecture-decisions/0001-claim-manifest.md)
+- [Live production proof](docs/submission/live-proof-report.md)
+- [Public Command Center](https://veritas-preview-web-602044424209.us-central1.run.app/)
 
 ## Verification
 

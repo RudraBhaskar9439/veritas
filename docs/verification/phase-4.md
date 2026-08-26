@@ -1,6 +1,6 @@
 # Phase 4 verification report
 
-- Status: pre-live implementation passed; real Google Drive and Cloud Storage gate pending
+- Status: live Drive change and immutable Storage proof passed; renewal/cosmetic recording remains partial
 - Verified locally: 2026-08-21
 - Accepted implementation commit: `c8bf0add5472d7581fc447de23d87822f451ecf6`
 - Clean Linux workflow: [verified-build run 32468355683](https://github.com/RudraBhaskar9439/veritas/actions/runs/32468355683)
@@ -29,4 +29,4 @@ Observed local result: 78 runtime tests passed with 94.88% statement coverage; s
 
 ## Live gate
 
-Phase 4 is not accepted until a real Drive `changes.watch` channel reaches the HTTPS ingress, survives an overlapping renewal, reads a real two-state Sheet or Doc through its native API, stores immutable objects with real Cloud Storage generation numbers, suppresses a real formatting-only edit, and emits a meaningful delta for a real evidence-value edit. No mocked notification, in-memory object store, or fixture may be presented as live evidence.
+On 2026-08-26, a real `Metrics!B17` change reached the HTTPS ingress through the active Drive watch, was read through the Sheets API, and produced an immutable snapshot, semantic hashes, and append-only receipts in the versioned Cloud Storage bucket. Repeated real value edits were classified as meaningful and drove scoped incidents. Channel renewal and formatting-only suppression remain strongly automated but have not both been separately recorded as live demonstrations, so that narrower proof remains partial rather than overstated.

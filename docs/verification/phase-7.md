@@ -1,6 +1,6 @@
 # Phase 7 verification report
 
-- Status: pre-live implementation passed; five real Workspace repair runs pending
+- Status: native live repair passed; strict five-consecutive-run gate remains partial
 - Verified locally: 2026-08-21
 - Accepted implementation commit: `b7e4a0af1a840044c48bfbc4351085d915705239`
 - Clean Linux workflow: [verified-build run 32470875892](https://github.com/RudraBhaskar9439/veritas/actions/runs/32470875892)
@@ -27,4 +27,4 @@ Observed local result: 116 runtime tests passed with 92.17% statement coverage; 
 
 ## Live gate
 
-Phase 7 is not accepted until the dedicated test account completes five consecutive end-to-end repair runs against real Google Docs, Slides, Gmail drafts, and Tasks. Each run must show exactly nine planned steps, preserve a human-authored memo paragraph byte-for-byte, create no duplicate correction draft, send no email, and either complete or expose a real overlapping-edit conflict. Mocked transports and local artifact doubles cannot satisfy this gate.
+Real end-to-end repair passed repeatedly on 2026-08-26 against Google Docs, Slides, Gmail drafts, and Tasks. Seven production certificates were issued before the final release and certificate `370C1A51AD95` was issued on commit `23f802f`; each successful run used nine planned steps, preserved protected prose, kept sent mail immutable, and independently verified 13/13 targets. Naturally occurring Gemini outages interrupted the strict consecutive-clean streak. That streak is therefore still marked partial even though both the happy path and real recovery path have been demonstrated.

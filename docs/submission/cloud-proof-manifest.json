@@ -1,17 +1,83 @@
 {
-  "status": "pending_google_cloud",
+  "schemaVersion": "1.1",
+  "status": "live_proof_partial",
+  "lastUpdated": "2026-08-26T14:30:00+05:30",
+  "projectId": "project-c0f0f832-e02b-4eac-ae2",
+  "region": "us-central1",
+  "acceptedCommit": "c880e5f",
+  "publicUrl": "https://veritas-preview-web-602044424209.us-central1.run.app/",
   "requiredEvidence": [
-    {"id":"public-url","description":"Public Cloud Run Command Center URL","status":"pending"},
-    {"id":"immutable-images","description":"Four deployed image digests bound to the accepted commit","status":"pending"},
-    {"id":"workspace-generation","description":"Real packet generated through Docs, Slides, Gmail, and Tasks APIs","status":"pending"},
-    {"id":"drive-event","description":"Authenticated Drive change persisted and deduplicated","status":"pending"},
-    {"id":"native-repair","description":"Five real artifacts repaired with native preconditions","status":"pending"},
-    {"id":"human-preservation","description":"Pre/post protected hash proves CFO paragraph unchanged","status":"pending"},
-    {"id":"correction-draft","description":"Unsent Gmail correction linked to immutable original","status":"pending"},
-    {"id":"certificate","description":"Independent report and scoped certificate checksums","status":"pending"},
-    {"id":"failure-injection","description":"Worker termination, duplicate, 429, token expiry, and partial write recovery","status":"pending"},
-    {"id":"five-runs","description":"Five consecutive clean live rehearsal records","status":"pending"},
-    {"id":"browser-audit","description":"Hosted responsive, keyboard, refresh, and accessibility evidence","status":"pending"},
-    {"id":"cost-latency","description":"Real p50/p95 latency, Gemini usage, and Cloud cost","status":"pending"}
+    {
+      "id": "public-url",
+      "description": "Public Cloud Run Command Center URL",
+      "status": "complete",
+      "evidence": "Signed-out HTTP 200 and /health/ready 200 on 2026-08-26."
+    },
+    {
+      "id": "immutable-images",
+      "description": "Four deployed image digests bound to the accepted commit",
+      "status": "complete",
+      "evidence": "Cloud Build f43c0551-6494-4689-9a90-3e8ac259535c built clean commit c880e5f; runtime sha256:523e35c42371de76d80b7df9092aa6dc43e90ddc1ef19eb1e11ba6bd18a54b25 and web sha256:9971506b01d9050e4dd067d587e3df957c60b534f1bcb3b61baaca7e33c22461."
+    },
+    {
+      "id": "workspace-generation",
+      "description": "Real packet generated through Docs, Slides, Gmail, and Tasks APIs",
+      "status": "complete",
+      "evidence": "Multiple live packets generated native Sheets, Docs, Slides, Gmail draft, and Tasks resources under rbrudra9439@gmail.com."
+    },
+    {
+      "id": "drive-event",
+      "description": "Authenticated Drive change persisted and deduplicated",
+      "status": "complete",
+      "evidence": "Real Metrics!B17 edits produced immutable snapshots, SHA-256 content proofs, Drive receipts, and one scoped incident per packet."
+    },
+    {
+      "id": "native-repair",
+      "description": "Five real artifacts repaired with native preconditions",
+      "status": "complete",
+      "evidence": "Certificate 370C1A51AD95 independently verified 13/13 targets after native Docs, Slides, Gmail draft, Tasks, and second Doc actions."
+    },
+    {
+      "id": "human-preservation",
+      "description": "Pre/post protected hash proves CFO paragraph unchanged",
+      "status": "complete",
+      "evidence": "Live certificates report 5/5 protected projections and zero human edits lost."
+    },
+    {
+      "id": "correction-draft",
+      "description": "Unsent Gmail correction linked to immutable original",
+      "status": "complete",
+      "evidence": "Live repair journals show immutable-original guard and deterministic unsent correction-draft creation; no send endpoint exists."
+    },
+    {
+      "id": "certificate",
+      "description": "Independent report and scoped certificate checksums",
+      "status": "complete",
+      "evidence": "Certificate 370C1A51AD95 on semantic release parent 23f802f covers 8 claims, 13/13 targets, 6 evidence versions, and 5/5 protected projections; recovered certificate 74EC21579183 remained verified after the formatter-only c880e5f rollout."
+    },
+    {
+      "id": "failure-injection",
+      "description": "Worker termination, duplicate, 429, token expiry, and partial write recovery",
+      "status": "partial",
+      "evidence": "Real Gemini dependency outages exercised five bounded attempts, stable fingerprint 786295b2ce2b3c9877f7a432, dead-letter quarantine, packet-scoped recovery, and audited replay. Duplicate, lease, token, 429, and partial-write cases pass automated tests; their separate live injections are not all recorded."
+    },
+    {
+      "id": "five-runs",
+      "description": "Five consecutive clean live rehearsal records",
+      "status": "partial",
+      "evidence": "Nine live certificates have been issued across production revisions, including final-release certificates 370C1A51AD95 and recovered 74EC21579183. Intermittent real Gemini outages broke the consecutive-clean streak, so this item is not called complete."
+    },
+    {
+      "id": "browser-audit",
+      "description": "Hosted responsive, keyboard, refresh, and accessibility evidence",
+      "status": "partial",
+      "evidence": "Hosted desktop semantics, refresh persistence, labelled controls, no horizontal overflow, visible approval controls, and real-time updates were inspected: one main, one H1, seven headings, thirteen labelled buttons, zero images without alt, one skip link, and no horizontal overflow at 1280x720. A final phone-width and complete keyboard/a11y pass remains to be recorded."
+    },
+    {
+      "id": "cost-latency",
+      "description": "Real p50/p95 latency, Gemini usage, and Cloud cost",
+      "status": "partial",
+      "evidence": "Per-run detected and certificate timestamps are recorded, including a 77-second final-release clean run. Exact p50/p95, token totals, and post-billing-delay Cloud cost are not yet claimed."
+    }
   ]
 }

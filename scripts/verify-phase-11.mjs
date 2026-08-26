@@ -68,5 +68,4 @@ console.log('\nPhase 11 deterministic evaluation verification passed.');
 console.log('- forty scenarios execute production decision functions');
 console.log('- all five strata pass 8/8 with zero false certificates');
 console.log('- the dataset, thresholds, and published metrics are reproducible');
-console.log('- live Workspace latency and cost metrics remain pending');
-
+console.log('- live Workspace samples exist; p50/p95, model usage, and exact Cloud cost remain partial');

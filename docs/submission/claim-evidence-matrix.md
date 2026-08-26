@@ -11,6 +11,8 @@
 | An interrupted worker resumes safely | Operation events and per-step execution journal | Completed native writes are not repeated |
 | Verification is independent | Read-only verifier requests and report checksums | No mutation receipt used as observed truth |
 | Certificate scope is honest | Certificate statement, counts, evidence versions, report checksum | All registered coverage complete; no universal-truth language |
-| The system runs on Google Cloud | Cloud Run revisions, image digests, Cloud SQL, Storage, Vertex AI, KMS, Logs | Evidence bound to accepted Git commit |
+| The system runs on Google Cloud | [`live-proof-report.md`](live-proof-report.md), Cloud Run revisions, image digests, Cloud SQL, Storage, Vertex AI, KMS, Logs | Evidence bound to accepted Git commit `c880e5f` |
 | Gemini materially participates without controlling safety | Vertex AI call, schema-bound review, exact-scope validator, checksummed SQL receipt, UI receipt | Model can proceed or escalate but cannot add scope or self-approve |
 | Evaluation is reproducible | `evaluation/scenarios.json`, checksum, harness, CI log | 40/40 thresholds pass from production decision code |
+
+Proof status is machine-readable in [`cloud-proof-manifest.json`](cloud-proof-manifest.json). Complete and partial evidence are intentionally distinguished; a passing local test is not relabelled as a live injection.

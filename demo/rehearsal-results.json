@@ -2,46 +2,47 @@
   "schemaVersion": "1.0",
   "mode": "automated_offline_contract_rehearsal",
   "durationSeconds": 238,
-  "inputChecksum": "91f71fc5dbb9506151f2c312508765ba6158822258c5bdd3c67fa66fddc22274",
+  "inputChecksum": "1e9e4e44e6e2e2987240ec5ec29df42e1e9a3c58e2dc2002f0072321745bbe3b",
   "runs": [
     {
       "run": 1,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "05ee2b301590f781d92b1f52affa70e95f7aa81c757a45458a37422572f14dcb"
+      "rehearsalDigest": "429c946d6c9ddeb7400970b0195e8165bfe326053b5adb21cdf96101881bd063"
     },
     {
       "run": 2,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "05ee2b301590f781d92b1f52affa70e95f7aa81c757a45458a37422572f14dcb"
+      "rehearsalDigest": "429c946d6c9ddeb7400970b0195e8165bfe326053b5adb21cdf96101881bd063"
     },
     {
       "run": 3,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "05ee2b301590f781d92b1f52affa70e95f7aa81c757a45458a37422572f14dcb"
+      "rehearsalDigest": "429c946d6c9ddeb7400970b0195e8165bfe326053b5adb21cdf96101881bd063"
     },
     {
       "run": 4,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "05ee2b301590f781d92b1f52affa70e95f7aa81c757a45458a37422572f14dcb"
+      "rehearsalDigest": "429c946d6c9ddeb7400970b0195e8165bfe326053b5adb21cdf96101881bd063"
     },
     {
       "run": 5,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "05ee2b301590f781d92b1f52affa70e95f7aa81c757a45458a37422572f14dcb"
+      "rehearsalDigest": "429c946d6c9ddeb7400970b0195e8165bfe326053b5adb21cdf96101881bd063"
     }
   ],
   "passedRuns": 5,
   "failedChecks": [],
-  "liveWorkspaceMutations": false,
-  "liveRehearsalsStatus": "pending_google_cloud"
+  "liveWorkspaceMutations": true,
+  "liveRehearsalsStatus": "partial_not_five_consecutive",
+  "liveProofStatus": "live_proof_partial"
 }

@@ -18,5 +18,4 @@ uv run python scripts/run_evaluation.py --check
 
 The command verifies the dataset checksum, recomputes all metrics, compares them with [`results.json`](results.json), enforces [`thresholds.json`](thresholds.json), and applies a one-second offline runtime budget. The evaluation performs no external API calls and therefore has zero external API cost.
 
-These are deterministic implementation metrics—not live Google Workspace performance claims. Real API latency, end-to-end repair correctness, Cloud cost, and five repeated production runs remain pending until the preview project is available.
-
+These are deterministic implementation metrics—not substitutes for production performance claims. Real Workspace generation, event handling, repair, verification, and recovery have now been demonstrated in the preview project; see [`../docs/submission/live-proof-report.md`](../docs/submission/live-proof-report.md). A defensible p50/p95, exact Gemini usage, Cloud cost, and five consecutive clean production runs remain partial.

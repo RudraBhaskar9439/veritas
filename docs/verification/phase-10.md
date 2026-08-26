@@ -1,6 +1,6 @@
 # Phase 10 verification report
 
-- Status: credit-independent implementation passed; live Cloud failure injection pending
+- Status: live bounded retry, quarantine, and audited replay passed; remaining injection matrix partial
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-10.mjs`
 - Accepted implementation commits: `e51933aadf2c1bdebce08913c5bced55f52c10e6`, `5c07a069886d0a39616d7fce397cd94bf1b33397`
@@ -24,4 +24,4 @@ Observed result: 29 targeted failure-injection, SQL lifecycle, API, security, he
 
 ## Pending live evidence
 
-No Google Cloud behavior is represented as proven. Cloud SQL concurrent leasing, Cloud Tasks duplicate delivery, Cloud Run termination recovery, real 429/token-expiry handling, Cloud Logging metric ingestion, and alert delivery must be injected and recorded after the preview project exists.
+Real Gemini dependency outages exercised the production ledger on 2026-08-26. Operation `op-701ab239-cd91-53f4-b3b2-2f45c40cb047` attempted five times with bounded delays, entered quarantine with fingerprint `786295b2ce2b3c9877f7a432`, and appeared only on its owning packet. Earlier quarantined operations were replayed into linked immutable operations and ultimately certified. This proves live retry, quarantine, diagnostic fingerprinting, packet scoping, and audited replay. Separate Cloud Run termination, OAuth expiry, provider 429, and partial-native-write recordings remain partial; their automated failure tests continue to pass.

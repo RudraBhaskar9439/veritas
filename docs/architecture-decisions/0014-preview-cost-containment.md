@@ -32,4 +32,4 @@ The preview environment uses layered containment:
 
 - `terraform validate` proves the budget, scale ceilings, and disk ceiling are structurally valid.
 - The live gate records Billing Overview status, budget thresholds, spend-cap availability, service scaling, and Cloud SQL disk settings.
-- The final proof manifest continues to report live cost as pending until measured from the deployed system.
+- The final proof manifest reports live cost as partial until billing export delay clears and exact cost plus Gemini usage can be measured from the deployed system.
