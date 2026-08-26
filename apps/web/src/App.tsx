@@ -1044,6 +1044,11 @@ function taskTitleFromClaim(statement?: string, artifactId?: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function displayEmailSubject(subjectLine: string): string {
+  const withoutLegacyRoute = subjectLine.replace(/^\[VX-[A-F0-9]{12}\]\s*/i, '').trim();
+  return withoutLegacyRoute || 'Customer email';
+}
+
 function EmailTaskAutomation() {
   const incident = useIncident();
   const [opened, setOpened] = useState(false);
@@ -1473,7 +1478,7 @@ function EmailTaskAutomation() {
                 <article key={event.eventId}>
                   <span className={`emailEventStatus status-${event.status}`}>{event.status}</span>
                   <div>
-                    <strong>{event.proposedTitle ?? event.subjectLine}</strong>
+                    <strong>{event.proposedTitle ?? displayEmailSubject(event.subjectLine)}</strong>
                     <span>
                       {fullUtc(event.receivedAt)} · from {event.sender}
                     </span>

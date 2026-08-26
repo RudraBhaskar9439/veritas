@@ -617,7 +617,33 @@ describe('Veritas command center', () => {
           }),
         ),
       )
-      .mockResolvedValueOnce(new Response(JSON.stringify([])))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              eventId: 'event-legacy-route',
+              workflowId: 'workflow-42',
+              gmailMessageId: 'gmail-message-legacy',
+              gmailThreadId: 'gmail-thread-legacy',
+              historyId: '101',
+              sender: 'customer@example.com',
+              recipient: 'operator@example.com',
+              subjectLine: '[VX-ABCDEF123456] Update customer delivery',
+              bodyHash: 'a'.repeat(64),
+              proposedTitle: null,
+              proposedNote: null,
+              status: 'ignored',
+              rationale: 'Historical test receipt.',
+              riskFlags: [],
+              taskRevision: null,
+              receiptChecksum: 'b'.repeat(64),
+              receivedAt: '2026-08-26T09:59:00Z',
+              createdAt: '2026-08-26T10:00:00Z',
+              updatedAt: '2026-08-26T10:00:00Z',
+            },
+          ]),
+        ),
+      )
       .mockResolvedValueOnce(new Response(JSON.stringify({ workflow, watch: {}, reused: false })))
       .mockResolvedValueOnce(new Response(JSON.stringify(thread)));
     render(<App initialIncident={live} />);
@@ -636,6 +662,8 @@ describe('Veritas command center', () => {
 
     expect(await screen.findByText('Increase acquisition spend — customer update')).toBeVisible();
     expect(screen.getAllByText('Increase acquisition spend').length).toBeGreaterThan(0);
+    expect(screen.getByText('Update customer delivery')).toBeVisible();
+    expect(screen.queryByText(/VX-ABCDEF123456/)).not.toBeInTheDocument();
     expect(screen.getByText(/No routing code is visible or required/)).toBeVisible();
     expect(screen.getByRole('link', { name: 'Open company conversation ↗' })).toHaveAttribute(
       'href',
