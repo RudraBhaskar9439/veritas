@@ -170,7 +170,13 @@ class MemoryOperationRepository:
             kind=original.kind,
             correlation_id=original.correlation_id,
             idempotency_key=f"{subject}:replay:{operation_id}:{request_id}",
-            payload=original.payload,
+            payload={
+                **original.payload,
+                "__veritasReplayRootOperationId": original.payload.get(
+                    "__veritasReplayRootOperationId",
+                    original.operation_id,
+                ),
+            },
             max_attempts=original.max_attempts,
         )
         replayed, reused = await self.enqueue(request, now)

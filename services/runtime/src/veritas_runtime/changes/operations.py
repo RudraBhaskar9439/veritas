@@ -11,6 +11,7 @@ from veritas_runtime.operations.service import (
 )
 
 DRIVE_PROCESS_OPERATION = "drive.process"
+REPLAY_ROOT_OPERATION_KEY = "__veritasReplayRootOperationId"
 
 
 class NotificationOutboxRepository(Protocol):
@@ -89,10 +90,16 @@ class DriveStreamOperationHandler:
         if not isinstance(stream_id, str) or not stream_id:
             raise PermanentOperationError("invalid_drive_stream_operation")
         session = await self._sessions.get(operation.subject)
+        snapshot_operation_id = operation.payload.get(
+            REPLAY_ROOT_OPERATION_KEY,
+            operation.operation_id,
+        )
+        if not isinstance(snapshot_operation_id, str) or not snapshot_operation_id:
+            raise PermanentOperationError("invalid_drive_replay_root")
         snapshots = await self._processor.process_stream(
             stream_id,
             session.access_token,
-            operation.operation_id,
+            snapshot_operation_id,
             expected_subject=operation.subject,
         )
         if self._orchestrator is not None:

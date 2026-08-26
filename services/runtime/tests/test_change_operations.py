@@ -194,6 +194,36 @@ def test_drive_operation_hands_captured_snapshots_to_the_orchestrator() -> None:
     asyncio.run(scenario())
 
 
+def test_drive_operation_replay_reuses_the_original_snapshot_batch() -> None:
+    from repair_support import canonical_repair_context
+
+    repository = MemoryOperationRepository()
+    snapshots = canonical_repair_context().snapshot_metadata
+    processor = FakeProcessor(snapshots)
+    orchestrator = FakeOrchestrator()
+    handler = DriveStreamOperationHandler(processor, FakeSessions(), orchestrator)
+
+    async def scenario() -> None:
+        operation, _ = await repository.enqueue(
+            OperationRequest(
+                subject="subject-1",
+                kind=DRIVE_PROCESS_OPERATION,
+                correlation_id="event-replayed",
+                idempotency_key="event-replayed",
+                payload={
+                    "streamId": "stream-1",
+                    "__veritasReplayRootOperationId": "op-original-capture",
+                },
+            ),
+            NOW,
+        )
+        await handler.handle(operation)
+        assert processor.calls == [("stream-1", "access-token", "op-original-capture", "subject-1")]
+        assert orchestrator.calls == [(operation.operation_id, snapshots)]
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize(
     ("agent_error", "expected_error", "code"),
     [

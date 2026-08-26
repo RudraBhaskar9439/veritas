@@ -290,14 +290,17 @@ class SqlOperationRepository:
                     )
                 return _operation(existing), True
             replay_id = f"op-{uuid5(NAMESPACE_URL, idempotency_key)}"
+            replay_payload = json.loads(str(original["payload_json"]))
+            replay_payload.setdefault("__veritasReplayRootOperationId", operation_id)
+            replay_payload_json = _canonical(replay_payload)
             values = {
                 "operation_id": replay_id,
                 "subject": subject,
                 "kind": original["kind"],
                 "correlation_id": original["correlation_id"],
                 "idempotency_key": idempotency_key,
-                "payload_json": original["payload_json"],
-                "payload_hash": original["payload_hash"],
+                "payload_json": replay_payload_json,
+                "payload_hash": hashlib.sha256(replay_payload_json.encode()).hexdigest(),
                 "status": OperationStatus.QUEUED.value,
                 "attempt": 0,
                 "max_attempts": original["max_attempts"],

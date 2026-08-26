@@ -1080,9 +1080,14 @@ function RecoveryQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
         if (!response.ok) return;
         const result = (await response.json()) as ReadonlyArray<DeadLetterSummary>;
         if (!disposed) {
+          const detectedAt = new Date(incident.detectedAt).getTime();
           setDeadLetters(
             result
-              .filter((item) => !replayed.current.has(item.operationId))
+              .filter(
+                (item) =>
+                  !replayed.current.has(item.operationId) &&
+                  new Date(item.updatedAt).getTime() >= detectedAt,
+              )
               .sort(
                 (left, right) =>
                   new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
@@ -1101,7 +1106,7 @@ function RecoveryQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [needsRecovery]);
+  }, [incident.detectedAt, needsRecovery]);
 
   if (!needsRecovery || (loading && deadLetters.length === 0)) return null;
   const newest = deadLetters[0];
