@@ -1,0 +1,30 @@
+substitutions:
+  _REGISTRY: us-central1-docker.pkg.dev/$PROJECT_ID/veritas-preview-containers
+  _IMAGE_TAG: dev
+
+steps:
+  - id: build-runtime
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - services/runtime/Dockerfile
+      - --tag
+      - ${_REGISTRY}/runtime:${_IMAGE_TAG}
+      - .
+  - id: build-web
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - apps/web/Dockerfile
+      - --tag
+      - ${_REGISTRY}/web:${_IMAGE_TAG}
+      - .
+
+images:
+  - ${_REGISTRY}/runtime:${_IMAGE_TAG}
+  - ${_REGISTRY}/web:${_IMAGE_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
