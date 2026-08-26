@@ -34,6 +34,7 @@ from veritas_runtime.email_tasks.service import (
     GmailWatchRenewalService,
 )
 from veritas_runtime.execution.service import WorkspaceSession
+from veritas_runtime.execution.sessions import WorkspaceSessionUnavailable
 from veritas_runtime.packets.database import SqlManifestRepository
 from veritas_runtime.packets.generator import DecisionPacketGenerator
 from veritas_runtime.workspace.contracts import (
@@ -466,6 +467,25 @@ def test_registration_coordinator_checks_scopes_starts_watch_and_hides_expired_s
         )
         with pytest.raises(EmailTaskWorkflowError, match="Reconnect Google Workspace"):
             await no_scopes.register(
+                "subject-1",
+                "operator@example.com",
+                _request(),
+                NOW,
+            )
+
+        class DisconnectedSessions:
+            async def get(self, subject: str) -> WorkspaceSession:
+                raise WorkspaceSessionUnavailable("authorization must be refreshed")
+
+        disconnected = EmailTaskRegistrationCoordinator(
+            EmailTaskWorkflowService(LatestManifest(manifest), MemoryWorkflows()),  # type: ignore[arg-type]
+            MemoryWorkflows(),  # type: ignore[arg-type]
+            DisconnectedSessions(),
+            Gmail(),
+            "projects/project-1/topics/gmail-events",
+        )
+        with pytest.raises(EmailTaskWorkflowError, match="Reconnect Google Workspace"):
+            await disconnected.register(
                 "subject-1",
                 "operator@example.com",
                 _request(),

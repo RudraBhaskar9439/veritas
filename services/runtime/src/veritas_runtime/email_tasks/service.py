@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol
 from uuid import NAMESPACE_URL, uuid5
 
+from veritas_runtime.auth.oauth import OAuthExchangeError
 from veritas_runtime.email_tasks.models import (
     EmailTaskEligibleRoute,
     EmailTaskEvent,
@@ -17,6 +18,7 @@ from veritas_runtime.email_tasks.models import (
 )
 from veritas_runtime.email_tasks.policy import normalize_email, workflow_routing_key
 from veritas_runtime.execution.service import WorkspaceSession
+from veritas_runtime.execution.sessions import WorkspaceSessionUnavailable
 from veritas_runtime.packets.generator import manifest_checksum
 from veritas_runtime.packets.models import ArtifactKind, ClaimManifest
 from veritas_runtime.workspace.contracts import MissingWorkspaceScope, WorkspaceCapability
@@ -246,7 +248,12 @@ class EmailTaskRegistrationCoordinator:
         request: RegisterEmailTaskWorkflowRequest,
         now: datetime | None = None,
     ) -> EmailTaskRegistrationResult:
-        session = await self._sessions.get(subject)
+        try:
+            session = await self._sessions.get(subject)
+        except (OAuthExchangeError, WorkspaceSessionUnavailable) as error:
+            raise EmailTaskWorkflowError(
+                "Reconnect Google Workspace to authorize Gmail inbox monitoring and Tasks"
+            ) from error
         try:
             session.authorization.require(WorkspaceCapability.GMAIL_INBOX_READ)
             session.authorization.require(WorkspaceCapability.TASKS_REPAIR)
