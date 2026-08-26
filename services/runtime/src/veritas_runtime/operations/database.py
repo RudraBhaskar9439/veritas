@@ -281,9 +281,7 @@ class SqlOperationRepository:
                                 == drive_change_operation_snapshots.c.snapshot_id,
                             )
                         )
-                        .where(
-                            drive_change_operation_snapshots.c.operation_id.in_(operation_ids)
-                        )
+                        .where(drive_change_operation_snapshots.c.operation_id.in_(operation_ids))
                         .distinct()
                     )
                 )
