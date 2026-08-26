@@ -87,6 +87,8 @@ describe('Veritas command center', () => {
     expect(screen.getByText('2026-08-21T10:42:07Z', { selector: 'time' })).toBeInTheDocument();
     expect(screen.getByText(demoIncident.evidence[0].contentHash)).toBeInTheDocument();
     expect(screen.getAllByText(`#${demoIncident.timeline[0].receipt}`)).toHaveLength(2);
+    expect(screen.getByText('Certified after 9s')).toBeInTheDocument();
+    expect(screen.queryByText('Resolved in 9 seconds')).toBeNull();
   });
 
   it('can replay the incident through an announced live region', () => {
@@ -185,7 +187,7 @@ describe('Veritas command center', () => {
   });
 
   it('opens a detected incident automatically after live packet generation', async () => {
-    const liveIncident: Incident = { ...demoIncident, source: 'live' };
+    const liveIncident: Incident = { ...demoIncident, packetId: 'packet-live', source: 'live' };
     const sources = [
       {
         sourceId: 'src-churn',

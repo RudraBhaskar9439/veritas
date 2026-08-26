@@ -92,6 +92,26 @@ function fullUtc(value: string): string {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString().replace('.000Z', 'Z');
 }
 
+function elapsedLabel(start: string, end: string): string {
+  const elapsedSeconds = Math.max(
+    0,
+    Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000),
+  );
+  if (!Number.isFinite(elapsedSeconds)) return 'Timing unavailable';
+  if (elapsedSeconds < 60) return `${elapsedSeconds}s`;
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+  return `${minutes}m ${seconds}s`;
+}
+
+function incidentLabel(incident: Incident): string {
+  const suffix = incident.id
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(-6)
+    .toUpperCase();
+  return suffix ? `INCIDENT ${suffix}` : 'INCIDENT';
+}
+
 export function App({ initialIncident }: { initialIncident?: Incident }) {
   const [incident, setIncident] = useState<Incident | null>(initialIncident ?? null);
   const [state, setState] = useState<StartupStatus>(initialIncident ? 'ready' : 'loading');
@@ -126,6 +146,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
 
   useEffect(() => {
     if (initialIncident || generation.phase !== 'complete' || state === 'ready') return;
+    const packetId = generation.result.manifest.packetId;
     let disposed = false;
     let refreshing = false;
     const refresh = async () => {
@@ -142,7 +163,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
         }
         if (!response.ok) return;
         const result = (await response.json()) as Incident | null;
-        if (!disposed && result) {
+        if (!disposed && result?.packetId === packetId) {
           setIncident(result);
           setState('ready');
         }
@@ -158,7 +179,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [generation.phase, initialIncident, state]);
+  }, [generation, initialIncident, state]);
 
   async function generateLivePacket(request: typeof generationRequest) {
     setGeneration({ phase: 'running' });
@@ -407,7 +428,11 @@ function CommandCenter({
             <div>
               <span className="sidebarLabel">Decision packet</span>
               <strong>Executive review</strong>
-              <span className="incidentDuration">Resolved in 9 seconds</span>
+              <span className="incidentDuration">
+                {incident.status === 'verified'
+                  ? `Certified after ${elapsedLabel(incident.detectedAt, incident.updatedAt)}`
+                  : `Open for ${elapsedLabel(incident.detectedAt, incident.updatedAt)}`}
+              </span>
             </div>
           </div>
           <nav>
@@ -663,7 +688,7 @@ function Overview({
         <div className="stageGrid" aria-hidden="true" />
         <div className="incidentHeading">
           <div className="incidentMeta">
-            <span className="incidentNumber">AUTONOMOUS RUN · INCIDENT 042</span>
+            <span className="incidentNumber">AUTONOMOUS RUN · {incidentLabel(incident)}</span>
             <span className="severity">Material evidence change</span>
           </div>
           <h1 id="incident-title">{incident.headline}</h1>
