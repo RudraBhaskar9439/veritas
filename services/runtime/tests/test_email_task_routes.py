@@ -164,8 +164,8 @@ def test_gmail_push_requires_identity_and_decodes_the_real_pubsub_contract() -> 
     verifier = RecordingVerifier()
     app = FastAPI()
     app.include_router(create_gmail_webhook_router(receiver, verifier))  # type: ignore[arg-type]
-    data = base64.b64encode(
-        json.dumps({"emailAddress": "operator@example.com", "historyId": "102"}).encode()
+    data = base64.urlsafe_b64encode(
+        json.dumps({"emailAddress": "operator@example.com", "historyId": 102}).encode()
     ).decode()
 
     response = TestClient(app).post(
