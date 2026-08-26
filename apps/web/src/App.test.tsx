@@ -378,6 +378,78 @@ describe('Veritas command center', () => {
     expect(retryBody.requestId).toBe(firstBody.requestId);
   });
 
+  it('keeps human decisions locked until automatic work reaches the authority boundary', () => {
+    const repairing: Incident = {
+      ...demoIncident,
+      source: 'live',
+      status: 'repairing',
+      certificate: null,
+      approvals: [
+        {
+          approvalId: 'approval-locked',
+          planId: demoIncident.id,
+          runId: demoIncident.runId,
+          claimId: 'retention-target',
+          claimLabel: 'Retention target',
+          status: 'pending',
+          reason: null,
+        },
+      ],
+    };
+    render(<App initialIncident={repairing} />);
+
+    expect(screen.getByRole('button', { name: 'Approve & continue' })).toBeDisabled();
+    expect(screen.getByText(/Decisions unlock only/)).toHaveTextContent(
+      'Decisions unlock only after the durable run reaches the human authority boundary',
+    );
+  });
+
+  it('exposes an audited replay for a quarantined live operation', async () => {
+    const repairing: Incident = {
+      ...demoIncident,
+      source: 'live',
+      status: 'repairing',
+      certificate: null,
+      agentReview: null,
+      approvals: [],
+    };
+    const deadLetter = {
+      operationId: 'op-dead-letter',
+      kind: 'drive.process',
+      correlationId: 'drive-notification:watch:42',
+      attempt: 5,
+      maxAttempts: 5,
+      errorCode: 'gemini_review_unavailable',
+      diagnosticFingerprint: '786295b2ce2b3c9877f7a432',
+      replayOf: null,
+      updatedAt: '2026-08-26T07:43:14Z',
+    };
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify([deadLetter])))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ operation: { status: 'queued' }, reused: false })),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify(repairing)));
+    render(<App initialIncident={repairing} />);
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'The agent stopped safely. Recovery needs an operator.',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('gemini review unavailable')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Replay safely' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      '/api/v1/operations/dead-letters/op-dead-letter/replay',
+    );
+    expect(await screen.findByText(/Audited replay queued/)).toHaveTextContent(
+      'Existing receipts and completed writes remain preserved',
+    );
+  });
+
   it('refreshes every live graph from the latest incident without a page reload', async () => {
     vi.useFakeTimers();
     const initial: Incident = {

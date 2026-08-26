@@ -2374,6 +2374,46 @@ code {
   border-color: color-mix(in srgb, var(--amber) 45%, var(--line));
 }
 
+.recoveryPanel {
+  margin-bottom: 24px;
+  padding: 24px;
+  border-color: color-mix(in srgb, var(--red) 38%, var(--line));
+  background: color-mix(in srgb, var(--surface) 94%, #fff1ed);
+}
+
+.recoveryOperation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-strong);
+}
+
+.recoveryOperation > div {
+  display: grid;
+  gap: 6px;
+}
+
+.recoveryOperation span,
+.recoveryOperation small,
+.actionNotice {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.recoveryOperation code {
+  overflow-wrap: anywhere;
+}
+
+.actionNotice {
+  margin: 16px 0 0;
+}
+
 .approvalList {
   display: grid;
   gap: 12px;
@@ -2445,13 +2485,19 @@ button:disabled {
 }
 
 @media (max-width: 720px) {
-  .approvalList article {
+  .approvalList article,
+  .recoveryOperation {
     align-items: stretch;
     flex-direction: column;
   }
 
   .approvalActions > button {
     flex: 1;
+  }
+
+  .recoveryOperation > button {
+    width: 100%;
+    justify-content: center;
   }
 }
 

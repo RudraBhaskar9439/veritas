@@ -31,6 +31,18 @@ interface PacketGenerationResult {
   reused: boolean;
 }
 
+interface DeadLetterSummary {
+  operationId: string;
+  kind: string;
+  correlationId: string;
+  attempt: number;
+  maxAttempts: number;
+  errorCode: string;
+  diagnosticFingerprint: string;
+  replayOf: string | null;
+  updatedAt: string;
+}
+
 type LiveGenerationRequest = typeof generationRequest;
 
 type GenerationState =
@@ -796,6 +808,8 @@ function Overview({
 
       <ApprovalQueue onIncidentChange={onIncidentChange} />
 
+      <RecoveryQueue onIncidentChange={onIncidentChange} />
+
       <ConsequenceMap replayStage={replayStage} />
 
       <div className="overviewGrid">
@@ -933,6 +947,7 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
   const [error, setError] = useState<string | null>(null);
   const requestIds = useRef(new Map<string, string>());
   if (pending.length === 0) return null;
+  const authorityReady = incident.status === 'awaiting_approval';
 
   async function decide(approval: IncidentApproval, decision: 'approve' | 'reject') {
     if (incident.source !== 'live') return;
@@ -1010,7 +1025,7 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
               <button
                 className="secondaryButton"
                 type="button"
-                disabled={working !== null || incident.source !== 'live'}
+                disabled={working !== null || incident.source !== 'live' || !authorityReady}
                 onClick={() => decide(approval, 'reject')}
               >
                 Reject
@@ -1018,7 +1033,7 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
               <button
                 className="replayButton"
                 type="button"
-                disabled={working !== null || incident.source !== 'live'}
+                disabled={working !== null || incident.source !== 'live' || !authorityReady}
                 onClick={() => decide(approval, 'approve')}
               >
                 {working === approval.approvalId ? 'Applying decision…' : 'Approve & continue'}
@@ -1027,9 +1042,143 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
           </article>
         ))}
       </div>
+      {!authorityReady && (
+        <p className="actionNotice" role="status">
+          Safe automatic work is still running. Decisions unlock only after the durable run reaches
+          the human authority boundary.
+        </p>
+      )}
       {error && (
         <p className="actionError" role="alert">
           {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function RecoveryQueue({ onIncidentChange }: { onIncidentChange: (incident: Incident) => void }) {
+  const incident = useIncident();
+  const [deadLetters, setDeadLetters] = useState<ReadonlyArray<DeadLetterSummary>>([]);
+  const [loading, setLoading] = useState(false);
+  const [working, setWorking] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const replayed = useRef(new Set<string>());
+  const needsRecovery =
+    incident.source === 'live' && incident.status === 'repairing' && !incident.agentReview;
+
+  useEffect(() => {
+    if (!needsRecovery) return;
+    let disposed = false;
+    const refresh = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('/api/v1/operations/dead-letters', {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) return;
+        const result = (await response.json()) as ReadonlyArray<DeadLetterSummary>;
+        if (!disposed) {
+          setDeadLetters(
+            result
+              .filter((item) => !replayed.current.has(item.operationId))
+              .sort(
+                (left, right) =>
+                  new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+              ),
+          );
+        }
+      } catch {
+        // The incident remains visible while operator evidence is temporarily unavailable.
+      } finally {
+        if (!disposed) setLoading(false);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 10_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [needsRecovery]);
+
+  if (!needsRecovery || (loading && deadLetters.length === 0)) return null;
+  const newest = deadLetters[0];
+  if (!newest && !message) return null;
+
+  async function replay(operation: DeadLetterSummary) {
+    setWorking(operation.operationId);
+    setMessage(null);
+    try {
+      const response = await fetch(
+        `/api/v1/operations/dead-letters/${encodeURIComponent(operation.operationId)}/replay`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            requestId: crypto.randomUUID(),
+            reason: 'Dependency recovered; resume the evidence-bound operation after review.',
+          }),
+        },
+      );
+      if (!response.ok) throw new Error(await safeApiError(response));
+      replayed.current.add(operation.operationId);
+      setDeadLetters((current) =>
+        current.filter((item) => item.operationId !== operation.operationId),
+      );
+      setMessage('Audited replay queued. Existing receipts and completed writes remain preserved.');
+      const refreshed = await fetch('/api/v1/command-center/incidents/latest', {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (refreshed.ok) {
+        const result = (await refreshed.json()) as Incident | null;
+        if (result) onIncidentChange(result);
+      }
+    } catch (error: unknown) {
+      setMessage(error instanceof Error ? error.message : 'Audited replay could not be queued.');
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  return (
+    <section className="panel recoveryPanel" aria-labelledby="recovery-title">
+      <div className="panelHeader">
+        <div>
+          <span className="sectionKicker">Durable recovery boundary</span>
+          <h2 id="recovery-title">The agent stopped safely. Recovery needs an operator.</h2>
+        </div>
+        <span className="severity">{newest ? 'Quarantined' : 'Recovery queued'}</span>
+      </div>
+      {newest && (
+        <article className="recoveryOperation">
+          <div>
+            <strong>{newest.errorCode.replaceAll('_', ' ')}</strong>
+            <span>
+              {newest.kind} · {newest.attempt}/{newest.maxAttempts} attempts · fingerprint{' '}
+              <code>{newest.diagnosticFingerprint}</code>
+            </span>
+            <small>
+              Original operation <code>{newest.operationId}</code> remains immutable. Replay creates
+              a linked operation and revalidates source versions before any write.
+            </small>
+          </div>
+          <button
+            className="replayButton"
+            type="button"
+            disabled={working !== null}
+            onClick={() => void replay(newest)}
+          >
+            {working === newest.operationId ? 'Queuing audited replay…' : 'Replay safely'}
+          </button>
+        </article>
+      )}
+      {message && (
+        <p className="actionNotice" role="status">
+          {message}
         </p>
       )}
     </section>
