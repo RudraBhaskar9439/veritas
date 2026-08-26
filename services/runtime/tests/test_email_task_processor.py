@@ -1,6 +1,9 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
 
+import pytest
+from pydantic import BaseModel, Field
+
 from operations_support import MemoryOperationRepository
 from veritas_runtime.email_tasks.models import (
     EmailTaskDisposition,
@@ -17,9 +20,9 @@ from veritas_runtime.email_tasks.notifications import (
     GmailNotificationReceiver,
     decode_pubsub_push,
 )
-from veritas_runtime.email_tasks.processor import GmailTaskProcessor
-from veritas_runtime.operations.models import OperationStatus
-from veritas_runtime.operations.service import ReliableOperationService
+from veritas_runtime.email_tasks.processor import GmailTaskOperationHandler, GmailTaskProcessor
+from veritas_runtime.operations.models import Operation, OperationStatus
+from veritas_runtime.operations.service import PermanentOperationError, ReliableOperationService
 
 NOW = datetime(2026, 8, 26, 10, 0, tzinfo=UTC)
 
@@ -327,5 +330,57 @@ def test_pubsub_notification_is_decoded_and_durably_enqueued() -> None:
             "mailboxEmail": "operator@example.com",
             "historyId": "12",
         }
+
+    asyncio.run(scenario())
+
+
+def test_operation_handler_quarantines_bounded_contract_failures_with_safe_location() -> None:
+    class InvalidMessage(BaseModel):
+        body: str = Field(max_length=3)
+
+    class InvalidProcessor:
+        async def process(self, subject, mailbox, token):  # type: ignore[no-untyped-def]
+            del subject, mailbox, token
+            InvalidMessage(body="too long")
+
+    class Sessions:
+        async def get(self, subject):  # type: ignore[no-untyped-def]
+            del subject
+
+            class Authorization:
+                def require(self, capability):  # type: ignore[no-untyped-def]
+                    del capability
+
+            class Session:
+                authorization = Authorization()
+                access_token = "token"
+
+            return Session()
+
+    operation = Operation(
+        operation_id="operation-validation",
+        subject="subject-1",
+        kind="gmail.process",
+        correlation_id="notification-1",
+        idempotency_key="gmail-push:notification-1",
+        payload={"mailboxEmail": "operator@example.com"},
+        payload_hash="a" * 64,
+        status=OperationStatus.RUNNING,
+        attempt=1,
+        max_attempts=5,
+        available_at=NOW,
+        lease_owner="worker-1",
+        lease_expires_at=NOW + timedelta(minutes=1),
+        last_error_code=None,
+        diagnostic_fingerprint=None,
+        replay_of=None,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+    async def scenario() -> None:
+        handler = GmailTaskOperationHandler(InvalidProcessor(), Sessions())  # type: ignore[arg-type]
+        with pytest.raises(PermanentOperationError, match="gmail_contract_invalidmessage_body"):
+            await handler.handle(operation)
 
     asyncio.run(scenario())

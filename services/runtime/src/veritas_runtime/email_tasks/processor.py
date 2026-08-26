@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import NAMESPACE_URL, uuid5
 
+from pydantic import ValidationError
+
 from veritas_runtime.email_tasks.gemini import EmailTaskExtractionError
 from veritas_runtime.email_tasks.google import (
     EmailTaskPreconditionFailed,
@@ -374,11 +376,14 @@ class GmailTaskOperationHandler:
             session.authorization.require(WorkspaceCapability.TASKS_REPAIR)
         except MissingWorkspaceScope as error:
             raise PermanentOperationError("gmail_workspace_scope_missing") from error
-        await self._processor.process(
-            operation.subject,
-            mailbox_email,
-            session.access_token,
-        )
+        try:
+            await self._processor.process(
+                operation.subject,
+                mailbox_email,
+                session.access_token,
+            )
+        except ValidationError as error:
+            raise PermanentOperationError(_validation_error_code(error)) from error
 
 
 def managed_task_notes(
@@ -402,3 +407,11 @@ def managed_task_notes(
 
 def _event_id(workflow_id: str, gmail_message_id: str) -> str:
     return f"email-event-{uuid5(NAMESPACE_URL, f'{workflow_id}:{gmail_message_id}')}"
+
+
+def _validation_error_code(error: ValidationError) -> str:
+    details = error.errors(include_url=False, include_input=False)
+    location = details[0].get("loc", ()) if details else ()
+    identity = "_".join((error.title, *(str(part) for part in location)))
+    safe = "".join(character.lower() if character.isalnum() else "_" for character in identity)
+    return f"gmail_contract_{safe[:56].strip('_') or 'invalid'}"

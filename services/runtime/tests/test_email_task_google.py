@@ -163,3 +163,37 @@ def test_google_task_precondition_conflict_fails_closed() -> None:
         await client.aclose()
 
     asyncio.run(scenario())
+
+
+def test_google_gateway_keeps_only_the_latest_reply_from_a_long_thread() -> None:
+    current = "Please decrease acquisition spend by 10%."
+    quoted = "On Tue, Aug 26, 2026 at 10:00 PM Rudra wrote:\n> " + ("old context " * 3_000)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(
+            200,
+            json={
+                "id": "message-reply",
+                "threadId": "thread-bound",
+                "internalDate": "1787738400000",
+                "payload": {
+                    "mimeType": "text/plain",
+                    "headers": [
+                        {"name": "From", "value": "Customer <customer@example.com>"},
+                        {"name": "To", "value": "operator@example.com"},
+                        {"name": "Subject", "value": "Re: Acquisition spend"},
+                    ],
+                    "body": {"data": _encoded(f"{current}\r\n\r\n{quoted}")},
+                },
+            },
+        )
+
+    async def scenario() -> None:
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        gateway = GoogleGmailTaskGateway(client, gmail_root="https://gmail.test/gmail/v1")
+        email = await gateway.get_email("token", "message-reply", "12")
+        assert email.body == current
+        await client.aclose()
+
+    asyncio.run(scenario())

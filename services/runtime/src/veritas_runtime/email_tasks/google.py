@@ -1,4 +1,5 @@
 import base64
+import re
 from datetime import UTC, datetime
 from email.message import EmailMessage
 from html import unescape
@@ -184,7 +185,7 @@ class GoogleGmailTaskGateway:
         sender = normalize_email(headers.get("from", ""))
         recipient = normalize_email(headers.get("to", ""))
         subject_line = headers.get("subject", "").strip()
-        body = _plain_body(message_payload).strip()
+        body = _latest_reply(_plain_body(message_payload))
         if not subject_line or not body:
             raise GmailIntegrationError("Gmail task request requires a subject and plain-text body")
         internal_date = payload.get("internalDate")
@@ -312,6 +313,24 @@ def _plain_body(payload: dict[str, Any]) -> str:
         html = _decode_base64url(data)
         return unescape(" ".join(html.replace("<br>", "\n").split("<"))).strip()
     return ""
+
+
+_QUOTED_REPLY_BOUNDARY = re.compile(r"^On .{1,500}wrote:\s*$", flags=re.IGNORECASE)
+
+
+def _latest_reply(value: str) -> str:
+    """Keep the new customer message while excluding Gmail's quoted conversation."""
+
+    lines: list[str] = []
+    for line in value.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        stripped = line.strip()
+        if _QUOTED_REPLY_BOUNDARY.match(stripped) or stripped.startswith(">"):
+            break
+        lines.append(line)
+    latest = "\n".join(lines).strip()
+    if not latest:
+        latest = value.strip()
+    return latest[:20_000].rstrip()
 
 
 def _decode_base64url(value: str) -> str:
