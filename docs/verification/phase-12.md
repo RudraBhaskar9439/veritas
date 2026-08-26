@@ -5,6 +5,7 @@
 - Local command: `node scripts/verify-phase-12.mjs`
 - Previous accepted baseline commit: `bd219dbe72957e9f501c97fdd7d55858e8295b81`
 - Previous clean GitHub workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32728641116>
+- Live release proof workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32951728495>
 
 ## Completed without Google Cloud
 

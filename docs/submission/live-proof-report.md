@@ -7,6 +7,7 @@
 - Public Command Center: <https://veritas-preview-web-602044424209.us-central1.run.app/>
 - Cloud Build: `f43c0551-6494-4689-9a90-3e8ac259535c` (`SUCCESS`)
 - Migration execution: `veritas-preview-migrations-pvh24` (`Completed`)
+- Release verification: [GitHub Actions run 32951728495](https://github.com/RudraBhaskar9439/veritas/actions/runs/32951728495) (`SUCCESS`)
 
 ## Immutable release binding
 
