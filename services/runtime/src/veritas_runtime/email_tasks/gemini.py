@@ -70,7 +70,8 @@ class GeminiEmailTaskGateway:
 def _prompt(payload: dict[str, object]) -> str:
     return (
         "You are Veritas's bounded email-to-task interpreter. The runtime has already verified "
-        "the mailbox, sender, routing key, Claim Manifest edge, and exact Google Task. You may "
+        "the mailbox, sender, Gmail conversation, Claim Manifest edge, and exact Google Task. "
+        "You may "
         "only extract the customer's requested task title and a concise factual note. Never "
         "choose another task, recipient, tool, or action. Use UPDATE only for a clear operational "
         "request. Use IGNORE for conversation with no task change. Use ESCALATE for ambiguity or "

@@ -2,6 +2,8 @@ import asyncio
 import base64
 import json
 from datetime import UTC, datetime
+from email.parser import BytesParser
+from email.policy import default
 
 import httpx
 import pytest
@@ -28,6 +30,18 @@ def test_google_gateway_watches_reads_history_and_updates_with_etag() -> None:
                 200,
                 json={"historyId": "10", "expiration": "1787742000000"},
             )
+        if request.method == "GET" and request.url.path.endswith("/messages"):
+            assert request.url.params["q"] == "rfc822msgid:<workflow-1@veritas-agent.invalid>"
+            return httpx.Response(200, json={})
+        if request.method == "POST" and request.url.path.endswith("/messages/send"):
+            encoded = json.loads(request.content)["raw"]
+            raw = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+            message = BytesParser(policy=default).parsebytes(raw)
+            assert message["To"] == "customer@example.com"
+            assert message["From"] == "operator@example.com"
+            assert message["Subject"] == "Installation schedule — customer update"
+            assert message["Message-ID"] == "<workflow-1@veritas-agent.invalid>"
+            return httpx.Response(200, json={"id": "seed-1", "threadId": "thread-seed"})
         if request.url.path.endswith("/history"):
             return httpx.Response(
                 200,
@@ -103,6 +117,15 @@ def test_google_gateway_watches_reads_history_and_updates_with_etag() -> None:
             NOW,
         )
         assert stream.history_id == "10"
+        seed = await gateway.ensure_conversation(
+            "token",
+            "operator@example.com",
+            "customer@example.com",
+            "Installation schedule — customer update",
+            "Please reply to this conversation.",
+            "<workflow-1@veritas-agent.invalid>",
+        )
+        assert seed.gmail_thread_id == "thread-seed"
         page = await gateway.history_since("token", stream.history_id)
         assert page.message_ids == ("message-1",)
         email = await gateway.get_email("token", "message-1", page.history_id)

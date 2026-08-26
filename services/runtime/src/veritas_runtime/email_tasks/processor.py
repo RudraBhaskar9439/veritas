@@ -15,6 +15,8 @@ from veritas_runtime.email_tasks.models import (
     EmailTaskEvent,
     EmailTaskEventResult,
     EmailTaskEventStatus,
+    EmailTaskUnmatchedRequest,
+    EmailTaskUnmatchedStatus,
     EmailTaskWorkflow,
     EmailTaskWorkflowStatus,
     GeminiEmailTaskPayload,
@@ -26,14 +28,12 @@ from veritas_runtime.email_tasks.models import (
 from veritas_runtime.email_tasks.policy import (
     deterministic_risk_flags,
     normalize_email,
-    routes_to_workflow,
 )
 from veritas_runtime.operations.models import Operation
 from veritas_runtime.operations.service import PermanentOperationError, RetryableOperationError
 from veritas_runtime.workspace.contracts import MissingWorkspaceScope, WorkspaceCapability
 
 GMAIL_PROCESS_OPERATION = "gmail.process"
-_ROUTING_KEY = re.compile(r"\[(VX-[A-F0-9]{12})\]")
 _MANAGED_BLOCK = re.compile(
     r"\n*--- Veritas customer update ---.*?--- End Veritas customer update ---\n*",
     flags=re.DOTALL,
@@ -41,11 +41,17 @@ _MANAGED_BLOCK = re.compile(
 
 
 class EmailTaskProcessorRepository(Protocol):
-    async def get_by_identity(
+    async def get_by_thread(
         self,
         subject: str,
-        routing_key: str,
+        gmail_thread_id: str,
     ) -> EmailTaskWorkflow | None: ...
+
+    async def active_for_sender(
+        self,
+        subject: str,
+        authorized_sender: str,
+    ) -> tuple[EmailTaskWorkflow, ...]: ...
 
     async def get_watch(self, subject: str) -> GmailWatchStream | None: ...
 
@@ -64,6 +70,11 @@ class EmailTaskProcessorRepository(Protocol):
     ) -> EmailTaskEvent | None: ...
 
     async def persist_event(self, event: EmailTaskEvent) -> EmailTaskEventResult: ...
+
+    async def persist_unmatched(
+        self,
+        request: EmailTaskUnmatchedRequest,
+    ) -> EmailTaskUnmatchedRequest: ...
 
 
 class GmailTaskGateway(Protocol):
@@ -157,15 +168,13 @@ class GmailTaskProcessor:
         access_token: str,
         now: datetime,
     ) -> EmailTaskEvent | None:
-        route = _ROUTING_KEY.search(email.subject_line)
-        if route is None:
+        if email.thread_id is None:
             return None
-        workflow = await self._repository.get_by_identity(subject, route.group(1))
-        if (
-            workflow is None
-            or workflow.status != EmailTaskWorkflowStatus.ACTIVE
-            or not routes_to_workflow(email.subject_line, workflow.routing_key)
-        ):
+        workflow = await self._repository.get_by_thread(subject, email.thread_id)
+        if workflow is None:
+            await self._persist_unmatched(subject, stream, email, now)
+            return None
+        if workflow.status != EmailTaskWorkflowStatus.ACTIVE:
             return None
         existing = await self._repository.get_event(workflow.workflow_id, email.message_id)
         if existing is not None:
@@ -243,7 +252,6 @@ class GmailTaskProcessor:
         notes = managed_task_notes(
             current.notes,
             event_id,
-            workflow.routing_key,
             sender,
             email.message_id,
             instruction.proposed_note,
@@ -269,6 +277,43 @@ class GmailTaskProcessor:
             proposed_note=instruction.proposed_note,
             task_revision=updated.etag,
         )
+
+    async def _persist_unmatched(
+        self,
+        subject: str,
+        stream: GmailWatchStream,
+        email: InboundEmail,
+        now: datetime,
+    ) -> EmailTaskUnmatchedRequest | None:
+        sender = normalize_email(email.sender)
+        recipient = normalize_email(email.recipient)
+        if recipient != stream.mailbox_email or email.thread_id is None:
+            return None
+        candidates = await self._repository.active_for_sender(subject, sender)
+        if not candidates:
+            return None
+        values = {
+            "requestId": f"unmatched-{uuid5(NAMESPACE_URL, f'{subject}:{email.message_id}')}",
+            "subject": subject,
+            "gmailMessageId": email.message_id,
+            "gmailThreadId": email.thread_id,
+            "mailboxEmail": stream.mailbox_email,
+            "sender": sender,
+            "recipient": recipient,
+            "subjectLine": email.subject_line,
+            "bodyHash": hashlib.sha256(email.body.encode()).hexdigest(),
+            "candidateWorkflowIds": sorted(workflow.workflow_id for workflow in candidates),
+            "status": EmailTaskUnmatchedStatus.PENDING.value,
+            "boundWorkflowId": None,
+            "receivedAt": email.received_at.isoformat(),
+            "createdAt": now.isoformat(),
+            "updatedAt": now.isoformat(),
+        }
+        checksum = hashlib.sha256(
+            json.dumps(values, separators=(",", ":"), sort_keys=True).encode()
+        ).hexdigest()
+        request = EmailTaskUnmatchedRequest.model_validate({**values, "receiptChecksum": checksum})
+        return await self._repository.persist_unmatched(request)
 
     async def _persist(
         self,
@@ -339,7 +384,6 @@ class GmailTaskOperationHandler:
 def managed_task_notes(
     existing_notes: str,
     event_id: str,
-    routing_key: str,
     sender: str,
     gmail_message_id: str,
     proposed_note: str,
@@ -349,7 +393,6 @@ def managed_task_notes(
         "--- Veritas customer update ---\n"
         f"{proposed_note.strip()}\n"
         f"Customer: {sender}\n"
-        f"Workflow: {routing_key}\n"
         f"Source message: {gmail_message_id}\n"
         f"Evidence receipt: {event_id}\n"
         "--- End Veritas customer update ---"

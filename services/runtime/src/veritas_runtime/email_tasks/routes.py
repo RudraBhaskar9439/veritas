@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from veritas_runtime.auth.sessions import SessionPrincipal
 from veritas_runtime.email_tasks.models import (
+    BindEmailTaskUnmatchedRequest,
     EmailTaskEvent,
     EmailTaskRegistrationResult,
     EmailTaskSetup,
+    EmailTaskThreadBinding,
     EmailTaskWorkflow,
     RegisterEmailTaskWorkflowRequest,
 )
@@ -52,6 +54,20 @@ def create_email_task_router(
         async def unavailable_pause(workflow_id: str) -> None:
             raise HTTPException(status_code=503, detail="Email-task workflows are not configured")
 
+        @router.post(
+            "/api/v1/email-task-workflows/{workflow_id}/conversation",
+            tags=["email-tasks"],
+        )
+        async def unavailable_conversation(workflow_id: str) -> None:
+            raise HTTPException(status_code=503, detail="Email-task workflows are not configured")
+
+        @router.post(
+            "/api/v1/email-task-unmatched/{request_id}/bind",
+            tags=["email-tasks"],
+        )
+        async def unavailable_bind(request_id: str) -> None:
+            raise HTTPException(status_code=503, detail="Email-task workflows are not configured")
+
         return router
 
     resolver = principal_resolver
@@ -91,6 +107,37 @@ def create_email_task_router(
             return await coordinator.pause(principal.subject, workflow_id)
         except EmailTaskWorkflowError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @router.post(
+        "/api/v1/email-task-workflows/{workflow_id}/conversation",
+        tags=["email-tasks"],
+    )
+    async def start_conversation(
+        workflow_id: str,
+        principal: Annotated[SessionPrincipal, Depends(resolver)],
+    ) -> EmailTaskThreadBinding:
+        try:
+            return await coordinator.start_conversation(principal.subject, workflow_id)
+        except EmailTaskWorkflowError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @router.post(
+        "/api/v1/email-task-unmatched/{request_id}/bind",
+        tags=["email-tasks"],
+    )
+    async def bind_unmatched(
+        request_id: str,
+        request: BindEmailTaskUnmatchedRequest,
+        principal: Annotated[SessionPrincipal, Depends(resolver)],
+    ) -> EmailTaskThreadBinding:
+        try:
+            return await coordinator.bind_unmatched(
+                principal.subject,
+                request_id,
+                request.workflow_id,
+            )
+        except EmailTaskWorkflowError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @router.post("/api/v1/email-task-workflows", tags=["email-tasks"])
     async def register_workflow(

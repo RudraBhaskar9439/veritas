@@ -57,7 +57,6 @@ interface EmailTaskWorkflow {
   workflowId: string;
   mailboxEmail: string;
   authorizedSender: string;
-  routingKey: string;
   packetId: string;
   claimId: string;
   artifactId: string;
@@ -68,11 +67,42 @@ interface EmailTaskWorkflow {
   updatedAt: string;
 }
 
+interface EmailTaskThreadBinding {
+  bindingId: string;
+  workflowId: string;
+  gmailThreadId: string;
+  bootstrapMessageId: string | null;
+  subjectLine: string;
+  source: 'company_started' | 'operator_bound';
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface EmailTaskUnmatchedRequest {
+  requestId: string;
+  gmailMessageId: string;
+  gmailThreadId: string;
+  mailboxEmail: string;
+  sender: string;
+  recipient: string;
+  subjectLine: string;
+  bodyHash: string;
+  candidateWorkflowIds: ReadonlyArray<string>;
+  status: 'pending' | 'bound';
+  boundWorkflowId: string | null;
+  receiptChecksum: string;
+  receivedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface EmailTaskSetup {
   packetId: string;
   mailboxEmail: string;
   routes: ReadonlyArray<EmailTaskRoute>;
   workflows: ReadonlyArray<EmailTaskWorkflow>;
+  threads: ReadonlyArray<EmailTaskThreadBinding>;
+  unmatchedRequests: ReadonlyArray<EmailTaskUnmatchedRequest>;
 }
 
 interface EmailTaskEvent {
@@ -1024,7 +1054,6 @@ function EmailTaskAutomation() {
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (incident.source !== 'live' || !opened) return;
@@ -1100,12 +1129,14 @@ function EmailTaskAutomation() {
     activeRoute?.claimStatement,
     activeWorkflow?.artifactId,
   );
-  const subject = activeWorkflow
-    ? `[${activeWorkflow.routingKey}] Update: ${boundTaskTitle}`
-    : '[Routing code appears after activation] Update registered task';
-  const exampleBody = `Hi team, new customer information affects the “${boundTaskTitle}” task. Please pause the current plan until the revised details are confirmed. Keep the existing owner and due date unchanged.`;
-  const composeUrl = activeWorkflow
-    ? `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(activeWorkflow.authorizedSender)}&view=cm&fs=1&to=${encodeURIComponent(activeWorkflow.mailboxEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(exampleBody)}`
+  const activeThread = activeWorkflow
+    ? setup?.threads.find((thread) => thread.workflowId === activeWorkflow.workflowId)
+    : undefined;
+  const pendingUnmatched =
+    setup?.unmatchedRequests.filter((request) => request.status === 'pending') ?? [];
+  const conversationSubject = activeThread?.subjectLine ?? `${boundTaskTitle} — customer update`;
+  const gmailThreadUrl = activeWorkflow
+    ? `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(activeWorkflow.mailboxEmail)}#search/${encodeURIComponent(`subject:"${conversationSubject}"`)}`
     : null;
 
   async function registerWorkflow() {
@@ -1142,22 +1173,72 @@ function EmailTaskAutomation() {
       setError(
         registerError instanceof Error
           ? registerError.message
-          : 'The customer email route could not be activated.',
+          : 'The customer and task could not be registered.',
       );
     } finally {
       setWorking(false);
     }
   }
 
-  async function copyExample() {
-    if (!activeWorkflow) return;
-    const value = `From: ${activeWorkflow.authorizedSender}\nTo: ${activeWorkflow.mailboxEmail}\nSubject: ${subject}\n\n${exampleBody}`;
+  async function startConversation() {
+    if (!setup || !activeWorkflow) return;
+    setWorking(true);
+    setError(null);
     try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setError('Copy was blocked by the browser. Use the visible To, Subject, and Body fields.');
+      const response = await fetch(
+        `/api/v1/email-task-workflows/${encodeURIComponent(activeWorkflow.workflowId)}/conversation`,
+        { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' } },
+      );
+      if (!response.ok) throw new Error(await safeApiError(response));
+      const thread = (await response.json()) as EmailTaskThreadBinding;
+      setSetup({
+        ...setup,
+        threads: [thread, ...setup.threads.filter((item) => item.bindingId !== thread.bindingId)],
+      });
+    } catch (conversationError: unknown) {
+      setError(
+        conversationError instanceof Error
+          ? conversationError.message
+          : 'The customer conversation could not be started.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function bindUnmatched(request: EmailTaskUnmatchedRequest) {
+    if (!setup || !activeWorkflow) return;
+    setWorking(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/v1/email-task-unmatched/${encodeURIComponent(request.requestId)}/bind`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ workflowId: activeWorkflow.workflowId }),
+        },
+      );
+      if (!response.ok) throw new Error(await safeApiError(response));
+      const thread = (await response.json()) as EmailTaskThreadBinding;
+      setSetup({
+        ...setup,
+        threads: [thread, ...setup.threads.filter((item) => item.bindingId !== thread.bindingId)],
+        unmatchedRequests: setup.unmatchedRequests.map((item) =>
+          item.requestId === request.requestId
+            ? { ...item, status: 'bound', boundWorkflowId: activeWorkflow.workflowId }
+            : item,
+        ),
+      });
+    } catch (bindError: unknown) {
+      setError(
+        bindError instanceof Error
+          ? bindError.message
+          : 'The customer conversation could not be connected.',
+      );
+    } finally {
+      setWorking(false);
     }
   }
 
@@ -1182,7 +1263,7 @@ function EmailTaskAutomation() {
       setError(
         disableError instanceof Error
           ? disableError.message
-          : 'The customer email route could not be disabled.',
+          : 'The customer conversation automation could not be disabled.',
       );
     } finally {
       setWorking(false);
@@ -1195,15 +1276,15 @@ function EmailTaskAutomation() {
         <span className="sectionKicker">Customer signal → owned action</span>
         <h2 id="email-automation-title">One normal email. One exact task. Full proof.</h2>
         <p>
-          Veritas listens to your connected company inbox, accepts only the customer you authorize,
-          and updates only the Google Task already bound to this claim.
+          Veritas privately binds a normal Gmail conversation to the exact Google Task already
+          registered in the Claim Manifest. Customers only press Reply—there are no codes to copy.
         </p>
         <ol className="emailFlow" aria-label="Email automation flow">
           <li>
-            <span>01</span> Customer emails your company
+            <span>01</span> Company starts a normal thread
           </li>
           <li>
-            <span>02</span> Veritas verifies sender + route
+            <span>02</span> Customer simply replies
           </li>
           <li>
             <span>03</span> The owned task updates
@@ -1214,8 +1295,8 @@ function EmailTaskAutomation() {
       {!opened ? (
         <div className="emailCallToAction">
           <p>
-            Connect one real customer sender to the existing Google Task in this packet. Veritas
-            will show every accepted, rejected, or escalated email with its proof receipt.
+            Connect one real customer and one registered Google Task. Veritas creates a normal
+            company email, remembers its Gmail thread privately, and proves every later reply.
           </p>
           <button className="primaryButton" type="button" onClick={() => setOpened(true)}>
             Set up customer email
@@ -1239,63 +1320,138 @@ function EmailTaskAutomation() {
             </div>
             <i aria-hidden="true">→</i>
             <div>
-              <span>Manifest-bound task</span>
+              <span>{activeThread ? 'Thread-bound task' : 'Manifest-bound task'}</span>
               <strong>{boundTaskTitle}</strong>
               <small>Google Tasks · {activeWorkflow.artifactId}</small>
             </div>
           </section>
 
           <div className="emailDemoCard">
-            <div className="emailField">
-              <span>From</span>
-              <strong>{activeWorkflow.authorizedSender}</strong>
-            </div>
-            <div className="emailField">
-              <span>To</span>
-              <strong>{activeWorkflow.mailboxEmail}</strong>
-            </div>
-            <div className="emailField">
-              <span>Subject</span>
-              <strong>{subject}</strong>
-            </div>
-            <div className="emailField emailBodyField">
-              <span>Body</span>
-              <p>{exampleBody}</p>
-            </div>
-            <p className="emailSenderGuard">
-              Test email only. Send it from the authorized customer address above; mail from any
-              other account is rejected and cannot change the task.
-            </p>
-            <div className="emailDemoActions">
-              <a
-                className="primaryButton"
-                href={composeUrl ?? undefined}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Compose as authorized customer ↗
-              </a>
-              <button className="secondaryButton" type="button" onClick={() => void copyExample()}>
-                {copied ? 'Copied' : 'Copy email example'}
-              </button>
-              <a
-                className="secondaryButton"
-                href="https://tasks.google.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open Google Tasks ↗
-              </a>
-              <button
-                className="dangerButton"
-                type="button"
-                disabled={working}
-                onClick={() => void disableWorkflow()}
-              >
-                {working ? 'Disabling…' : 'Disable this route'}
-              </button>
-            </div>
+            {activeThread ? (
+              <>
+                <div className="emailField">
+                  <span>Conversation</span>
+                  <strong>{conversationSubject}</strong>
+                </div>
+                <div className="emailField">
+                  <span>Started by</span>
+                  <strong>{activeWorkflow.mailboxEmail}</strong>
+                </div>
+                <div className="emailField">
+                  <span>Customer</span>
+                  <strong>{activeWorkflow.authorizedSender}</strong>
+                </div>
+                <div className="emailField emailBodyField">
+                  <span>What the customer does</span>
+                  <p>
+                    Open this ordinary email and press Reply. Veritas recognizes the private Gmail
+                    thread, verifies the sender, and updates only “{boundTaskTitle}”.
+                  </p>
+                </div>
+                <p className="emailSenderGuard successGuard">
+                  No routing code is visible or required. New, unrelated emails never mutate a task
+                  automatically; they wait in Unmatched requests.
+                </p>
+                <div className="emailDemoActions">
+                  <a
+                    className="primaryButton"
+                    href={gmailThreadUrl ?? undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open company conversation ↗
+                  </a>
+                  <a
+                    className="secondaryButton"
+                    href="https://tasks.google.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open Google Tasks ↗
+                  </a>
+                  <button
+                    className="dangerButton"
+                    type="button"
+                    disabled={working}
+                    onClick={() => void disableWorkflow()}
+                  >
+                    {working ? 'Disabling…' : 'Disable automation'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="conversationStart">
+                <span className="sectionKicker">Private thread setup</span>
+                <h3>Start one normal customer conversation</h3>
+                <p>
+                  Veritas will send a regular email from {activeWorkflow.mailboxEmail} to{' '}
+                  {activeWorkflow.authorizedSender}. Its Gmail thread—not its subject text—will own
+                  the connection to “{boundTaskTitle}”.
+                </p>
+                <button
+                  className="primaryButton"
+                  type="button"
+                  disabled={working}
+                  onClick={() => void startConversation()}
+                >
+                  {working ? 'Starting conversation…' : 'Send opening email & bind thread'}
+                </button>
+              </div>
+            )}
           </div>
+
+          <div className="emailReceiptHeader unmatchedHeader">
+            <div>
+              <span className="sectionKicker">Safe ambiguity queue</span>
+              <h3>Unmatched requests</h3>
+            </div>
+            <span className="watchBadge neutralBadge">
+              {pendingUnmatched.length} awaiting connection
+            </span>
+          </div>
+          {pendingUnmatched.length === 0 ? (
+            <p className="emailEmpty">
+              No authorized customer has started an unrelated conversation.
+            </p>
+          ) : (
+            <div className="emailEventList unmatchedList">
+              {pendingUnmatched.map((request) => (
+                <article key={request.requestId}>
+                  <span className="emailEventStatus status-escalated">needs routing</span>
+                  <div>
+                    <strong>{request.subjectLine}</strong>
+                    <span>
+                      {fullUtc(request.receivedAt)} · from {request.sender}
+                    </span>
+                    <p>
+                      Veritas recognized an authorized customer but refused to guess which task the
+                      new Gmail thread owns.
+                    </p>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Body proof</dt>
+                      <dd>{request.bodyHash.slice(0, 12)}…</dd>
+                    </div>
+                    <div>
+                      <dt>Receipt</dt>
+                      <dd>{request.receiptChecksum.slice(0, 12)}…</dd>
+                    </div>
+                  </dl>
+                  {request.candidateWorkflowIds.includes(activeWorkflow.workflowId) && (
+                    <button
+                      className="secondaryButton"
+                      type="button"
+                      disabled={working}
+                      onClick={() => void bindUnmatched(request)}
+                    >
+                      Connect this thread to {boundTaskTitle}
+                    </button>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
 
           <div className="emailReceiptHeader">
             <div>
@@ -1308,8 +1464,8 @@ function EmailTaskAutomation() {
           </div>
           {events.length === 0 ? (
             <p className="emailEmpty">
-              No matching customer email yet. Send the example above; this list refreshes every 3
-              seconds.
+              No reply has been processed yet. Customer replies appear here automatically; this list
+              refreshes every 3 seconds.
             </p>
           ) : (
             <div className="emailEventList">
@@ -1387,15 +1543,15 @@ function EmailTaskAutomation() {
           </div>
           <div className="emailSetupFooter">
             <p>
-              Only this sender + the generated subject code can reach this one registered task.
-              Sensitive or ambiguous requests stop for review.
+              Veritas will create a normal company-to-customer conversation next. Only replies in
+              its private Gmail thread can reach this registered task; ambiguity stops for review.
             </p>
             <button
               className="primaryButton"
               type="submit"
               disabled={working || !route || !authorizedSender.trim()}
             >
-              {working ? 'Securing Gmail route…' : 'Activate customer email route'}
+              {working ? 'Registering customer…' : 'Register customer & task'}
             </button>
           </div>
         </form>

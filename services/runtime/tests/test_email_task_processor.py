@@ -55,11 +55,25 @@ class MemoryEmailRepository:
             updated_at=NOW,
         )
         self.events = {}
+        self.unmatched = {}
 
-    async def get_by_identity(self, subject, routing_key):  # type: ignore[no-untyped-def]
-        if subject == "subject-1" and routing_key == self.workflow.routing_key:
+    async def get_by_thread(self, subject, thread_id):  # type: ignore[no-untyped-def]
+        if (
+            subject == "subject-1"
+            and thread_id == "thread-1"
+            and self.workflow.status == EmailTaskWorkflowStatus.ACTIVE
+        ):
             return self.workflow
         return None
+
+    async def active_for_sender(self, subject, sender):  # type: ignore[no-untyped-def]
+        if (
+            subject == "subject-1"
+            and sender == self.workflow.authorized_sender
+            and self.workflow.status == EmailTaskWorkflowStatus.ACTIVE
+        ):
+            return (self.workflow,)
+        return ()
 
     async def get_watch(self, subject):  # type: ignore[no-untyped-def]
         return self.watch if subject == "subject-1" else None
@@ -82,6 +96,13 @@ class MemoryEmailRepository:
             return EmailTaskEventResult(event=existing, reused=True)
         self.events[key] = event
         return EmailTaskEventResult(event=event, reused=False)
+
+    async def persist_unmatched(self, request):  # type: ignore[no-untyped-def]
+        existing = self.unmatched.get(request.gmail_message_id)
+        if existing is not None:
+            return existing
+        self.unmatched[request.gmail_message_id] = request
+        return request
 
     async def subject_for_mailbox(self, mailbox):  # type: ignore[no-untyped-def]
         return "subject-1" if mailbox == "operator@example.com" else None
@@ -132,11 +153,11 @@ class StaticExtractor:
 def _email(**updates: str) -> InboundEmail:
     return InboundEmail(
         message_id="message-1",
-        thread_id="thread-1",
+        thread_id=updates.get("thread_id", "thread-1"),
         history_id="11",
         sender=updates.get("sender", "customer@example.com"),
         recipient="operator@example.com",
-        subject_line=updates.get("subject", "Please move installation [VX-ABCDEF123456]"),
+        subject_line=updates.get("subject", "Re: Installation schedule"),
         body=updates.get("body", "Please move the installation to Friday at 10 AM."),
         received_at=NOW,
     )
@@ -242,6 +263,37 @@ def test_paused_route_cannot_reach_the_registered_task() -> None:
         assert events == ()
         assert gateway.updates == 0
         assert extractor.calls == 0
+
+    asyncio.run(scenario())
+
+
+def test_authorized_new_thread_is_queued_for_operator_binding_without_task_write() -> None:
+    async def scenario() -> None:
+        repository = MemoryEmailRepository()
+        gateway = FakeGateway(_email(thread_id="new-thread", subject="Decrease acquisition spend"))
+        extractor = StaticExtractor(
+            GeminiEmailTaskPayload(
+                disposition=EmailTaskDisposition.UPDATE,
+                proposed_title="Must not run before binding",
+                proposed_note="Must not run before binding",
+                rationale="The new conversation is not yet bound to a manifest task.",
+                confidence=1,
+                risk_flags=(),
+            )
+        )
+
+        events = await GmailTaskProcessor(repository, gateway, extractor).process(  # type: ignore[arg-type]
+            "subject-1", "operator@example.com", "token", NOW
+        )
+
+        assert events == ()
+        assert gateway.updates == 0
+        assert extractor.calls == 0
+        request = repository.unmatched["message-1"]
+        assert request.gmail_thread_id == "new-thread"
+        assert request.candidate_workflow_ids == ("workflow-1",)
+        assert request.subject_line == "Decrease acquisition spend"
+        assert len(request.receipt_checksum) == 64
 
     asyncio.run(scenario())
 

@@ -2608,6 +2608,38 @@ code {
   line-height: 1.5;
 }
 
+.emailSenderGuard.successGuard {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.conversationStart {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 22px;
+}
+
+.conversationStart h3,
+.conversationStart p {
+  margin: 0;
+}
+
+.conversationStart h3 {
+  font-size: 1.25rem;
+}
+
+.conversationStart p {
+  max-width: 720px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.conversationStart .primaryButton {
+  margin-top: 4px;
+}
+
 .emailDemoActions {
   display: flex;
   flex-wrap: wrap;
@@ -2675,6 +2707,11 @@ code {
   border-radius: 50%;
   background: var(--green-bright);
   box-shadow: 0 0 0 4px rgba(82, 211, 147, 0.15);
+}
+
+.watchBadge.neutralBadge {
+  color: var(--soft);
+  background: #ebefec;
 }
 
 .emailEmpty {
@@ -2766,6 +2803,15 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.unmatchedList article > .secondaryButton {
+  grid-column: 2 / -1;
+  justify-self: start;
+  width: auto;
+  border: 1px solid #bfcac3;
+  color: #243a31;
+  background: #ffffff;
 }
 
 .emailSetupGrid {

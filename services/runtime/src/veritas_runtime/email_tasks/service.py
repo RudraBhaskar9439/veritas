@@ -10,9 +10,13 @@ from veritas_runtime.email_tasks.models import (
     EmailTaskEvent,
     EmailTaskRegistrationResult,
     EmailTaskSetup,
+    EmailTaskThreadBinding,
+    EmailTaskThreadSource,
+    EmailTaskUnmatchedRequest,
     EmailTaskWorkflow,
     EmailTaskWorkflowResult,
     EmailTaskWorkflowStatus,
+    GmailConversationSeed,
     GmailWatchStream,
     RegisterEmailTaskWorkflowRequest,
 )
@@ -37,6 +41,16 @@ class GmailWatchGateway(Protocol):
         topic_name: str,
         now: datetime | None = None,
     ) -> GmailWatchStream: ...
+
+    async def ensure_conversation(
+        self,
+        access_token: str,
+        mailbox_email: str,
+        customer_email: str,
+        subject_line: str,
+        body: str,
+        message_id: str,
+    ) -> GmailConversationSeed: ...
 
 
 class EmailTaskWorkspaceSessionProvider(Protocol):
@@ -64,6 +78,41 @@ class EmailTaskWorkflowRepository(Protocol):
 
     async def list_for_subject(self, subject: str) -> tuple[EmailTaskWorkflow, ...]: ...
 
+    async def get_by_workflow_id(
+        self,
+        subject: str,
+        workflow_id: str,
+    ) -> EmailTaskWorkflow | None: ...
+
+    async def list_threads_for_subject(
+        self,
+        subject: str,
+    ) -> tuple[EmailTaskThreadBinding, ...]: ...
+
+    async def bind_thread(
+        self,
+        binding: EmailTaskThreadBinding,
+    ) -> EmailTaskThreadBinding: ...
+
+    async def list_unmatched_for_subject(
+        self,
+        subject: str,
+    ) -> tuple[EmailTaskUnmatchedRequest, ...]: ...
+
+    async def get_unmatched(
+        self,
+        subject: str,
+        request_id: str,
+    ) -> EmailTaskUnmatchedRequest | None: ...
+
+    async def bind_unmatched(
+        self,
+        subject: str,
+        request_id: str,
+        workflow_id: str,
+        updated_at: datetime,
+    ) -> EmailTaskUnmatchedRequest | None: ...
+
     async def pause_for_subject(
         self,
         subject: str,
@@ -83,7 +132,7 @@ class EmailTaskWorkflowRepository(Protocol):
 
 
 class EmailTaskWorkflowService:
-    """Registers a sender-to-task route only through an existing Claim Manifest edge."""
+    """Registers sender and Gmail-thread authority through a Claim Manifest edge."""
 
     def __init__(
         self,
@@ -151,7 +200,10 @@ class EmailTaskWorkflowService:
         digest = hashlib.sha256(
             json.dumps(
                 {
-                    "workflow": workflow.model_dump(mode="json", by_alias=True),
+                    "workflow": {
+                        **workflow.model_dump(mode="json", by_alias=True),
+                        "routingKey": workflow.routing_key,
+                    },
                     "manifestChecksum": manifest_checksum(manifest),
                 },
                 separators=(",", ":"),
@@ -162,6 +214,38 @@ class EmailTaskWorkflowService:
 
     async def list(self, subject: str) -> tuple[EmailTaskWorkflow, ...]:
         return await self._workflows.list_for_subject(subject)
+
+    async def get(self, subject: str, workflow_id: str) -> EmailTaskWorkflow:
+        workflow = await self._workflows.get_by_workflow_id(subject, workflow_id)
+        if workflow is None:
+            raise EmailTaskWorkflowError("The email-task workflow was not found")
+        return workflow
+
+    async def conversation_copy(
+        self,
+        subject: str,
+        workflow: EmailTaskWorkflow,
+    ) -> tuple[str, str]:
+        if not await self._workflows.packet_registered_for_subject(subject, workflow.packet_id):
+            raise EmailTaskWorkflowError("The decision packet is not registered to this account")
+        manifest = await self._manifests.latest_for_packet(workflow.packet_id)
+        if manifest is None or manifest.manifest_id != workflow.manifest_id:
+            raise EmailTaskWorkflowError("The registered Claim Manifest was not found")
+        claim = next(
+            (item for item in manifest.claims if item.claim_id == workflow.claim_id),
+            None,
+        )
+        if claim is None:
+            raise EmailTaskWorkflowError("The registered customer conversation lost its claim")
+        title = _human_task_title(claim.statement)
+        return (
+            f"{title} — customer update",
+            (
+                f"Hi,\n\nPlease reply to this conversation whenever anything changes for "
+                f"“{title}”. Your reply will reach the responsible team and update only the "
+                "tracked action connected to this conversation.\n\nThanks"
+            ),
+        )
 
     async def list_events(
         self,
@@ -221,7 +305,20 @@ class EmailTaskWorkflowService:
             mailbox_email=normalize_email(mailbox_email),
             routes=routes,
             workflows=await self.list(subject),
+            threads=await self._workflows.list_threads_for_subject(subject),
+            unmatched_requests=await self._workflows.list_unmatched_for_subject(subject),
         )
+
+
+def _human_task_title(statement: str) -> str:
+    concise = statement.strip().rstrip(".!?")
+    for prefix in ("The company should ", "We should ", "Please "):
+        if concise.casefold().startswith(prefix.casefold()):
+            concise = concise[len(prefix) :].strip()
+            break
+    if not concise:
+        return "Tracked customer action"
+    return concise[0].upper() + concise[1:]
 
 
 class EmailTaskRegistrationCoordinator:
@@ -285,6 +382,104 @@ class EmailTaskRegistrationCoordinator:
         packet_id: str,
     ) -> tuple[EmailTaskEvent, ...]:
         return await self._workflows.list_events(subject, packet_id)
+
+    async def start_conversation(
+        self,
+        subject: str,
+        workflow_id: str,
+        now: datetime | None = None,
+    ) -> EmailTaskThreadBinding:
+        instant = (now or datetime.now(UTC)).astimezone(UTC)
+        workflow = await self._workflows.get(subject, workflow_id)
+        if workflow.status != EmailTaskWorkflowStatus.ACTIVE:
+            raise EmailTaskWorkflowError("The email-task workflow is paused")
+        existing = tuple(
+            thread
+            for thread in await self._repository.list_threads_for_subject(subject)
+            if thread.workflow_id == workflow.workflow_id
+            and thread.source == EmailTaskThreadSource.COMPANY_STARTED
+        )
+        if existing:
+            return existing[0]
+        watch = await self._repository.get_watch(subject)
+        if watch is None or watch.expiration <= instant:
+            raise EmailTaskWorkflowError(
+                "Reconnect Google Workspace before starting the customer conversation"
+            )
+        try:
+            session = await self._sessions.get(subject)
+            session.authorization.require(WorkspaceCapability.GMAIL_CORRECTION_DRAFT)
+            session.authorization.require(WorkspaceCapability.GMAIL_INBOX_READ)
+        except (OAuthExchangeError, WorkspaceSessionUnavailable, MissingWorkspaceScope) as error:
+            raise EmailTaskWorkflowError(
+                "Reconnect Google Workspace before starting the customer conversation"
+            ) from error
+        subject_line, body = await self._workflows.conversation_copy(subject, workflow)
+        seed = await self._gmail.ensure_conversation(
+            session.access_token,
+            workflow.mailbox_email,
+            workflow.authorized_sender,
+            subject_line,
+            body,
+            f"<{workflow.workflow_id}@veritas-agent.invalid>",
+        )
+        binding = EmailTaskThreadBinding(
+            binding_id=f"email-thread-{uuid5(NAMESPACE_URL, f'{subject}:{seed.gmail_thread_id}')}",
+            subject=subject,
+            workflow_id=workflow.workflow_id,
+            gmail_thread_id=seed.gmail_thread_id,
+            bootstrap_message_id=seed.gmail_message_id,
+            subject_line=subject_line,
+            source=EmailTaskThreadSource.COMPANY_STARTED,
+            created_at=instant,
+            updated_at=instant,
+        )
+        try:
+            return await self._repository.bind_thread(binding)
+        except ValueError as error:
+            raise EmailTaskWorkflowError(str(error)) from error
+
+    async def bind_unmatched(
+        self,
+        subject: str,
+        request_id: str,
+        workflow_id: str,
+        now: datetime | None = None,
+    ) -> EmailTaskThreadBinding:
+        instant = (now or datetime.now(UTC)).astimezone(UTC)
+        request = await self._repository.get_unmatched(subject, request_id)
+        workflow = await self._workflows.get(subject, workflow_id)
+        if request is None:
+            raise EmailTaskWorkflowError("The unmatched customer request was not found")
+        if workflow.status != EmailTaskWorkflowStatus.ACTIVE:
+            raise EmailTaskWorkflowError("The selected email-task workflow is paused")
+        if workflow_id not in request.candidate_workflow_ids:
+            raise EmailTaskWorkflowError("The selected task is not authorized for this sender")
+        binding_identity = f"{subject}:{request.gmail_thread_id}"
+        binding = EmailTaskThreadBinding(
+            binding_id=f"email-thread-{uuid5(NAMESPACE_URL, binding_identity)}",
+            subject=subject,
+            workflow_id=workflow_id,
+            gmail_thread_id=request.gmail_thread_id,
+            bootstrap_message_id=None,
+            subject_line=request.subject_line,
+            source=EmailTaskThreadSource.OPERATOR_BOUND,
+            created_at=instant,
+            updated_at=instant,
+        )
+        try:
+            stored = await self._repository.bind_thread(binding)
+            bound = await self._repository.bind_unmatched(
+                subject,
+                request_id,
+                workflow_id,
+                instant,
+            )
+        except ValueError as error:
+            raise EmailTaskWorkflowError(str(error)) from error
+        if bound is None:
+            raise EmailTaskWorkflowError("The unmatched customer request was not found")
+        return stored
 
     async def pause(self, subject: str, workflow_id: str) -> EmailTaskWorkflow:
         return await self._workflows.pause(subject, workflow_id)

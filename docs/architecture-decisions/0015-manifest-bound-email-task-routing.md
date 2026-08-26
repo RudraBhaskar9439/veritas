@@ -1,6 +1,6 @@
 # ADR 0015: Route customer email through manifest-bound authority
 
-- Status: Accepted
+- Status: Superseded by ADR 0017
 - Date: 2026-08-26
 
 ## Context
@@ -27,4 +27,3 @@ Gmail watches are renewed before expiry. Operators can pause a workflow; paused 
 - Wrong senders and non-actionable requests create no Task mutation; sensitive or ambiguous requests are escalated.
 - Concurrent Task edits fail their ETag precondition and are never overwritten.
 - The feature remains useful for support, onboarding, field service, scheduling, and account operations without turning the model into an unconstrained inbox agent.
-

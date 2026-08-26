@@ -1,48 +1,65 @@
-# Customer email to registered Google Task
+# Customer Gmail conversation to registered Google Task
 
 ## Product contract
 
-Veritas can turn a normal inbound customer email into a conflict-safe update to one existing Google Task. It does not search the workspace for a plausible task and it does not let Gemini choose a destination. An operator first binds an allowed sender to an exact claim→task edge already present in the packet's Claim Manifest.
+Veritas turns an ordinary customer reply into a conflict-safe update to one existing Google Task.
+The customer never sees a routing code and does not need to know that Veritas exists. An operator
+first authorizes a sender and chooses an exact claim→Google Task edge already registered in the
+packet's Claim Manifest.
 
-The customer sends to the connected company mailbox with the issued `[VX-…]` routing code in the subject. Gmail publishes a mailbox history cursor to a dedicated Pub/Sub topic. Authenticated ingress records a durable `gmail.process` operation; the worker then re-reads Gmail history and applies all authority checks before any model call.
+The operator then starts a normal company-to-customer Gmail conversation. Veritas stores the
+returned Gmail thread ID as the private authority binding. A later reply can reach the Task only
+through that exact thread, sender, recipient, and manifest edge. Gemini interprets the request but
+cannot choose a destination.
 
 ## Authority checks
 
-An email can reach a Task only when all of these remain true:
+A reply can reach a Task only when all of these remain true:
 
 1. the browser session owns the decision packet;
 2. the claim and Task are joined by an exact Claim Manifest edge;
-3. the sender exactly matches the operator's allowlist;
-4. the recipient exactly matches the connected company mailbox;
-5. the subject contains the workflow's deterministic routing key;
+3. the Gmail thread is registered to that workflow;
+4. the sender exactly matches the authorized customer;
+5. the recipient exactly matches the connected company mailbox;
 6. the workflow is still active;
 7. deterministic policy finds no sensitive or irreversible request;
 8. Gemini returns a schema-valid, high-confidence reversible update; and
 9. the Task's current ETag still matches the revision Veritas read.
 
-Gemini may extract only a natural-language title and factual note. It cannot select a Task, sender, recipient, tool, or broader action. Cancellation, deletion, refunds, payments, credentials, legal action, ambiguity, low confidence, and concurrent Task edits fail closed.
+New mail from an authorized sender but outside a registered thread is stored as a body-hash-only
+unmatched request. It never changes a Task automatically. An operator may bind that thread to one
+of the exact sender-authorized manifest workflows; subsequent replies then follow the normal path.
+
+## Conversation creation and idempotency
+
+The API uses the existing bounded Gmail compose permission to send the opening company email. The
+message has a deterministic RFC Message-ID. Before sending, Veritas searches the connected mailbox
+for that Message-ID, so retrying conversation setup reuses the original Gmail message and thread
+instead of creating another customer email.
+
+The opening subject and body are ordinary customer-facing prose. Internal workflow identifiers
+remain server-side and appear only in audit storage.
 
 ## Traceability
 
-The command center refreshes email activity every three seconds after the panel is opened. Each processed message exposes the source time, sender, outcome, bounded rationale, proposed Task title, SHA-256 body proof, content-addressed event receipt, and resulting Task revision. The original message body is not returned to the browser or written to application logs.
+The command center refreshes every three seconds. Each processed reply exposes the source time,
+sender, outcome, bounded rationale, proposed Task title, SHA-256 body proof, content-addressed event
+receipt, and resulting Task revision. The raw inbound body is not returned to the browser or
+written to application logs.
 
-Task notes preserve human text and replace only a delimited Veritas-managed customer-update block. A content-addressed event marker makes retries idempotent even if the Task write succeeded immediately before a worker interruption.
-
-## Lifecycle
-
-- Gmail access is read-only; outgoing Gmail remains draft-only under the separate compose scope.
-- Pub/Sub push uses a dedicated service account and an audience-bound OIDC token verified by ingress.
-- Gmail watches are renewed by the private worker before their seven-day expiry window.
-- Operators can disable a route at any time. Paused routes are rejected both by the database lookup and by the processor.
-- A stale Gmail history cursor, missing OAuth scope, wrong sender, bad OIDC identity, task revision conflict, or model outage never falls back to a simulated success.
+Task notes preserve human text and replace only a delimited Veritas-managed customer-update block.
+A content-addressed event marker makes retries idempotent even if the Task write succeeded
+immediately before a worker interruption.
 
 ## Live acceptance test
 
 1. Open the live incident and choose **Set up customer email**.
-2. Enter the external customer's exact sender address and activate the manifest-provided Task route.
-3. From that external account, send the generated example to the displayed company inbox.
-4. Keep the routing code unchanged; edit the request text to a clear reversible scheduling change.
-5. Verify a single natural Google Task is updated, unrelated Task text is preserved, and a matching applied receipt appears in the command center.
-6. Repeat the same delivery and verify no duplicate Task mutation occurs.
-7. Disable the route, send another matching email, and verify the Task does not change.
-
+2. Enter the customer's exact address and register the manifest-provided Task.
+3. Choose **Send opening email & bind thread** and confirm the normal email appears in Sent.
+4. From the authorized customer account, press Reply and request a clear reversible task change.
+5. Verify one natural Google Task updates, unrelated Task text survives, and an applied receipt
+   appears in the command center.
+6. Start a separate new email from the same customer and verify it appears under **Unmatched
+   requests** without changing a Task.
+7. Bind that thread, reply once more, and verify the exact same authority checks apply.
+8. Disable the automation, send another reply, and verify the Task does not change.

@@ -26,7 +26,7 @@
 - Confirm the CFO paragraph exists and capture its pre-run hash.
 - Confirm Gmail contains the sent original and no correction draft for this run.
 - Confirm the task and all registered anchors show the old claims.
-- Confirm the external customer address is allowlisted for the manifest-bound Task and the generated routing code is visible.
+- Confirm the external customer is allowlisted, the normal opening email is present, and its Gmail thread is bound to the manifest-provided Task.
 - Confirm network, account, public URL, and health endpoints.
 - Start a four-minute timer beside the recording controls, outside the captured region.
 

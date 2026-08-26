@@ -13,6 +13,16 @@ class EmailTaskWorkflowStatus(StrEnum):
     PAUSED = "paused"
 
 
+class EmailTaskThreadSource(StrEnum):
+    COMPANY_STARTED = "company_started"
+    OPERATOR_BOUND = "operator_bound"
+
+
+class EmailTaskUnmatchedStatus(StrEnum):
+    PENDING = "pending"
+    BOUND = "bound"
+
+
 class EmailTaskEventStatus(StrEnum):
     RECEIVED = "received"
     IGNORED = "ignored"
@@ -45,7 +55,7 @@ class EmailTaskWorkflow(CamelModel):
     subject: str = Field(min_length=1, max_length=255, exclude=True, repr=False)
     mailbox_email: str = Field(min_length=3, max_length=320)
     authorized_sender: str = Field(min_length=3, max_length=320)
-    routing_key: str = Field(pattern=r"^VX-[A-F0-9]{12}$")
+    routing_key: str = Field(pattern=r"^VX-[A-F0-9]{12}$", exclude=True, repr=False)
     packet_id: str = Field(min_length=1, max_length=255)
     manifest_id: str = Field(min_length=1, max_length=255)
     claim_id: str = Field(min_length=1, max_length=255)
@@ -68,6 +78,46 @@ class EmailTaskRegistrationResult(CamelModel):
     reused: bool
 
 
+class GmailConversationSeed(CamelModel):
+    gmail_message_id: str = Field(min_length=1, max_length=255)
+    gmail_thread_id: str = Field(min_length=1, max_length=255)
+
+
+class EmailTaskThreadBinding(CamelModel):
+    binding_id: str = Field(min_length=1, max_length=255)
+    subject: str = Field(min_length=1, max_length=255, exclude=True, repr=False)
+    workflow_id: str = Field(min_length=1, max_length=255)
+    gmail_thread_id: str = Field(min_length=1, max_length=255)
+    bootstrap_message_id: str | None = Field(default=None, max_length=255)
+    subject_line: str = Field(min_length=1, max_length=998)
+    source: EmailTaskThreadSource
+    created_at: datetime
+    updated_at: datetime
+
+
+class EmailTaskUnmatchedRequest(CamelModel):
+    request_id: str = Field(min_length=1, max_length=255)
+    subject: str = Field(min_length=1, max_length=255, exclude=True, repr=False)
+    gmail_message_id: str = Field(min_length=1, max_length=255)
+    gmail_thread_id: str = Field(min_length=1, max_length=255)
+    mailbox_email: str = Field(min_length=3, max_length=320)
+    sender: str = Field(min_length=3, max_length=320)
+    recipient: str = Field(min_length=3, max_length=320)
+    subject_line: str = Field(min_length=1, max_length=998)
+    body_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    candidate_workflow_ids: tuple[str, ...]
+    status: EmailTaskUnmatchedStatus
+    bound_workflow_id: str | None = Field(default=None, max_length=255)
+    receipt_checksum: str = Field(pattern=r"^[a-f0-9]{64}$")
+    received_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class BindEmailTaskUnmatchedRequest(CamelModel):
+    workflow_id: str = Field(min_length=1, max_length=255)
+
+
 class EmailTaskEligibleRoute(CamelModel):
     claim_id: str = Field(min_length=1, max_length=255)
     claim_statement: str = Field(min_length=1, max_length=4000)
@@ -82,6 +132,8 @@ class EmailTaskSetup(CamelModel):
     mailbox_email: str = Field(min_length=3, max_length=320)
     routes: tuple[EmailTaskEligibleRoute, ...]
     workflows: tuple[EmailTaskWorkflow, ...]
+    threads: tuple[EmailTaskThreadBinding, ...] = ()
+    unmatched_requests: tuple[EmailTaskUnmatchedRequest, ...] = ()
 
 
 class GmailWatchStream(CamelModel):

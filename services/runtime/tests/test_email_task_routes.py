@@ -10,6 +10,8 @@ from veritas_runtime.email_tasks.models import (
     EmailTaskEligibleRoute,
     EmailTaskRegistrationResult,
     EmailTaskSetup,
+    EmailTaskThreadBinding,
+    EmailTaskThreadSource,
     EmailTaskWorkflow,
     EmailTaskWorkflowStatus,
     GmailPushNotification,
@@ -91,6 +93,26 @@ class RecordingCoordinator:
         assert (subject, workflow_id) == ("subject-1", "workflow-1")
         return _workflow().model_copy(update={"status": EmailTaskWorkflowStatus.PAUSED})
 
+    async def start_conversation(self, subject: str, workflow_id: str) -> EmailTaskThreadBinding:
+        assert (subject, workflow_id) == ("subject-1", "workflow-1")
+        return EmailTaskThreadBinding(
+            binding_id="binding-1",
+            subject=subject,
+            workflow_id=workflow_id,
+            gmail_thread_id="thread-1",
+            bootstrap_message_id="message-1",
+            subject_line="Customer onboarding — customer update",
+            source=EmailTaskThreadSource.COMPANY_STARTED,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+
+    async def bind_unmatched(
+        self, subject: str, request_id: str, workflow_id: str
+    ) -> EmailTaskThreadBinding:
+        assert (request_id, workflow_id) == ("request-1", "workflow-1")
+        return await self.start_conversation(subject, workflow_id)
+
 
 async def _principal() -> SessionPrincipal:
     return SessionPrincipal(subject="subject-1", email="operator@example.com", issued_at=NOW)
@@ -118,9 +140,21 @@ def test_email_task_setup_and_registration_routes_are_authenticated_and_camel_ca
         },
     )
     assert created.status_code == 200
-    assert created.json()["workflow"]["routingKey"] == "VX-A1B2C3D4E5F6"
+    assert "routingKey" not in created.json()["workflow"]
     assert coordinator.registered is not None
     assert coordinator.registered[0:2] == ("subject-1", "operator@example.com")
+
+    conversation = client.post("/api/v1/email-task-workflows/workflow-1/conversation")
+    assert conversation.status_code == 200
+    assert conversation.json()["gmailThreadId"] == "thread-1"
+    assert "subject" not in conversation.json()
+
+    bound = client.post(
+        "/api/v1/email-task-unmatched/request-1/bind",
+        json={"workflowId": "workflow-1"},
+    )
+    assert bound.status_code == 200
+    assert bound.json()["workflowId"] == "workflow-1"
 
     paused = client.delete("/api/v1/email-task-workflows/workflow-1")
     assert paused.status_code == 200
@@ -139,6 +173,14 @@ def test_email_task_routes_fail_closed_when_not_composed() -> None:
     assert client.get("/api/v1/email-task-workflows/setup?packetId=packet-1").status_code == 503
     assert client.get("/api/v1/email-task-events?packetId=packet-1").status_code == 503
     assert client.post("/api/v1/email-task-workflows", json={}).status_code == 503
+    assert client.post("/api/v1/email-task-workflows/workflow-1/conversation").status_code == 503
+    assert (
+        client.post(
+            "/api/v1/email-task-unmatched/request-1/bind",
+            json={"workflowId": "workflow-1"},
+        ).status_code
+        == 503
+    )
     assert client.delete("/api/v1/email-task-workflows/workflow-1").status_code == 503
 
 

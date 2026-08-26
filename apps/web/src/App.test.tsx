@@ -570,7 +570,7 @@ describe('Veritas command center', () => {
     expect(await screen.findByRole('button', { name: 'View certificate record' })).toBeVisible();
   });
 
-  it('activates an exact customer email to manifest-bound task route', async () => {
+  it('starts a normal Gmail conversation bound to the exact manifest task', async () => {
     const live: Incident = { ...demoIncident, source: 'live' };
     const route = {
       claimId: 'claim-scale-acquisition',
@@ -584,7 +584,6 @@ describe('Veritas command center', () => {
       workflowId: 'workflow-42',
       mailboxEmail: 'operator@example.com',
       authorizedSender: 'customer@example.com',
-      routingKey: 'VX-A1B2C3D4E5F6',
       packetId: live.packetId,
       claimId: route.claimId,
       artifactId: route.artifactId,
@@ -593,6 +592,16 @@ describe('Veritas command center', () => {
       status: 'active',
       createdAt: '2026-08-26T10:00:00Z',
       updatedAt: '2026-08-26T10:00:00Z',
+    };
+    const thread = {
+      bindingId: 'binding-42',
+      workflowId: workflow.workflowId,
+      gmailThreadId: 'gmail-thread-42',
+      bootstrapMessageId: 'gmail-message-42',
+      subjectLine: 'Increase acquisition spend — customer update',
+      source: 'company_started',
+      createdAt: '2026-08-26T10:01:00Z',
+      updatedAt: '2026-08-26T10:01:00Z',
     };
     const fetchMock = vi
       .spyOn(window, 'fetch')
@@ -603,11 +612,14 @@ describe('Veritas command center', () => {
             mailboxEmail: 'operator@example.com',
             routes: [route],
             workflows: [],
+            threads: [],
+            unmatchedRequests: [],
           }),
         ),
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([])))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow, watch: {}, reused: false })));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow, watch: {}, reused: false })))
+      .mockResolvedValueOnce(new Response(JSON.stringify(thread)));
     render(<App initialIncident={live} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Set up customer email' }));
@@ -615,21 +627,19 @@ describe('Veritas command center', () => {
     fireEvent.change(screen.getByPlaceholderText('customer@company.com'), {
       target: { value: 'customer@example.com' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Activate customer email route' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Register customer & task' }));
 
     expect(
-      await screen.findByText('[VX-A1B2C3D4E5F6] Update: Increase acquisition spend'),
+      await screen.findByRole('heading', { name: 'Start one normal customer conversation' }),
     ).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Send opening email & bind thread' }));
+
+    expect(await screen.findByText('Increase acquisition spend — customer update')).toBeVisible();
     expect(screen.getAllByText('Increase acquisition spend').length).toBeGreaterThan(0);
-    expect(
-      screen.getByText(
-        'Hi team, new customer information affects the “Increase acquisition spend” task. Please pause the current plan until the revised details are confirmed. Keep the existing owner and due date unchanged.',
-      ),
-    ).toBeVisible();
-    expect(screen.getByText(/Send it from the authorized customer address above/)).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Compose as authorized customer ↗' })).toHaveAttribute(
+    expect(screen.getByText(/No routing code is visible or required/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Open company conversation ↗' })).toHaveAttribute(
       'href',
-      expect.stringMatching(/authuser=customer%40example\.com.*to=operator%40example\.com/),
+      expect.stringContaining('authuser=operator%40example.com'),
     );
     expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toEqual({
       packetId: live.packetId,
@@ -637,5 +647,8 @@ describe('Veritas command center', () => {
       artifactId: route.artifactId,
       authorizedSender: 'customer@example.com',
     });
+    expect(fetchMock.mock.calls[3][0]).toBe(
+      '/api/v1/email-task-workflows/workflow-42/conversation',
+    );
   });
 });

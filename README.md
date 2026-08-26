@@ -39,7 +39,7 @@ See:
 - [Phase gates](docs/phases.md)
 - [Verification strategy](docs/verification-strategy.md)
 - [Claim Manifest decision record](docs/architecture-decisions/0001-claim-manifest.md)
-- [Manifest-bound customer email routing](docs/architecture-decisions/0015-manifest-bound-email-task-routing.md)
+- [Thread-bound customer email routing](docs/architecture-decisions/0017-thread-bound-customer-conversations.md)
 - [Customer email → Google Task contract](docs/email-to-task-automation.md)
 - [Live production proof](docs/submission/live-proof-report.md)
 - [Public Command Center](https://veritas-preview-web-602044424209.us-central1.run.app/)

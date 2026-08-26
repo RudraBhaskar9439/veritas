@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     Column,
@@ -22,6 +22,10 @@ from veritas_runtime.changes.database import registered_evidence_sources
 from veritas_runtime.email_tasks.models import (
     EmailTaskEvent,
     EmailTaskEventResult,
+    EmailTaskThreadBinding,
+    EmailTaskThreadSource,
+    EmailTaskUnmatchedRequest,
+    EmailTaskUnmatchedStatus,
     EmailTaskWorkflow,
     EmailTaskWorkflowResult,
     EmailTaskWorkflowStatus,
@@ -89,6 +93,55 @@ Index(
     email_task_events.c.created_at,
 )
 
+email_task_thread_bindings = Table(
+    "email_task_thread_bindings",
+    metadata,
+    Column("binding_id", String(255), primary_key=True),
+    Column("subject", String(255), nullable=False),
+    Column("workflow_id", String(255), nullable=False),
+    Column("gmail_thread_id", String(255), nullable=False),
+    Column("bootstrap_message_id", String(255), nullable=True),
+    Column("subject_line", String(998), nullable=False),
+    Column("source", String(32), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("subject", "gmail_thread_id", name="email_task_thread_subject_uq"),
+)
+Index(
+    "email_task_thread_workflow_idx",
+    email_task_thread_bindings.c.workflow_id,
+    email_task_thread_bindings.c.created_at,
+)
+
+email_task_unmatched_requests = Table(
+    "email_task_unmatched_requests",
+    metadata,
+    Column("request_id", String(255), primary_key=True),
+    Column("subject", String(255), nullable=False),
+    Column("gmail_message_id", String(255), nullable=False),
+    Column("gmail_thread_id", String(255), nullable=False),
+    Column("mailbox_email", String(320), nullable=False),
+    Column("sender", String(320), nullable=False),
+    Column("recipient", String(320), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("bound_workflow_id", String(255), nullable=True),
+    Column("receipt_checksum", String(64), nullable=False),
+    Column("request_json", Text, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint(
+        "subject",
+        "gmail_message_id",
+        name="email_task_unmatched_message_uq",
+    ),
+)
+Index(
+    "email_task_unmatched_subject_idx",
+    email_task_unmatched_requests.c.subject,
+    email_task_unmatched_requests.c.status,
+    email_task_unmatched_requests.c.created_at,
+)
+
 
 class SqlEmailTaskWorkflowRepository:
     def __init__(self, engine: AsyncEngine) -> None:
@@ -127,6 +180,75 @@ class SqlEmailTaskWorkflowRepository:
             )
         return _workflow(row) if row is not None else None
 
+    async def get_by_workflow_id(
+        self,
+        subject: str,
+        workflow_id: str,
+    ) -> EmailTaskWorkflow | None:
+        async with self._engine.connect() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_workflows).where(
+                            email_task_workflows.c.subject == subject,
+                            email_task_workflows.c.workflow_id == workflow_id,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+        return _workflow(row) if row is not None else None
+
+    async def get_by_thread(
+        self,
+        subject: str,
+        gmail_thread_id: str,
+    ) -> EmailTaskWorkflow | None:
+        async with self._engine.connect() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_workflows)
+                        .join(
+                            email_task_thread_bindings,
+                            email_task_thread_bindings.c.workflow_id
+                            == email_task_workflows.c.workflow_id,
+                        )
+                        .where(
+                            email_task_workflows.c.subject == subject,
+                            email_task_thread_bindings.c.subject == subject,
+                            email_task_thread_bindings.c.gmail_thread_id == gmail_thread_id,
+                            email_task_workflows.c.status == EmailTaskWorkflowStatus.ACTIVE.value,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+        return _workflow(row) if row is not None else None
+
+    async def active_for_sender(
+        self,
+        subject: str,
+        authorized_sender: str,
+    ) -> tuple[EmailTaskWorkflow, ...]:
+        async with self._engine.connect() as connection:
+            rows = (
+                (
+                    await connection.execute(
+                        select(email_task_workflows).where(
+                            email_task_workflows.c.subject == subject,
+                            email_task_workflows.c.authorized_sender == authorized_sender,
+                            email_task_workflows.c.status == EmailTaskWorkflowStatus.ACTIVE.value,
+                        )
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return tuple(_workflow(row) for row in rows)
+
     async def active_for_mailbox(self, mailbox_email: str) -> tuple[EmailTaskWorkflow, ...]:
         async with self._engine.connect() as connection:
             rows = (
@@ -157,6 +279,195 @@ class SqlEmailTaskWorkflowRepository:
                 .all()
             )
         return tuple(_workflow(row) for row in rows)
+
+    async def list_threads_for_subject(
+        self,
+        subject: str,
+    ) -> tuple[EmailTaskThreadBinding, ...]:
+        async with self._engine.connect() as connection:
+            rows = (
+                (
+                    await connection.execute(
+                        select(email_task_thread_bindings)
+                        .where(email_task_thread_bindings.c.subject == subject)
+                        .order_by(email_task_thread_bindings.c.created_at.desc())
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return tuple(_thread(row) for row in rows)
+
+    async def bind_thread(
+        self,
+        binding: EmailTaskThreadBinding,
+    ) -> EmailTaskThreadBinding:
+        async with self._engine.begin() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_thread_bindings).where(
+                            email_task_thread_bindings.c.subject == binding.subject,
+                            email_task_thread_bindings.c.gmail_thread_id == binding.gmail_thread_id,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is not None:
+                existing = _thread(row)
+                if existing.workflow_id != binding.workflow_id:
+                    raise ValueError("A Gmail thread is already bound to another workflow")
+                return existing
+            await connection.execute(
+                insert(email_task_thread_bindings).values(
+                    binding_id=binding.binding_id,
+                    subject=binding.subject,
+                    workflow_id=binding.workflow_id,
+                    gmail_thread_id=binding.gmail_thread_id,
+                    bootstrap_message_id=binding.bootstrap_message_id,
+                    subject_line=binding.subject_line,
+                    source=binding.source.value,
+                    created_at=binding.created_at,
+                    updated_at=binding.updated_at,
+                )
+            )
+        return binding
+
+    async def persist_unmatched(
+        self,
+        request: EmailTaskUnmatchedRequest,
+    ) -> EmailTaskUnmatchedRequest:
+        async with self._engine.begin() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_unmatched_requests).where(
+                            email_task_unmatched_requests.c.subject == request.subject,
+                            email_task_unmatched_requests.c.gmail_message_id
+                            == request.gmail_message_id,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is not None:
+                existing = _unmatched(row)
+                if (
+                    existing.gmail_thread_id != request.gmail_thread_id
+                    or existing.sender != request.sender
+                    or existing.recipient != request.recipient
+                    or existing.subject_line != request.subject_line
+                    or existing.body_hash != request.body_hash
+                    or existing.candidate_workflow_ids != request.candidate_workflow_ids
+                ):
+                    raise ValueError("Unmatched email was reused with different evidence")
+                return existing
+            await connection.execute(
+                insert(email_task_unmatched_requests).values(
+                    request_id=request.request_id,
+                    subject=request.subject,
+                    gmail_message_id=request.gmail_message_id,
+                    gmail_thread_id=request.gmail_thread_id,
+                    mailbox_email=request.mailbox_email,
+                    sender=request.sender,
+                    recipient=request.recipient,
+                    status=request.status.value,
+                    bound_workflow_id=request.bound_workflow_id,
+                    receipt_checksum=request.receipt_checksum,
+                    request_json=request.model_dump_json(by_alias=True),
+                    created_at=request.created_at,
+                    updated_at=request.updated_at,
+                )
+            )
+        return request
+
+    async def list_unmatched_for_subject(
+        self,
+        subject: str,
+    ) -> tuple[EmailTaskUnmatchedRequest, ...]:
+        async with self._engine.connect() as connection:
+            rows = (
+                (
+                    await connection.execute(
+                        select(email_task_unmatched_requests)
+                        .where(email_task_unmatched_requests.c.subject == subject)
+                        .order_by(email_task_unmatched_requests.c.created_at.desc())
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        return tuple(_unmatched(row) for row in rows)
+
+    async def get_unmatched(
+        self,
+        subject: str,
+        request_id: str,
+    ) -> EmailTaskUnmatchedRequest | None:
+        async with self._engine.connect() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_unmatched_requests).where(
+                            email_task_unmatched_requests.c.subject == subject,
+                            email_task_unmatched_requests.c.request_id == request_id,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+        return _unmatched(row) if row is not None else None
+
+    async def bind_unmatched(
+        self,
+        subject: str,
+        request_id: str,
+        workflow_id: str,
+        updated_at: datetime,
+    ) -> EmailTaskUnmatchedRequest | None:
+        async with self._engine.begin() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_unmatched_requests).where(
+                            email_task_unmatched_requests.c.subject == subject,
+                            email_task_unmatched_requests.c.request_id == request_id,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                return None
+            request = _unmatched(row)
+            if workflow_id not in request.candidate_workflow_ids:
+                raise ValueError("The selected workflow is not authorized for this sender")
+            bound = request.model_copy(
+                update={
+                    "status": EmailTaskUnmatchedStatus.BOUND,
+                    "bound_workflow_id": workflow_id,
+                    "updated_at": updated_at,
+                }
+            )
+            await connection.execute(
+                update(email_task_unmatched_requests)
+                .where(
+                    email_task_unmatched_requests.c.subject == subject,
+                    email_task_unmatched_requests.c.request_id == request_id,
+                )
+                .values(
+                    status=bound.status.value,
+                    bound_workflow_id=workflow_id,
+                    request_json=bound.model_dump_json(by_alias=True),
+                    updated_at=updated_at,
+                )
+            )
+        return bound
 
     async def pause_for_subject(
         self,
@@ -444,7 +755,42 @@ def _workflow(row: RowMapping | dict[str, object]) -> EmailTaskWorkflow:
     if not isinstance(payload, dict):
         raise TypeError("Stored email-task workflow JSON must be an object")
     payload["subject"] = str(row["subject"])
+    payload["routingKey"] = str(row["routing_key"])
     return EmailTaskWorkflow.model_validate(payload)
+
+
+def _thread(row: RowMapping | dict[str, object]) -> EmailTaskThreadBinding:
+    created_at = row["created_at"]
+    updated_at = row["updated_at"]
+    if not isinstance(created_at, datetime) or not isinstance(updated_at, datetime):
+        raise TypeError("Stored Gmail thread timestamps must be datetimes")
+    return EmailTaskThreadBinding(
+        binding_id=str(row["binding_id"]),
+        subject=str(row["subject"]),
+        workflow_id=str(row["workflow_id"]),
+        gmail_thread_id=str(row["gmail_thread_id"]),
+        bootstrap_message_id=(
+            str(row["bootstrap_message_id"]) if row["bootstrap_message_id"] is not None else None
+        ),
+        subject_line=str(row["subject_line"]),
+        source=EmailTaskThreadSource(str(row["source"])),
+        created_at=_utc(created_at),
+        updated_at=_utc(updated_at),
+    )
+
+
+def _unmatched(row: RowMapping | dict[str, object]) -> EmailTaskUnmatchedRequest:
+    raw = row["request_json"]
+    if not isinstance(raw, str):
+        raise TypeError("Stored unmatched email JSON must be text")
+    payload = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise TypeError("Stored unmatched email JSON must be an object")
+    payload["subject"] = str(row["subject"])
+    request = EmailTaskUnmatchedRequest.model_validate(payload)
+    if request.receipt_checksum != str(row["receipt_checksum"]):
+        raise ValueError("Stored unmatched email receipt checksum mismatch")
+    return request
 
 
 def _watch(row: RowMapping | dict[str, object]) -> GmailWatchStream:
@@ -475,3 +821,7 @@ def _event(row: RowMapping | dict[str, object]) -> EmailTaskEvent:
     if event.receipt_checksum != str(row["receipt_checksum"]):
         raise ValueError("Stored email-task receipt checksum mismatch")
     return event
+
+
+def _utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)

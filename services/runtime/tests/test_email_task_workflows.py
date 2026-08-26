@@ -17,7 +17,12 @@ from veritas_runtime.email_tasks.database import SqlEmailTaskWorkflowRepository
 from veritas_runtime.email_tasks.models import (
     EmailTaskEvent,
     EmailTaskEventStatus,
+    EmailTaskThreadBinding,
+    EmailTaskThreadSource,
+    EmailTaskUnmatchedRequest,
+    EmailTaskUnmatchedStatus,
     EmailTaskWorkflowStatus,
+    GmailConversationSeed,
     GmailWatchStream,
     RegisterEmailTaskWorkflowRequest,
 )
@@ -25,7 +30,6 @@ from veritas_runtime.email_tasks.policy import (
     InvalidEmailAddress,
     deterministic_risk_flags,
     normalize_email,
-    routes_to_workflow,
 )
 from veritas_runtime.email_tasks.service import (
     EmailTaskRegistrationCoordinator,
@@ -56,6 +60,8 @@ class MemoryWorkflows:
         self.owns_packet = owns_packet
         self.records = {}
         self.watch = None
+        self.threads = {}
+        self.unmatched = {}
 
     async def packet_registered_for_subject(self, subject: str, packet_id: str) -> bool:
         return self.owns_packet and subject == "subject-1" and bool(packet_id)
@@ -79,6 +85,49 @@ class MemoryWorkflows:
             for (workflow_subject, _), (workflow, _) in self.records.items()
             if workflow_subject == subject
         )
+
+    async def get_by_workflow_id(self, subject, workflow_id):  # type: ignore[no-untyped-def]
+        return next(
+            (
+                workflow
+                for (workflow_subject, _), (workflow, _) in self.records.items()
+                if workflow_subject == subject and workflow.workflow_id == workflow_id
+            ),
+            None,
+        )
+
+    async def list_threads_for_subject(self, subject):  # type: ignore[no-untyped-def]
+        return tuple(thread for thread in self.threads.values() if thread.subject == subject)
+
+    async def bind_thread(self, thread):  # type: ignore[no-untyped-def]
+        existing = self.threads.get((thread.subject, thread.gmail_thread_id))
+        if existing is not None and existing.workflow_id != thread.workflow_id:
+            raise ValueError("A Gmail thread is already bound to another workflow")
+        self.threads[(thread.subject, thread.gmail_thread_id)] = thread
+        return existing or thread
+
+    async def list_unmatched_for_subject(self, subject):  # type: ignore[no-untyped-def]
+        return tuple(request for request in self.unmatched.values() if request.subject == subject)
+
+    async def get_unmatched(self, subject, request_id):  # type: ignore[no-untyped-def]
+        request = self.unmatched.get(request_id)
+        return request if request is not None and request.subject == subject else None
+
+    async def bind_unmatched(self, subject, request_id, workflow_id, updated_at):  # type: ignore[no-untyped-def]
+        request = await self.get_unmatched(subject, request_id)
+        if request is None:
+            return None
+        if workflow_id not in request.candidate_workflow_ids:
+            raise ValueError("The selected workflow is not authorized for this sender")
+        bound = request.model_copy(
+            update={
+                "status": EmailTaskUnmatchedStatus.BOUND,
+                "bound_workflow_id": workflow_id,
+                "updated_at": updated_at,
+            }
+        )
+        self.unmatched[request_id] = bound
+        return bound
 
     async def list_events_for_subject(self, subject: str, packet_id: str):  # type: ignore[no-untyped-def]
         return ()
@@ -138,11 +187,7 @@ def test_registration_is_manifest_bound_sender_bound_and_idempotent() -> None:
         assert first.workflow.mailbox_email == "operator@example.com"
         assert first.workflow.task_id == "workspace-artifact-acquisition-task"
         assert first.workflow.task_list_id == "workspace-task-list"
-        assert routes_to_workflow(
-            f"Please update delivery [{first.workflow.routing_key}]",
-            first.workflow.routing_key,
-        )
-        assert routes_to_workflow("Unrelated customer email", first.workflow.routing_key) is False
+        assert first.workflow.routing_key.startswith("VX-")
 
         setup = await service.setup(
             "subject-1",
@@ -238,7 +283,13 @@ def test_sql_repository_persists_only_subject_owned_workflows() -> None:
         loaded = await workflows.get_by_identity("subject-1", created.workflow.routing_key)
         assert loaded == created.workflow
         assert await workflows.active_for_mailbox("operator@example.com") == (created.workflow,)
+        assert await workflows.active_for_sender("subject-1", "customer@example.com") == (
+            created.workflow,
+        )
         assert await workflows.list_for_subject("subject-1") == (created.workflow,)
+        assert (
+            await workflows.get_by_workflow_id("subject-1", created.workflow.workflow_id)
+        ) == created.workflow
         assert await workflows.subject_for_mailbox("operator@example.com") == "subject-1"
         assert (await manifests.latest_for_packet(manifest.packet_id)) == manifest
 
@@ -278,6 +329,55 @@ def test_sql_repository_persists_only_subject_owned_workflows() -> None:
             "22",
             NOW + timedelta(minutes=3),
         )
+
+        thread = EmailTaskThreadBinding(
+            binding_id="binding-1",
+            subject="subject-1",
+            workflow_id=created.workflow.workflow_id,
+            gmail_thread_id="thread-1",
+            bootstrap_message_id="seed-1",
+            subject_line="Increase acquisition spend — customer update",
+            source=EmailTaskThreadSource.COMPANY_STARTED,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        assert await workflows.bind_thread(thread) == thread
+        assert await workflows.bind_thread(thread) == thread
+        assert await workflows.get_by_thread("subject-1", "thread-1") == created.workflow
+        assert await workflows.list_threads_for_subject("subject-1") == (thread,)
+
+        unmatched = EmailTaskUnmatchedRequest(
+            request_id="unmatched-1",
+            subject="subject-1",
+            gmail_message_id="message-unmatched",
+            gmail_thread_id="thread-new",
+            mailbox_email="operator@example.com",
+            sender="customer@example.com",
+            recipient="operator@example.com",
+            subject_line="A separate acquisition request",
+            body_hash="d" * 64,
+            candidate_workflow_ids=(created.workflow.workflow_id,),
+            status=EmailTaskUnmatchedStatus.PENDING,
+            bound_workflow_id=None,
+            receipt_checksum="e" * 64,
+            received_at=NOW,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        assert await workflows.persist_unmatched(unmatched) == unmatched
+        assert await workflows.persist_unmatched(unmatched) == unmatched
+        with pytest.raises(ValueError, match="different evidence"):
+            await workflows.persist_unmatched(unmatched.model_copy(update={"body_hash": "c" * 64}))
+        assert await workflows.get_unmatched("subject-1", "unmatched-1") == unmatched
+        assert await workflows.list_unmatched_for_subject("subject-1") == (unmatched,)
+        bound_unmatched = await workflows.bind_unmatched(
+            "subject-1",
+            "unmatched-1",
+            created.workflow.workflow_id,
+            NOW + timedelta(minutes=3),
+        )
+        assert bound_unmatched is not None
+        assert bound_unmatched.status == EmailTaskUnmatchedStatus.BOUND
 
         event = EmailTaskEvent(
             event_id="event-1",
@@ -425,6 +525,28 @@ def test_registration_coordinator_checks_scopes_starts_watch_and_hides_expired_s
                 updated_at=now or NOW,
             )
 
+        async def ensure_conversation(
+            self,
+            access_token,
+            mailbox_email,
+            customer_email,
+            subject_line,
+            body,
+            message_id,
+        ):  # type: ignore[no-untyped-def]
+            assert access_token == "token-for-subject-1"
+            assert (mailbox_email, customer_email) == (
+                "operator@example.com",
+                "customer@example.com",
+            )
+            assert "VX-" not in subject_line
+            assert "reply to this conversation" in body
+            assert message_id.endswith("@veritas-agent.invalid>")
+            return GmailConversationSeed(
+                gmail_message_id="seed-message-1",
+                gmail_thread_id="gmail-thread-1",
+            )
+
     async def scenario() -> None:
         manifest = await _manifest()
         repository = MemoryWorkflows()
@@ -443,17 +565,103 @@ def test_registration_coordinator_checks_scopes_starts_watch_and_hides_expired_s
             NOW,
         )
         assert created.watch.history_id == "101"
+        thread = await coordinator.start_conversation(
+            "subject-1", created.workflow.workflow_id, NOW
+        )
+        assert thread.gmail_thread_id == "gmail-thread-1"
+        assert thread.source == EmailTaskThreadSource.COMPANY_STARTED
+        assert (
+            await coordinator.start_conversation("subject-1", created.workflow.workflow_id, NOW)
+        ) == thread
         assert (await coordinator.list("subject-1"))[0] == created.workflow
         assert await coordinator.list_events("subject-1", manifest.packet_id) == ()
         assert (
             await coordinator.setup("subject-1", "operator@example.com", manifest.packet_id)
         ).workflows == (created.workflow,)
+
+        unmatched = EmailTaskUnmatchedRequest(
+            request_id="unmatched-bind-1",
+            subject="subject-1",
+            gmail_message_id="customer-message-1",
+            gmail_thread_id="customer-started-thread-1",
+            mailbox_email="operator@example.com",
+            sender="customer@example.com",
+            recipient="operator@example.com",
+            subject_line="Please revise our acquisition plan",
+            body_hash="f" * 64,
+            candidate_workflow_ids=(created.workflow.workflow_id,),
+            status=EmailTaskUnmatchedStatus.PENDING,
+            bound_workflow_id=None,
+            receipt_checksum="a" * 64,
+            received_at=NOW,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        repository.unmatched[unmatched.request_id] = unmatched
+        operator_bound = await coordinator.bind_unmatched(
+            "subject-1",
+            unmatched.request_id,
+            created.workflow.workflow_id,
+            NOW + timedelta(minutes=1),
+        )
+        assert operator_bound.gmail_thread_id == "customer-started-thread-1"
+        assert operator_bound.source == EmailTaskThreadSource.OPERATOR_BOUND
+        assert repository.unmatched[unmatched.request_id].status == EmailTaskUnmatchedStatus.BOUND
+        assert (
+            repository.unmatched[unmatched.request_id].bound_workflow_id
+            == created.workflow.workflow_id
+        )
+
+        alternate = await coordinator.register(
+            "subject-1",
+            "operator@example.com",
+            _request(authorized_sender="other-customer@example.com"),
+            NOW,
+        )
+        with pytest.raises(EmailTaskWorkflowError, match="not found"):
+            await coordinator.bind_unmatched(
+                "subject-1",
+                "missing-request",
+                created.workflow.workflow_id,
+                NOW,
+            )
+        with pytest.raises(EmailTaskWorkflowError, match="not authorized"):
+            await coordinator.bind_unmatched(
+                "subject-1",
+                unmatched.request_id,
+                alternate.workflow.workflow_id,
+                NOW,
+            )
+
+        missing_conversation_scopes = EmailTaskRegistrationCoordinator(
+            workflows,
+            repository,  # type: ignore[arg-type]
+            Sessions(frozenset()),
+            Gmail(),
+            "projects/project-1/topics/gmail-events",
+        )
+        with pytest.raises(EmailTaskWorkflowError, match="Reconnect Google Workspace"):
+            await missing_conversation_scopes.start_conversation(
+                "subject-1", alternate.workflow.workflow_id, NOW
+            )
+
         paused = await coordinator.pause("subject-1", created.workflow.workflow_id)
         assert paused.status == EmailTaskWorkflowStatus.PAUSED
+        with pytest.raises(EmailTaskWorkflowError, match="paused"):
+            await coordinator.start_conversation("subject-1", created.workflow.workflow_id, NOW)
+        with pytest.raises(EmailTaskWorkflowError, match="paused"):
+            await coordinator.bind_unmatched(
+                "subject-1",
+                unmatched.request_id,
+                created.workflow.workflow_id,
+                NOW,
+            )
 
         repository.watch = created.watch.model_copy(
             update={"expiration": NOW - timedelta(minutes=1)}
         )
+        with pytest.raises(EmailTaskWorkflowError, match="Reconnect Google Workspace"):
+            await coordinator.start_conversation("subject-1", alternate.workflow.workflow_id, NOW)
         assert (
             await coordinator.setup("subject-1", "operator@example.com", manifest.packet_id)
         ).workflows == ()

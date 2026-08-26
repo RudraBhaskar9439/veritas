@@ -30,10 +30,6 @@ def workflow_routing_key(
     return f"VX-{hashlib.sha256(identity.encode()).hexdigest()[:12].upper()}"
 
 
-def routes_to_workflow(subject_line: str, routing_key: str) -> bool:
-    return f"[{routing_key}]" in subject_line
-
-
 _HIGH_RISK = re.compile(
     r"\b(cancel|delete|refund|payment|bank|credentials?|password|terminate|legal|wire)\b",
     flags=re.IGNORECASE,

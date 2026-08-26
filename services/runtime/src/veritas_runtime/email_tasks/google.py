@@ -1,5 +1,6 @@
 import base64
 from datetime import UTC, datetime
+from email.message import EmailMessage
 from html import unescape
 from typing import Any, cast
 from urllib.parse import quote
@@ -7,6 +8,7 @@ from urllib.parse import quote
 import httpx
 
 from veritas_runtime.email_tasks.models import (
+    GmailConversationSeed,
     GmailHistoryPage,
     GmailWatchStream,
     GoogleTaskState,
@@ -67,6 +69,51 @@ class GoogleGmailTaskGateway:
             expiration=expiration,
             created_at=instant,
             updated_at=instant,
+        )
+
+    async def ensure_conversation(
+        self,
+        access_token: str,
+        mailbox_email: str,
+        customer_email: str,
+        subject_line: str,
+        body: str,
+        message_id: str,
+    ) -> GmailConversationSeed:
+        search = await self._client.get(
+            f"{self._gmail_root}/users/me/messages",
+            headers=_authorization(access_token),
+            params={"q": f"rfc822msgid:{message_id}", "includeSpamTrash": "true", "maxResults": 1},
+        )
+        search_payload = _response_object(search)
+        messages = search_payload.get("messages")
+        if isinstance(messages, list) and messages:
+            first = messages[0]
+            if isinstance(first, dict):
+                existing_id = first.get("id")
+                existing_thread = first.get("threadId")
+                if isinstance(existing_id, str) and isinstance(existing_thread, str):
+                    return GmailConversationSeed(
+                        gmail_message_id=existing_id,
+                        gmail_thread_id=existing_thread,
+                    )
+
+        message = EmailMessage()
+        message["To"] = customer_email
+        message["From"] = mailbox_email
+        message["Subject"] = _safe_header(subject_line)
+        message["Message-ID"] = message_id
+        message.set_content(body)
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode().rstrip("=")
+        response = await self._client.post(
+            f"{self._gmail_root}/users/me/messages/send",
+            headers=_authorization(access_token),
+            json={"raw": raw},
+        )
+        payload = _response_object(response)
+        return GmailConversationSeed(
+            gmail_message_id=_required_string(payload, "id", "Gmail message ID"),
+            gmail_thread_id=_required_string(payload, "threadId", "Gmail thread ID"),
         )
 
     async def history_since(
@@ -229,6 +276,10 @@ def _required_string(payload: dict[str, Any], key: str, label: str) -> str:
     if not isinstance(value, str) or not value:
         raise GmailIntegrationError(f"{label} is missing")
     return value
+
+
+def _safe_header(value: str) -> str:
+    return " ".join(value.replace("\r", " ").replace("\n", " ").split())
 
 
 def _headers(payload: dict[str, Any]) -> dict[str, str]:
