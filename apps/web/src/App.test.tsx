@@ -255,7 +255,23 @@ describe('Veritas command center', () => {
             reused: false,
           }),
         ),
-      );
+      )
+      .mockResolvedValueOnce(new Response('null'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sources })))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            manifest: {
+              packetId: 'packet-q3-executive-review-123456781234',
+              sources,
+              artifacts: [],
+            },
+            checksum: 'b'.repeat(64),
+            reused: true,
+          }),
+        ),
+      )
+      .mockResolvedValue(new Response('null'));
     render(<App initialIncident={liveIncident} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'New monitored packet' }));
@@ -266,6 +282,21 @@ describe('Veritas command center', () => {
     const packetBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
     expect(bootstrapBody.requestId).toBe('generate-q3-executive-review-v1-123456781234-sources');
     expect(packetBody.blueprint.packetId).toBe('packet-q3-executive-review-123456781234');
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/v1/command-center/incidents/latest',
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'X-Veritas-Refresh': 'packet-watch' }),
+        }),
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verify idempotent replay' }));
+    expect(await screen.findByText(/Idempotent replay confirmed/)).toBeInTheDocument();
+    const replayBootstrapBody = JSON.parse(String(fetchMock.mock.calls[3][1]?.body));
+    const replayPacketBody = JSON.parse(String(fetchMock.mock.calls[4][1]?.body));
+    expect(replayBootstrapBody.requestId).toBe(bootstrapBody.requestId);
+    expect(replayPacketBody.blueprint.packetId).toBe(packetBody.blueprint.packetId);
   });
 
   it('uses one server-side action for approval, continuation, and verification', async () => {

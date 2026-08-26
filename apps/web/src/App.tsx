@@ -31,11 +31,13 @@ interface PacketGenerationResult {
   reused: boolean;
 }
 
+type LiveGenerationRequest = typeof generationRequest;
+
 type GenerationState =
   | { phase: 'idle' }
   | { phase: 'running' }
   | { phase: 'error'; message: string }
-  | { phase: 'complete'; result: PacketGenerationResult };
+  | { phase: 'complete'; result: PacketGenerationResult; request: LiveGenerationRequest };
 
 const views: ReadonlyArray<{ id: ViewId; label: string; index: string }> = [
   { id: 'overview', label: 'Command center', index: '01' },
@@ -145,7 +147,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
   }, [initialIncident, retry]);
 
   useEffect(() => {
-    if (initialIncident || generation.phase !== 'complete' || state === 'ready') return;
+    if (generation.phase !== 'complete' || state === 'ready') return;
     const packetId = generation.result.manifest.packetId;
     let disposed = false;
     let refreshing = false;
@@ -179,7 +181,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [generation, initialIncident, state]);
+  }, [generation, state]);
 
   async function generateLivePacket(request: typeof generationRequest) {
     setGeneration({ phase: 'running' });
@@ -212,6 +214,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
       setGeneration({
         phase: 'complete',
         result: (await packetResponse.json()) as PacketGenerationResult,
+        request,
       });
     } catch (error: unknown) {
       setGeneration({
@@ -242,6 +245,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
         state={state}
         generation={generation}
         onGenerate={() => void generateLivePacket(generationRequest)}
+        onReplay={(request) => void generateLivePacket(request)}
         onRetry={() => setRetry((value) => value + 1)}
         onDemo={() => {
           setIncident(demoIncident);
@@ -507,12 +511,14 @@ function StartupState({
   state,
   generation,
   onGenerate,
+  onReplay,
   onRetry,
   onDemo,
 }: {
   state: StartupStatus;
   generation: GenerationState;
   onGenerate: () => void;
+  onReplay: (request: LiveGenerationRequest) => void;
   onRetry: () => void;
   onDemo: () => void;
 }) {
@@ -574,7 +580,7 @@ function StartupState({
         </p>
       )}
       {generation.phase === 'complete' && (
-        <GeneratedPacket result={generation.result} onRetry={onGenerate} />
+        <GeneratedPacket result={generation.result} onRetry={() => onReplay(generation.request)} />
       )}
     </main>
   );
@@ -609,7 +615,9 @@ function GeneratedPacket({
         change watch now use real Google resource IDs.
       </p>
       <p className="monitoringStatus" role="status">
-        Live monitoring active · waiting for a meaningful source change.
+        {result.reused
+          ? 'Idempotent replay confirmed · no duplicate Workspace artifacts were created.'
+          : 'Live monitoring active · waiting for a meaningful source change.'}
       </p>
       <div className="generatedLinks">
         {resources.map((resource) => {
