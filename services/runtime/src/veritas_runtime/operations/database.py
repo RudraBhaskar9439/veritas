@@ -20,6 +20,10 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from veritas_runtime.auth.database import metadata
+from veritas_runtime.changes.database import (
+    drive_change_operation_snapshots,
+    evidence_snapshots,
+)
 from veritas_runtime.operations.models import (
     DeadLetterSummary,
     Operation,
@@ -262,7 +266,39 @@ class SqlOperationRepository:
                 .mappings()
                 .all()
             )
-        return tuple(_dead_letter(row) for row in rows)
+            operation_ids = tuple(str(row["operation_id"]) for row in rows)
+            packet_rows = (
+                (
+                    await connection.execute(
+                        select(
+                            drive_change_operation_snapshots.c.operation_id,
+                            evidence_snapshots.c.packet_id,
+                        )
+                        .select_from(
+                            drive_change_operation_snapshots.join(
+                                evidence_snapshots,
+                                evidence_snapshots.c.snapshot_id
+                                == drive_change_operation_snapshots.c.snapshot_id,
+                            )
+                        )
+                        .where(
+                            drive_change_operation_snapshots.c.operation_id.in_(operation_ids)
+                        )
+                        .distinct()
+                    )
+                )
+                .mappings()
+                .all()
+                if operation_ids
+                else ()
+            )
+        packet_ids: dict[str, set[str]] = {}
+        for row in packet_rows:
+            packet_ids.setdefault(str(row["operation_id"]), set()).add(str(row["packet_id"]))
+        return tuple(
+            _dead_letter(row, tuple(sorted(packet_ids.get(str(row["operation_id"]), ()))))
+            for row in rows
+        )
 
     async def replay(
         self,
@@ -446,7 +482,7 @@ def _operation(row: RowMapping | dict[str, object]) -> Operation:
     )
 
 
-def _dead_letter(row: RowMapping) -> DeadLetterSummary:
+def _dead_letter(row: RowMapping, packet_ids: tuple[str, ...] = ()) -> DeadLetterSummary:
     return DeadLetterSummary(
         operation_id=str(row["operation_id"]),
         kind=str(row["kind"]),
@@ -456,6 +492,7 @@ def _dead_letter(row: RowMapping) -> DeadLetterSummary:
         error_code=str(row["last_error_code"]),
         diagnostic_fingerprint=str(row["diagnostic_fingerprint"]),
         replay_of=str(row["replay_of"]) if row["replay_of"] is not None else None,
+        packet_ids=packet_ids,
         updated_at=_timestamp(row["updated_at"]),
     )
 

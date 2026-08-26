@@ -40,6 +40,7 @@ interface DeadLetterSummary {
   errorCode: string;
   diagnosticFingerprint: string;
   replayOf: string | null;
+  packetIds: ReadonlyArray<string>;
   updatedAt: string;
 }
 
@@ -1086,6 +1087,7 @@ function RecoveryQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
               .filter(
                 (item) =>
                   !replayed.current.has(item.operationId) &&
+                  item.packetIds.includes(incident.packetId) &&
                   new Date(item.updatedAt).getTime() >= detectedAt,
               )
               .sort(
@@ -1106,7 +1108,7 @@ function RecoveryQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [incident.detectedAt, needsRecovery]);
+  }, [incident.detectedAt, incident.packetId, needsRecovery]);
 
   if (!needsRecovery || (loading && deadLetters.length === 0)) return null;
   const newest = deadLetters[0];

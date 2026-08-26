@@ -422,11 +422,19 @@ describe('Veritas command center', () => {
       errorCode: 'gemini_review_unavailable',
       diagnosticFingerprint: '786295b2ce2b3c9877f7a432',
       replayOf: null,
+      packetIds: [repairing.packetId],
       updatedAt: '2026-08-26T07:43:14Z',
+    };
+    const unrelatedDeadLetter = {
+      ...deadLetter,
+      operationId: 'op-unrelated-packet',
+      errorCode: 'unrelated_failure',
+      packetIds: ['another-packet'],
+      updatedAt: '2026-08-26T07:44:14Z',
     };
     const fetchMock = vi
       .spyOn(window, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify([deadLetter])))
+      .mockResolvedValueOnce(new Response(JSON.stringify([unrelatedDeadLetter, deadLetter])))
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ operation: { status: 'queued' }, reused: false })),
       )
@@ -439,6 +447,7 @@ describe('Veritas command center', () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText('gemini review unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('unrelated failure')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Replay safely' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));

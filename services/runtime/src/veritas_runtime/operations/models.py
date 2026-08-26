@@ -61,6 +61,7 @@ class DeadLetterSummary(CamelModel):
     error_code: str
     diagnostic_fingerprint: str
     replay_of: str | None = None
+    packet_ids: tuple[str, ...] = ()
     updated_at: datetime
 
 

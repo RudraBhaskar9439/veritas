@@ -5,6 +5,10 @@ import pytest
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from veritas_runtime.auth.database import metadata
+from veritas_runtime.changes.database import (
+    drive_change_operation_snapshots,
+    evidence_snapshots,
+)
 from veritas_runtime.operations.database import SqlOperationRepository
 from veritas_runtime.operations.models import OperationRequest, OperationStatus
 from veritas_runtime.operations.service import OperationIdempotencyConflict
@@ -49,9 +53,35 @@ def test_sql_repository_lifecycle_recovery_and_audited_replay() -> None:
             "abc123",
             NOW + timedelta(seconds=11),
         )
+        async with engine.begin() as connection:
+            await connection.execute(
+                evidence_snapshots.insert().values(
+                    snapshot_id="snapshot-1",
+                    subject="subject-1",
+                    packet_id="packet-1",
+                    source_id="source-1",
+                    resource_id="resource-1",
+                    workspace_version="v1",
+                    content_hash="a" * 64,
+                    semantic_hash="b" * 64,
+                    bucket="evidence",
+                    object_name="snapshot-1.json",
+                    object_generation="1",
+                    delta_kind="meaningful",
+                    created_at=NOW,
+                )
+            )
+            await connection.execute(
+                drive_change_operation_snapshots.insert().values(
+                    operation_id=dead.operation_id,
+                    snapshot_id="snapshot-1",
+                    created_at=NOW,
+                )
+            )
         assert dead.status == OperationStatus.DEAD_LETTER
         summaries = await repository.list_dead_letters("subject-1")
         assert len(summaries) == 1 and summaries[0].error_code == "quota_exhausted"
+        assert summaries[0].packet_ids == ("packet-1",)
         replay, replay_reused = await repository.replay(
             "subject-1",
             dead.operation_id,
