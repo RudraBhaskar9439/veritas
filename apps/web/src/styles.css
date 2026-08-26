@@ -584,7 +584,7 @@ dd {
 
 .valueTransition {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 17px;
   align-items: center;
   padding: 27px 0 24px;
@@ -593,9 +593,12 @@ dd {
 
 .valueTransition s,
 .valueTransition strong {
-  font-size: clamp(42px, 4vw, 62px);
+  min-width: 0;
+  font-size: clamp(36px, 3.5vw, 56px);
   font-weight: 500;
   letter-spacing: -0.07em;
+  line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .valueTransition s {
@@ -994,10 +997,9 @@ dd {
 .flowSource strong,
 .flowClaim strong,
 .flowArtifact strong {
-  overflow: hidden;
   font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .flowSource div > span {
@@ -1202,6 +1204,7 @@ dd {
 }
 
 .timeline li div > span,
+.timeline li div > time,
 .timeline li small {
   overflow: hidden;
   color: var(--soft);
@@ -1212,6 +1215,120 @@ dd {
 }
 
 .timeline li strong {
+  font-size: 9px;
+}
+
+.timeline li code {
+  overflow: hidden;
+  color: #839089;
+  font-size: 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.changeProofPanel {
+  margin: 0 0 22px;
+  padding: clamp(22px, 3vw, 32px);
+  border: 1px solid #bdd7c8;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 94% 0%, rgba(69, 210, 139, 0.11), transparent 20rem),
+    #f8faf6;
+  box-shadow: 0 14px 44px rgba(16, 35, 27, 0.05);
+}
+
+.changeProofHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.changeProofHeading h2 {
+  max-width: 720px;
+  margin: 7px 0 0;
+  font-size: clamp(22px, 2.4vw, 34px);
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+}
+
+.liveRefreshBadge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid #c8dfd1;
+  border-radius: 999px;
+  color: var(--green);
+  background: #eaf5ee;
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.liveRefreshBadge i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #43cf89;
+  box-shadow: 0 0 0 4px rgba(67, 207, 137, 0.12);
+}
+
+.proofFacts {
+  display: grid;
+  margin: 23px 0 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.proofFacts > div {
+  min-width: 0;
+  padding: 15px;
+}
+
+.proofFacts > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.proofFacts dt,
+.proofHash > span {
+  margin-bottom: 6px;
+  color: var(--soft);
+  font-family: 'DM Mono', monospace;
+  font-size: 7px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.proofFacts dd {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.proofHash {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 13px 15px;
+  border: 1px solid #d6ded8;
+  border-radius: 9px;
+  background: #eef2ed;
+}
+
+.proofHash code {
+  color: #31463d;
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.changeProofPanel > p {
+  margin: 12px 0 0;
+  color: var(--muted);
   font-size: 9px;
 }
 
@@ -2040,6 +2157,23 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .changeProofHeading {
+    flex-direction: column;
+  }
+
+  .proofFacts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .proofFacts > div:nth-child(3) {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .proofFacts > div:nth-child(4) {
+    border-top: 1px solid var(--line);
+  }
+
   .mobileNav {
     display: grid;
     margin-bottom: 14px;
@@ -2268,6 +2402,38 @@ code {
   font-size: 0.86rem;
 }
 
+.approvalActions {
+  flex: 0 0 auto;
+}
+
+.approvalActions .secondaryButton,
+.approvalActions .replayButton {
+  width: auto;
+  min-width: 108px;
+  justify-content: center;
+  padding: 11px 14px;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.approvalActions .secondaryButton {
+  border-color: #cbd4ce;
+  color: #293a33;
+  background: #ffffff;
+}
+
+.approvalActions .replayButton {
+  border-color: var(--green);
+  color: #ffffff;
+  background: var(--green);
+  box-shadow: 0 8px 20px rgba(22, 118, 81, 0.18);
+}
+
+.approvalActions .replayButton:hover {
+  color: #ffffff;
+  background: #105f41;
+}
+
 .actionError {
   margin: 16px 0 0;
   color: var(--red);
@@ -2282,6 +2448,10 @@ button:disabled {
   .approvalList article {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .approvalActions > button {
+    flex: 1;
   }
 }
 

@@ -156,6 +156,15 @@ def test_live_read_model_is_derived_from_the_integrity_chain() -> None:
         assert len(incident.claims) == 4
         assert len(incident.artifacts) == 5
         assert incident.coverage.targets == 13
+        assert incident.coverage.lineage_paths == len(
+            (await service._repository.get("subject-1", planned.plan.plan_id)).impact.lineage_paths  # type: ignore[attr-defined, union-attr]
+        )
+        assert incident.timeline[0].occurred_at == incident.detected_at
+        assert len(incident.timeline[0].receipt) == 16
+        changed = tuple(item for item in incident.evidence if item.changed)
+        assert changed
+        assert all(len(item.content_hash) == 64 for item in changed)
+        assert all(item.snapshot_id for item in changed)
         assert incident.certificate is None
         assert incident.agent_review is not None
         assert incident.agent_review.model == "gemini-2.5-flash"

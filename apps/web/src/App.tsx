@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import generationRequest from '../../../fixtures/demo/q3-generation-request.json';
 import {
   type ClaimChange,
@@ -61,6 +61,35 @@ function useIncident(): Incident {
   const incident = useContext(IncidentContext);
   if (!incident) throw new Error('Incident context is unavailable');
   return incident;
+}
+
+function changedEvidence(incident: Incident) {
+  return incident.evidence.find((source) => source.changed) ?? incident.evidence[0];
+}
+
+function compactSourceValue(statement: string | undefined): string {
+  if (!statement) return '—';
+  const date = statement.match(/\b\d{4}-\d{2}-\d{2}\b/);
+  if (date) return date[0];
+  const percent = statement.match(/-?\d+(?:\.\d+)?\s*%/);
+  if (percent) return percent[0].replace(/\s+/g, '');
+  const currency = statement.match(/[$€£₹]\s*\d+(?:[.,]\d+)*(?:\s*[KMB])?/i);
+  if (currency) return currency[0].replace(/\s+/g, '');
+  const number = statement.match(/-?\d+(?:\.\d+)?(?:\s*[KMB])?/i);
+  return number?.[0].replace(/\s+/g, '') ?? statement;
+}
+
+function primaryValueChange(incident: Incident): ClaimChange | undefined {
+  return (
+    incident.claims.find(
+      (claim) => compactSourceValue(claim.before) !== compactSourceValue(claim.after),
+    ) ?? incident.claims[0]
+  );
+}
+
+function fullUtc(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString().replace('.000Z', 'Z');
 }
 
 export function App({ initialIncident }: { initialIncident?: Incident }) {
@@ -213,6 +242,46 @@ function CommandCenter({
     return () => window.clearInterval(timer);
   }, [isReplaying, incident.timeline.length]);
 
+  useEffect(() => {
+    if (!isReplaying) setReplayStage(incident.timeline.length);
+  }, [incident.timeline.length, isReplaying]);
+
+  useEffect(() => {
+    if (incident.source !== 'live') return;
+    let disposed = false;
+    let refreshing = false;
+    const refresh = async () => {
+      if (disposed || refreshing) return;
+      refreshing = true;
+      try {
+        const response = await fetch('/api/v1/command-center/incidents/latest', {
+          credentials: 'include',
+          headers: { Accept: 'application/json', 'X-Veritas-Refresh': 'poll' },
+        });
+        if (!response.ok) return;
+        const result = (await response.json()) as Incident | null;
+        if (!disposed && result) onIncidentChange(result);
+      } catch {
+        // Keep the last authenticated incident visible through transient refresh failures.
+      } finally {
+        refreshing = false;
+      }
+    };
+    const timer = window.setInterval(() => void refresh(), 3000);
+    const onFocus = () => void refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [incident.source, onIncidentChange]);
+
   function chooseView(next: ViewId) {
     setView(next);
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -322,8 +391,8 @@ function CommandCenter({
           </nav>
           <div className="sidebarFooter">
             <span className="sidebarLabel">Integrity window</span>
-            <strong>Aug 21 · 10:42 UTC</strong>
-            <span>6 immutable evidence versions</span>
+            <strong>{fullUtc(incident.detectedAt)}</strong>
+            <span>{incident.coverage.sources} immutable evidence versions</span>
           </div>
         </aside>
 
@@ -545,7 +614,10 @@ function Overview({
   verificationRetry,
 }: OverviewProps) {
   const incident = useIncident();
-  const source = incident.evidence[0];
+  const source = changedEvidence(incident);
+  const valueChange = primaryValueChange(incident);
+  const beforeValue = compactSourceValue(valueChange?.before);
+  const afterValue = compactSourceValue(valueChange?.after);
   return (
     <>
       <section className="judgeStage" aria-labelledby="incident-title">
@@ -587,9 +659,9 @@ function Overview({
             <span className="srOnly">
               The registered source value changed; exact claim diffs follow
             </span>
-            <s>{incident.claims[0]?.before ?? 'previous value'}</s>
+            <s>{beforeValue}</s>
             <span aria-hidden="true">→</span>
-            <strong>{incident.claims[0]?.after ?? 'recomputed value'}</strong>
+            <strong>{afterValue}</strong>
           </div>
           <div className="sourceClock">
             <span>
@@ -647,6 +719,8 @@ function Overview({
       </section>
 
       <Timeline activeStage={replayStage} />
+
+      <ChangeProofPanel />
 
       <ApprovalQueue onIncidentChange={onIncidentChange} />
 
@@ -785,6 +859,7 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
   const pending = incident.approvals.filter((approval) => approval.status === 'pending');
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const requestIds = useRef(new Map<string, string>());
   if (pending.length === 0) return null;
 
   async function decide(approval: IncidentApproval, decision: 'approve' | 'reject') {
@@ -792,7 +867,9 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
     setWorking(approval.approvalId);
     setError(null);
     try {
-      const requestId = crypto.randomUUID();
+      const requestKey = `${approval.approvalId}:${decision}`;
+      const requestId = requestIds.current.get(requestKey) ?? crypto.randomUUID();
+      requestIds.current.set(requestKey, requestId);
       if (!approval.runId) throw new Error('approval_run_missing');
       const response = await fetch(
         `/api/v1/command-center/incidents/${encodeURIComponent(approval.planId)}/runs/${encodeURIComponent(approval.runId)}/approvals/${encodeURIComponent(approval.approvalId)}`,
@@ -819,8 +896,23 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
       const result = (await refreshed.json()) as Incident | null;
       if (!result) throw new Error('incident_missing');
       onIncidentChange(result);
+      requestIds.current.delete(requestKey);
     } catch {
-      setError('The decision could not be confirmed. It is safe to retry with a fresh request.');
+      try {
+        const refreshed = await fetch('/api/v1/command-center/incidents/latest', {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        if (refreshed.ok) {
+          const latest = (await refreshed.json()) as Incident | null;
+          if (latest) onIncidentChange(latest);
+        }
+      } catch {
+        // Preserve the idempotency key so the same decision can be retried safely.
+      }
+      setError(
+        'Continuation paused before confirmation. Retry the same decision safely; its request receipt is preserved.',
+      );
     } finally {
       setWorking(null);
     }
@@ -874,6 +966,7 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
 
 function ConsequenceMap({ replayStage }: { replayStage: number }) {
   const incident = useIncident();
+  const source = changedEvidence(incident);
   return (
     <section className="panel consequenceMap" aria-labelledby="consequence-title">
       <div className="consequenceHeader">
@@ -896,10 +989,9 @@ function ConsequenceMap({ replayStage }: { replayStage: number }) {
             <span className="flowAppIcon">S</span>
             <div>
               <small>
-                {incident.evidence[0]?.kind ?? 'Evidence'} ·{' '}
-                {incident.evidence[0]?.anchor ?? 'registered anchor'}
+                {source?.kind ?? 'Evidence'} · {source?.anchor ?? 'registered anchor'}
               </small>
-              <strong>{incident.evidence[0]?.label ?? 'Changed evidence'}</strong>
+              <strong>{source?.label ?? 'Changed evidence'}</strong>
               <span>semantic change accepted</span>
             </div>
           </article>
@@ -1015,14 +1107,76 @@ function Timeline({ activeStage }: { activeStage: number }) {
                 {completed ? '✓' : index + 1}
               </span>
               <div>
-                <span>{event.time}</span>
+                <time dateTime={event.occurredAt} title={fullUtc(event.occurredAt)}>
+                  {event.time} UTC
+                </time>
                 <strong>{event.label}</strong>
                 <small>{event.detail}</small>
+                <code title={`Proof receipt ${event.receipt}`}>#{event.receipt}</code>
               </div>
             </li>
           );
         })}
       </ol>
+    </section>
+  );
+}
+
+function ChangeProofPanel() {
+  const incident = useIncident();
+  const source = changedEvidence(incident);
+  const detected = incident.timeline.find((event) => event.label === 'Detected');
+  if (!source) return null;
+  return (
+    <section className="changeProofPanel" aria-labelledby="change-proof-title">
+      <div className="changeProofHeading">
+        <div>
+          <span className="sectionKicker">Cryptographic change proof</span>
+          <h2 id="change-proof-title">
+            When it changed, what changed, and the evidence that proves it.
+          </h2>
+        </div>
+        <span className="liveRefreshBadge">
+          <i aria-hidden="true" />
+          {incident.source === 'live' ? 'Live · refreshes every 3s' : 'Evidence-bound demo'}
+        </span>
+      </div>
+      <dl className="proofFacts">
+        <div>
+          <dt>Change accepted at</dt>
+          <dd>
+            <time dateTime={source.capturedAt}>{fullUtc(source.capturedAt)}</time>
+          </dd>
+        </div>
+        <div>
+          <dt>Registered source</dt>
+          <dd>
+            {source.kind} · <code>{source.anchor}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Workspace version</dt>
+          <dd>
+            <code>{source.version}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Immutable snapshot</dt>
+          <dd>
+            <code>{source.snapshotId}</code>
+          </dd>
+        </div>
+      </dl>
+      <div className="proofHash">
+        <span>SHA-256 content proof</span>
+        <code>{source.contentHash}</code>
+      </div>
+      {detected && (
+        <p>
+          Detection receipt <code>#{detected.receipt}</code> binds this snapshot and content hash to
+          the append-only incident trace.
+        </p>
+      )}
     </section>
   );
 }
@@ -1108,6 +1262,10 @@ function CertificateCard({
 
 function LineageView() {
   const incident = useIncident();
+  const source = changedEvidence(incident);
+  const valueChange = primaryValueChange(incident);
+  const beforeValue = compactSourceValue(valueChange?.before);
+  const afterValue = compactSourceValue(valueChange?.after);
   return (
     <>
       <ViewHeader
@@ -1120,7 +1278,9 @@ function LineageView() {
         <div className="graphHeader">
           <div>
             <span className="sectionKicker">Impact graph</span>
-            <h2 id="graph-title">9 registered paths · 0 inferred paths</h2>
+            <h2 id="graph-title">
+              {incident.coverage.lineagePaths} registered paths · 0 inferred paths
+            </h2>
           </div>
           <fieldset className="graphLegend">
             <legend className="srOnly">Graph legend</legend>
@@ -1141,10 +1301,12 @@ function LineageView() {
             <article className="graphNode sourceNode">
               <span className="nodeIcon">S</span>
               <div>
-                <small>Google Sheets · Metrics!B17</small>
-                <strong>Customer churn</strong>
+                <small>
+                  {source?.kind ?? 'Evidence'} · {source?.anchor ?? 'registered anchor'}
+                </small>
+                <strong>{source?.label ?? 'Changed evidence'}</strong>
                 <span className="valueChange">
-                  <s>4%</s> → 9%
+                  <s>{beforeValue}</s> → {afterValue}
                 </span>
               </div>
             </article>
@@ -1196,13 +1358,13 @@ function LineageView() {
         </div>
         <div>
           <span>Affected claims</span>
-          <strong>4</strong>
-          <small>of 8 registered</small>
+          <strong>{incident.coverage.affectedClaims}</strong>
+          <small>of {incident.coverage.claims} registered</small>
         </div>
         <div>
           <span>Exact paths</span>
-          <strong>9</strong>
-          <small>to 5 artifacts</small>
+          <strong>{incident.coverage.lineagePaths}</strong>
+          <small>to {incident.artifacts.length} artifacts</small>
         </div>
         <div>
           <span>Candidate edges used</span>
@@ -1278,6 +1440,7 @@ function VerificationView({
                 <th scope="col">Anchor</th>
                 <th scope="col">Workspace version</th>
                 <th scope="col">Snapshot</th>
+                <th scope="col">Captured</th>
                 <th scope="col">Status</th>
               </tr>
             </thead>
@@ -1298,6 +1461,9 @@ function VerificationView({
                   </td>
                   <td>
                     <code>{source.snapshot}</code>
+                  </td>
+                  <td>
+                    <time dateTime={source.capturedAt}>{fullUtc(source.capturedAt)}</time>
                   </td>
                   <td>
                     <span className="successCell">

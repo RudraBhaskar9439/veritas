@@ -46,7 +46,13 @@ export interface Incident {
   updatedAt: string;
   claims: ReadonlyArray<ClaimChange>;
   artifacts: ReadonlyArray<ArtifactChange>;
-  timeline: ReadonlyArray<{ time: string; label: string; detail: string }>;
+  timeline: ReadonlyArray<{
+    time: string;
+    occurredAt: string;
+    label: string;
+    detail: string;
+    receipt: string;
+  }>;
   coverage: {
     claims: number;
     affectedClaims: number;
@@ -55,6 +61,7 @@ export interface Incident {
     protectedArtifacts: number;
     verifiedProtectedArtifacts: number;
     sources: number;
+    lineagePaths: number;
   };
   certificate: { shortId: string; statement: string; issuedAt: string } | null;
   checks: ReadonlyArray<{ label: string; detail: string; receipt: string; passed: boolean }>;
@@ -65,6 +72,10 @@ export interface Incident {
     anchor: string;
     version: string;
     snapshot: string;
+    snapshotId: string;
+    contentHash: string;
+    capturedAt: string;
+    changed: boolean;
     current: boolean;
   }>;
   approvals: ReadonlyArray<IncidentApproval>;
@@ -191,12 +202,48 @@ export const demoIncident = {
     },
   ],
   timeline: [
-    { time: '10:42:07', label: 'Detected', detail: 'Sheet delta accepted' },
-    { time: '10:42:08', label: 'Traced', detail: '9 lineage paths' },
-    { time: '10:42:10', label: 'Approved', detail: '2 human decisions' },
-    { time: '10:42:13', label: 'Repaired', detail: '9 terminal steps' },
-    { time: '10:42:15', label: 'Verified', detail: '36 checks passed' },
-    { time: '10:42:16', label: 'Certified', detail: 'Scoped record issued' },
+    {
+      time: '10:42:07',
+      occurredAt: '2026-08-21T10:42:07Z',
+      label: 'Detected',
+      detail: 'Sheet delta accepted',
+      receipt: '91d80ce09d5241b7',
+    },
+    {
+      time: '10:42:08',
+      occurredAt: '2026-08-21T10:42:08Z',
+      label: 'Traced',
+      detail: '9 lineage paths',
+      receipt: '424deea2d6db9f1c',
+    },
+    {
+      time: '10:42:10',
+      occurredAt: '2026-08-21T10:42:10Z',
+      label: 'Approved',
+      detail: '2 human decisions',
+      receipt: '82e263c194f5fd06',
+    },
+    {
+      time: '10:42:13',
+      occurredAt: '2026-08-21T10:42:13Z',
+      label: 'Repaired',
+      detail: '9 terminal steps',
+      receipt: '8371c586ed969c2a',
+    },
+    {
+      time: '10:42:15',
+      occurredAt: '2026-08-21T10:42:15Z',
+      label: 'Verified',
+      detail: '36 checks passed',
+      receipt: 'd832adee23ef22a9',
+    },
+    {
+      time: '10:42:16',
+      occurredAt: '2026-08-21T10:42:16Z',
+      label: 'Certified',
+      detail: 'Scoped record issued',
+      receipt: '2c3329983119174a',
+    },
   ],
   coverage: {
     claims: 8,
@@ -206,6 +253,7 @@ export const demoIncident = {
     protectedArtifacts: 5,
     verifiedProtectedArtifacts: 5,
     sources: 6,
+    lineagePaths: 9,
   },
   certificate: {
     shortId: 'CERT-7A92',
@@ -265,6 +313,10 @@ export const demoIncident = {
       anchor: 'Metrics!B17',
       version: 'sheet-v2',
       snapshot: 'snap·3a91',
+      snapshotId: 'snapshot-src-churn-v2-3a91',
+      contentHash: '9f9ccf840b318ea42e3e1f585456b0f7d4cf3477e34369316bfd011672049d4c',
+      capturedAt: '2026-08-21T10:42:07Z',
+      changed: true,
       current: true,
     },
     {
@@ -274,6 +326,10 @@ export const demoIncident = {
       anchor: 'Metrics!B16',
       version: 'sheet-v1',
       snapshot: 'snap·c882',
+      snapshotId: 'snapshot-src-previous-churn-v1-c882',
+      contentHash: '3128b83b80da6880bdaed72c3506f443888aeb55dd1a52d603eba292018a5049',
+      capturedAt: '2026-08-21T10:42:07Z',
+      changed: false,
       current: true,
     },
     {
@@ -283,6 +339,10 @@ export const demoIncident = {
       anchor: 'Metrics!B5',
       version: 'sheet-v1',
       snapshot: 'snap·f230',
+      snapshotId: 'snapshot-src-revenue-v1-f230',
+      contentHash: '0e3a1940b4aa9f54bba6bb6f503e955029062f44dc1e28e4826e92c0594d9e44',
+      capturedAt: '2026-08-21T10:42:07Z',
+      changed: false,
       current: true,
     },
     {
@@ -292,6 +352,10 @@ export const demoIncident = {
       anchor: 'Metrics!B8',
       version: 'sheet-v1',
       snapshot: 'snap·b122',
+      snapshotId: 'snapshot-src-pipeline-v1-b122',
+      contentHash: '0ab5a32cae09d3a0b325f62ddf45ded0abe78cacc85895c7bd96a0726a573ea4',
+      capturedAt: '2026-08-21T10:42:07Z',
+      changed: false,
       current: true,
     },
     {
@@ -301,6 +365,10 @@ export const demoIncident = {
       anchor: 'Metrics!B20',
       version: 'sheet-v1',
       snapshot: 'snap·4cc9',
+      snapshotId: 'snapshot-src-nps-v1-4cc9',
+      contentHash: '8d91f9e05f17015d669bb4a7a30524b6f27fc5da2dc368287c62b8ab2d6d5705',
+      capturedAt: '2026-08-21T10:42:07Z',
+      changed: false,
       current: true,
     },
     {
@@ -310,6 +378,10 @@ export const demoIncident = {
       anchor: 'launch-date',
       version: 'doc-v1',
       snapshot: 'snap·71dd',
+      snapshotId: 'snapshot-src-launch-v1-71dd',
+      contentHash: 'e6c2a09a8634de5668564279aab64550b3a17e4259a8abb58d29a4231ae3a190',
+      capturedAt: '2026-08-21T10:42:07Z',
+      changed: false,
       current: true,
     },
   ],

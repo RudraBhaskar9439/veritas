@@ -160,8 +160,13 @@ def _incident(record: CommandCenterRecord) -> CommandCenterIncident:
         if record.agent_review is not None and record.agent_review.disposition.value == "escalate"
         else _status(run, verification)
     )
+    changed_source_ids = set(record.impact.changed_source_ids)
+    changed_snapshots = tuple(
+        snapshot for snapshot in record.snapshots if snapshot.source_id in changed_source_ids
+    )
     detected_at = min(
-        (snapshot.created_at for snapshot in record.snapshots), default=record.impact.created_at
+        (snapshot.created_at for snapshot in changed_snapshots),
+        default=record.impact.created_at,
     )
     updated_at = (
         record.certificate.issued_at
@@ -194,6 +199,7 @@ def _incident(record: CommandCenterRecord) -> CommandCenterIncident:
             ),
             verified_protected_artifacts=(coverage.verified_protected_artifacts if coverage else 0),
             sources=len(manifest.sources),
+            lineage_paths=len(record.impact.lineage_paths),
         ),
         certificate=(
             CommandCenterCertificate(
@@ -221,6 +227,10 @@ def _incident(record: CommandCenterRecord) -> CommandCenterIncident:
                 anchor=source.anchor,
                 version=snapshot.workspace_version,
                 snapshot=_short(snapshot.snapshot_id),
+                snapshot_id=snapshot.snapshot_id,
+                content_hash=snapshot.content_hash,
+                captured_at=snapshot.created_at,
+                changed=source.source_id in changed_source_ids,
                 current=verification is not None,
             )
             for snapshot in record.snapshots
@@ -272,17 +282,28 @@ def _timeline(
 ) -> tuple[CommandCenterTimelineEvent, ...]:
     events = [
         CommandCenterTimelineEvent(
-            time=_clock(detected_at), label="Detected", detail="Meaningful evidence delta accepted"
+            time=_clock(detected_at),
+            occurred_at=detected_at,
+            label="Detected",
+            detail="Meaningful evidence delta accepted",
+            receipt=_timeline_receipt(
+                "detected",
+                *(f"{item.snapshot_id}:{item.content_hash}" for item in record.snapshots),
+            ),
         ),
         CommandCenterTimelineEvent(
             time=_clock(record.impact.created_at),
+            occurred_at=record.impact.created_at,
             label="Traced",
             detail=f"{len(record.impact.lineage_paths)} registered lineage paths",
+            receipt=_timeline_receipt("traced", record.impact.report_id),
         ),
         CommandCenterTimelineEvent(
             time=_clock(record.plan.created_at),
+            occurred_at=record.plan.created_at,
             label="Planned",
             detail=f"{len(record.plan.steps)} typed repair steps",
+            receipt=_timeline_receipt("planned", record.plan.plan_id),
         ),
     ]
     decided = tuple(item.decided_at for item in record.approvals if item.decided_at is not None)
@@ -290,32 +311,57 @@ def _timeline(
         events.append(
             CommandCenterTimelineEvent(
                 time=_clock(max(decided)),
+                occurred_at=max(decided),
                 label="Decided",
                 detail=f"{len(decided)} human approval decisions",
+                receipt=_timeline_receipt(
+                    "decided",
+                    *(
+                        f"{item.approval_id}:{item.status.value}:{item.decided_at.isoformat()}"
+                        for item in record.approvals
+                        if item.decided_at is not None
+                    ),
+                ),
             )
         )
     if record.run is not None:
         events.append(
             CommandCenterTimelineEvent(
                 time=_clock(record.run.updated_at),
+                occurred_at=record.run.updated_at,
                 label="Repaired",
                 detail=f"Run {record.run.status.value.replace('_', ' ')}",
+                receipt=_timeline_receipt(
+                    "repaired", record.run.run_id, record.run.status.value
+                ),
             )
         )
     if record.verification is not None:
         events.append(
             CommandCenterTimelineEvent(
                 time=_clock(record.verification.verified_at),
+                occurred_at=record.verification.verified_at,
                 label="Verified",
                 detail=f"{len(record.verification.checks)} independent checks",
+                receipt=_timeline_receipt(
+                    "verified",
+                    record.verification.report_id,
+                    *(item.check_id for item in record.verification.checks),
+                ),
             )
         )
     if record.certificate is not None:
         events.append(
             CommandCenterTimelineEvent(
                 time=_clock(record.certificate.issued_at),
+                occurred_at=record.certificate.issued_at,
                 label="Certified",
                 detail="Scoped integrity record issued",
+                receipt=_timeline_receipt(
+                    "certified",
+                    record.certificate.certificate_id,
+                    record.certificate.report_checksum,
+                ),
             )
         )
     return tuple(events)
@@ -434,3 +480,8 @@ def _short(value: str) -> str:
 
 def _receipt(check_id: str, detail: str) -> str:
     return hashlib.sha256(f"{check_id}:{detail}".encode()).hexdigest()[:10]
+
+
+def _timeline_receipt(stage: str, *parts: str) -> str:
+    material = ":".join((stage, *parts))
+    return hashlib.sha256(material.encode()).hexdigest()[:16]

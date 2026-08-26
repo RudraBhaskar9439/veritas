@@ -47,8 +47,10 @@ class CommandCenterArtifact(CamelModel):
 
 class CommandCenterTimelineEvent(CamelModel):
     time: str
+    occurred_at: datetime
     label: str
     detail: str
+    receipt: str
 
 
 class CommandCenterCoverage(CamelModel):
@@ -59,6 +61,7 @@ class CommandCenterCoverage(CamelModel):
     protected_artifacts: int = Field(ge=0)
     verified_protected_artifacts: int = Field(ge=0)
     sources: int = Field(ge=0)
+    lineage_paths: int = Field(ge=0)
 
 
 class CommandCenterCertificate(CamelModel):
@@ -81,6 +84,10 @@ class CommandCenterEvidence(CamelModel):
     anchor: str
     version: str
     snapshot: str
+    snapshot_id: str
+    content_hash: str
+    captured_at: datetime
+    changed: bool
     current: bool
 
 

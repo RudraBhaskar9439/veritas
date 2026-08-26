@@ -33,6 +33,27 @@ def test_pre_mutation_baselines_are_complete_and_immutable_on_replay() -> None:
     asyncio.run(scenario())
 
 
+def test_pre_mutation_baseline_accepts_an_authorized_statement_already_repaired() -> None:
+    async def scenario() -> None:
+        context = await canonical_verification_context()
+        repository = MemoryVerificationRepository(context)
+        repository.baselines = ()
+        gateway = MemoryIndependentVerifier(context)
+        task_step = next(
+            step for step in context.plan.steps if step.artifact_kind.value == "google_task"
+        )
+        gateway.registered[(task_step.artifact_id, task_step.anchor)] = (
+            task_step.proposed_statement
+        )
+        service = ProtectedRegionBaselineService(repository, gateway)
+
+        await service.capture("subject-1", context.run, context.plan, "access-token", NOW)
+
+        assert len(repository.baselines) == 5
+
+    asyncio.run(scenario())
+
+
 def test_verification_route_fails_closed_when_dependencies_are_absent() -> None:
     app = FastAPI()
     app.include_router(create_verification_router(None, None))

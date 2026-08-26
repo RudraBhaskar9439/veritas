@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { demoIncident, type Incident } from './incident';
@@ -9,7 +9,10 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe('Veritas command center', () => {
   it('leads with the complete verified incident outcome', () => {
@@ -71,6 +74,19 @@ describe('Veritas command center', () => {
     expect(screen.getByText('7 checks passed')).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Evidence versions' })).toBeInTheDocument();
     expect(screen.getByText('Metrics!B17')).toBeInTheDocument();
+  });
+
+  it('shows exact change time and cryptographic proof receipts', () => {
+    render(<App initialIncident={demoIncident} />);
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'When it changed, what changed, and the evidence that proves it.',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('2026-08-21T10:42:07Z', { selector: 'time' })).toBeInTheDocument();
+    expect(screen.getByText(demoIncident.evidence[0].contentHash)).toBeInTheDocument();
+    expect(screen.getAllByText(`#${demoIncident.timeline[0].receipt}`)).toHaveLength(2);
   });
 
   it('can replay the incident through an announced live region', () => {
@@ -238,6 +254,69 @@ describe('Veritas command center', () => {
       }),
     ).toBeInTheDocument();
     expect(screen.queryByText('Decision-changing consequences need your approval')).toBeNull();
+  });
+
+  it('reuses the same approval receipt when a continuation is retried', async () => {
+    const pending: Incident = {
+      ...demoIncident,
+      source: 'live',
+      status: 'awaiting_approval',
+      certificate: null,
+      approvals: [
+        {
+          approvalId: 'approval-retry',
+          planId: demoIncident.id,
+          runId: demoIncident.runId,
+          claimId: 'retention-target',
+          claimLabel: 'Retention target',
+          status: 'pending',
+          reason: null,
+        },
+      ],
+    };
+    const completed: Incident = { ...demoIncident, source: 'live' };
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(pending)))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ run: { status: 'completed' } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify(completed)));
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000099');
+    render(<App initialIncident={pending} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Approve & continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('request receipt is preserved');
+    fireEvent.click(screen.getByRole('button', { name: 'Approve & continue' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const retryBody = JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
+    expect(firstBody.requestId).toBe('00000000-0000-4000-8000-000000000099');
+    expect(retryBody.requestId).toBe(firstBody.requestId);
+  });
+
+  it('refreshes every live graph from the latest incident without a page reload', async () => {
+    vi.useFakeTimers();
+    const initial: Incident = {
+      ...demoIncident,
+      source: 'live',
+      headline: 'Old live incident',
+    };
+    const refreshed: Incident = {
+      ...initial,
+      headline: 'New source change arrived',
+      coverage: { ...initial.coverage, lineagePaths: 12 },
+    };
+    vi.spyOn(window, 'fetch').mockResolvedValue(new Response(JSON.stringify(refreshed)));
+    render(<App initialIncident={initial} />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+
+    expect(screen.getByRole('heading', { name: 'New source change arrived' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Blast radius' }));
+    expect(screen.getByText('12 registered paths · 0 inferred paths')).toBeInTheDocument();
   });
 
   it('retries independent verification without changing the completed repair run', async () => {

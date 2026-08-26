@@ -14,6 +14,7 @@ from veritas_runtime.execution.models import (
 from veritas_runtime.execution.service import WorkspaceSessionProvider
 from veritas_runtime.packets.generator import manifest_checksum
 from veritas_runtime.packets.models import (
+    ArtifactKind,
     ArtifactMutability,
     ArtifactRecord,
     ClaimManifest,
@@ -165,7 +166,11 @@ class ProtectedRegionBaselineService:
                 mutability=_artifact_mutability(first),
             )
             anchors = tuple(step.anchor for step in steps)
-            statements = tuple(step.before_statement for step in steps)
+            statements = await self._registered_statements(
+                access_token,
+                artifact,
+                tuple(steps),
+            )
             state = await self._gateway.protected_state(
                 access_token,
                 artifact,
@@ -190,6 +195,41 @@ class ProtectedRegionBaselineService:
         stored = await self._repository.persist_baselines(subject, tuple(baselines))
         if stored != tuple(baselines):
             raise VerificationIntegrityError("Protected-region baselines changed while persisting")
+
+    async def _registered_statements(
+        self,
+        access_token: str,
+        artifact: ArtifactRecord,
+        steps: tuple[RepairStep, ...],
+    ) -> tuple[str, ...]:
+        """Resolve the exact live statement for text-addressed protected projections.
+
+        Gmail and Tasks protect human-authored text by replacing each registered
+        statement with a stable marker before hashing. A continuation may be
+        retried after a prior attempt already applied one registered mutation, so
+        the live value may legitimately be either the immutable before statement
+        or the proposed statement. Anything else fails closed.
+        """
+        if artifact.kind not in {ArtifactKind.GMAIL, ArtifactKind.GOOGLE_TASK}:
+            return tuple(step.before_statement for step in steps)
+
+        resolved: list[str] = []
+        for step in steps:
+            observed = await self._gateway.read_registered(
+                access_token,
+                artifact,
+                step.anchor,
+                step.proposed_statement,
+                step.before_statement,
+            )
+            allowed = {step.before_statement, step.proposed_statement}
+            if observed.statement not in allowed:
+                raise VerificationIntegrityError(
+                    f"Registered statement at {artifact.artifact_id}:{step.anchor} "
+                    "does not match either authorized repair state"
+                )
+            resolved.append(observed.statement)
+        return tuple(resolved)
 
 
 class VerificationService:
