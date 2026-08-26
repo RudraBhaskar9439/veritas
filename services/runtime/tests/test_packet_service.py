@@ -151,9 +151,7 @@ def test_subject_packet_service_registers_watch_before_capturing_baseline(
                 "https://veritas.test/drive",
                 Baseline(),  # type: ignore[arg-type]
             )
-            result = await service.generate_for_subject(
-                "subject-1", request_id, blueprint, sources
-            )
+            result = await service.generate_for_subject("subject-1", request_id, blueprint, sources)
             assert {source.version for source in result.manifest.sources} == {
                 f"settled-{source.source_id}" for source in sources
             }

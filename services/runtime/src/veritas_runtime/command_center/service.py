@@ -331,9 +331,7 @@ def _timeline(
                 occurred_at=record.run.updated_at,
                 label="Repaired",
                 detail=f"Run {record.run.status.value.replace('_', ' ')}",
-                receipt=_timeline_receipt(
-                    "repaired", record.run.run_id, record.run.status.value
-                ),
+                receipt=_timeline_receipt("repaired", record.run.run_id, record.run.status.value),
             )
         )
     if record.verification is not None:

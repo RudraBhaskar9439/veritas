@@ -53,9 +53,7 @@ class WorkspacePacketGenerationService:
         if not session.email:
             raise PermissionError("Connected Google account has no verified email")
         if self._baseline_capture is not None and self._evidence_registrar is None:
-            raise PacketGenerationError(
-                "Evidence registration is required before baseline capture"
-            )
+            raise PacketGenerationError("Evidence registration is required before baseline capture")
         writer = GoogleWorkspacePacketWriter(session.access_token, session.email, self._http)
         try:
             registrations: tuple[EvidenceSourceRegistration, ...] = ()

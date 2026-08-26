@@ -60,6 +60,5 @@ def _prompt(payload: dict[str, object]) -> str:
         "affected claim can be semantically unchanged when its deterministic transformation "
         "reproduces the registered statement; those claims are intentionally absent from repair "
         "steps and are not a contradiction. Return only the requested structured response."
-        "\nINPUT:\n"
-        + json.dumps(payload, separators=(",", ":"), sort_keys=True)
+        "\nINPUT:\n" + json.dumps(payload, separators=(",", ":"), sort_keys=True)
     )

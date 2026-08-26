@@ -123,9 +123,7 @@ def test_gemini_review_distinguishes_lineage_impact_from_required_repairs() -> N
     async def scenario() -> None:
         impact, plan = await _plan()
         unchanged_claim_id = plan.steps[0].claim_id
-        remaining_steps = tuple(
-            step for step in plan.steps if step.claim_id != unchanged_claim_id
-        )
+        remaining_steps = tuple(step for step in plan.steps if step.claim_id != unchanged_claim_id)
         partial_plan = plan.model_copy(
             update={
                 "steps": remaining_steps,
@@ -139,9 +137,7 @@ def test_gemini_review_distinguishes_lineage_impact_from_required_repairs() -> N
             GeminiReviewPayload(
                 disposition=AgentDisposition.PROCEED,
                 rationale="Unchanged lineage claims explain the deliberately smaller repair scope.",
-                recognized_claim_ids=tuple(
-                    claim.claim_id for claim in impact.affected_claims
-                ),
+                recognized_claim_ids=tuple(claim.claim_id for claim in impact.affected_claims),
                 risk_flags=(),
             )
         )
@@ -160,14 +156,11 @@ def test_gemini_review_distinguishes_lineage_impact_from_required_repairs() -> N
         affected = payload["affectedClaims"]
         assert isinstance(affected, list)
         repair_flags = {
-            item["claimId"]: item["requiresRepair"]
-            for item in affected
-            if isinstance(item, dict)
+            item["claimId"]: item["requiresRepair"] for item in affected if isinstance(item, dict)
         }
         assert repair_flags[unchanged_claim_id] is False
         assert all(
-            repair_flags[claim_id]
-            for claim_id in {step.claim_id for step in remaining_steps}
+            repair_flags[claim_id] for claim_id in {step.claim_id for step in remaining_steps}
         )
 
     asyncio.run(scenario())

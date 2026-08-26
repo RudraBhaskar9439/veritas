@@ -774,8 +774,7 @@ def _freshness_checks(
             )
         )
         content_unchanged = bool(
-            snapshot is not None
-            and (content_hash is None or snapshot.content_hash == content_hash)
+            snapshot is not None and (content_hash is None or snapshot.content_hash == content_hash)
         )
         ok = bool(
             source is not None

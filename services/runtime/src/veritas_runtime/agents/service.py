@@ -125,9 +125,7 @@ def _review_input(
         "registeredPathCount": len(impact.lineage_paths),
         "lineageAffectedArtifactCount": len(impact.affected_artifacts),
         "repairRequiredClaimIds": sorted(repair_claim_ids),
-        "semanticallyUnchangedImpactedClaimIds": sorted(
-            plan.unchanged_impacted_claim_ids
-        ),
+        "semanticallyUnchangedImpactedClaimIds": sorted(plan.unchanged_impacted_claim_ids),
         "repairArtifactCount": len(repair_artifact_ids),
         "repairTargetCount": len(plan.steps),
         "policySummary": plan.policy_summary.model_dump(mode="json", by_alias=True),

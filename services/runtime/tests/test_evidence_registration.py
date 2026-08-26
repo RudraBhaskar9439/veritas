@@ -62,9 +62,7 @@ def test_manifest_sources_become_subject_and_packet_scoped_registrations() -> No
             NOW,
         )
         assert len(snapshot_registrations) == 6
-        assert {item.packet_id for item in snapshot_registrations} == {
-            "packet-before-artifacts"
-        }
+        assert {item.packet_id for item in snapshot_registrations} == {"packet-before-artifacts"}
 
     asyncio.run(scenario())
 

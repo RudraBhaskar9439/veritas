@@ -157,22 +157,72 @@ describe('Veritas command center', () => {
             reused: false,
           }),
         ),
-      );
+      )
+      .mockResolvedValue(new Response('null'));
     render(<App />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Generate real Workspace packet' }));
     expect(
       await screen.findByRole('heading', { name: 'Decision packet created and monitored.' }),
     ).toBeInTheDocument();
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    expect(fetchMock.mock.calls.slice(0, 3).map(([url]) => url)).toEqual([
       '/api/v1/command-center/incidents/latest',
       '/api/v1/evidence/bootstrap',
       '/api/v1/packets',
     ]);
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/v1/command-center/incidents/latest',
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'X-Veritas-Refresh': 'packet-watch' }),
+        }),
+      ),
+    );
     expect(screen.getByRole('link', { name: /src-churn/ })).toHaveAttribute(
       'href',
       'https://docs.google.com/spreadsheets/d/real-sheet/edit',
     );
+  });
+
+  it('opens a detected incident automatically after live packet generation', async () => {
+    const liveIncident: Incident = { ...demoIncident, source: 'live' };
+    const sources = [
+      {
+        sourceId: 'src-churn',
+        kind: 'google_sheet',
+        resourceId: 'real-sheet',
+        anchor: 'Metrics!B17',
+        version: '7',
+        value: 0.04,
+      },
+    ];
+    vi.spyOn(window, 'fetch')
+      .mockResolvedValueOnce(new Response('null'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sources })))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            manifest: {
+              packetId: 'packet-live',
+              sources,
+              artifacts: [],
+            },
+            checksum: 'c'.repeat(64),
+            reused: false,
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify(liveIncident)));
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate real Workspace packet' }));
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'One number changed. Nine consequences repaired.',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('13/13')).toBeInTheDocument();
   });
 
   it('can create a fresh isolated evidence boundary after an incident', async () => {

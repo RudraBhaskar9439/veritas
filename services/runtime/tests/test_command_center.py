@@ -208,9 +208,7 @@ def test_live_read_model_omits_semantically_unchanged_impacted_claims() -> None:
             manifest=record.manifest,
             impact=record.impact,
             approvals=tuple(
-                approval
-                for approval in record.approvals
-                if approval.claim_id != unchanged_claim_id
+                approval for approval in record.approvals if approval.claim_id != unchanged_claim_id
             ),
             run=run,
             verification=record.verification,
@@ -219,9 +217,9 @@ def test_live_read_model_omits_semantically_unchanged_impacted_claims() -> None:
             agent_review=record.agent_review,
         )
 
-        incident = await CommandCenterService(
-            MemoryCommandCenterRepository(pruned_record)
-        ).latest("subject-1")
+        incident = await CommandCenterService(MemoryCommandCenterRepository(pruned_record)).latest(
+            "subject-1"
+        )
 
         assert incident is not None
         assert unchanged_claim_id not in {claim.id for claim in incident.claims}

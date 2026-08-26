@@ -124,6 +124,42 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
     return () => controller.abort();
   }, [initialIncident, retry]);
 
+  useEffect(() => {
+    if (initialIncident || generation.phase !== 'complete' || state === 'ready') return;
+    let disposed = false;
+    let refreshing = false;
+    const refresh = async () => {
+      if (disposed || refreshing) return;
+      refreshing = true;
+      try {
+        const response = await fetch('/api/v1/command-center/incidents/latest', {
+          credentials: 'include',
+          headers: { Accept: 'application/json', 'X-Veritas-Refresh': 'packet-watch' },
+        });
+        if (response.status === 401) {
+          if (!disposed) setState('unauthorized');
+          return;
+        }
+        if (!response.ok) return;
+        const result = (await response.json()) as Incident | null;
+        if (!disposed && result) {
+          setIncident(result);
+          setState('ready');
+        }
+      } catch {
+        // The packet links remain usable while a transient poll is retried.
+      } finally {
+        refreshing = false;
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 3000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [generation.phase, initialIncident, state]);
+
   async function generateLivePacket(request: typeof generationRequest) {
     setGeneration({ phase: 'running' });
     try {
@@ -546,6 +582,9 @@ function GeneratedPacket({
       <p>
         The source Sheet, policy Doc, five downstream artifacts, registered lineage, and Drive
         change watch now use real Google resource IDs.
+      </p>
+      <p className="monitoringStatus" role="status">
+        Live monitoring active · waiting for a meaningful source change.
       </p>
       <div className="generatedLinks">
         {resources.map((resource) => {

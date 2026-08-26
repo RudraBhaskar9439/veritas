@@ -42,9 +42,7 @@ def test_pre_mutation_baseline_accepts_an_authorized_statement_already_repaired(
         task_step = next(
             step for step in context.plan.steps if step.artifact_kind.value == "google_task"
         )
-        gateway.registered[(task_step.artifact_id, task_step.anchor)] = (
-            task_step.proposed_statement
-        )
+        gateway.registered[(task_step.artifact_id, task_step.anchor)] = task_step.proposed_statement
         service = ProtectedRegionBaselineService(repository, gateway)
 
         await service.capture("subject-1", context.run, context.plan, "access-token", NOW)

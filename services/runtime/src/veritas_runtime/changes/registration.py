@@ -140,10 +140,7 @@ class EvidenceBaselineCaptureService:
                 continue
 
             capture = await self._extractor.extract(access_token, registration)
-            if (
-                capture.workspace_version != source.version
-                and not reconcile_workspace_versions
-            ):
+            if capture.workspace_version != source.version and not reconcile_workspace_versions:
                 raise SnapshotIntegrityError("Workspace evidence changed before baseline capture")
             if capture.evidence != {registration.anchor: source.value}:
                 raise SnapshotIntegrityError(
