@@ -33,11 +33,7 @@ class ApplicationSessionCodec:
     @classmethod
     def from_base64(cls, encoded_key: str) -> "ApplicationSessionCodec":
         try:
-            key = base64.b64decode(
-                _pad_base64(encoded_key),
-                altchars=b"-_",
-                validate=True,
-            )
+            key = _decode_base64(encoded_key)
         except ValueError as error:
             raise ValueError("Application session key must be URL-safe base64") from error
         return cls(key)
@@ -67,7 +63,7 @@ class ApplicationSessionCodec:
             version, encoded_payload, encoded_signature = encoded.split(".", maxsplit=2)
             if version != SESSION_VERSION:
                 raise InvalidApplicationSession("Unsupported application session version")
-            signature = base64.urlsafe_b64decode(_pad_base64(encoded_signature))
+            signature = _decode_base64(encoded_signature)
             expected = hmac.new(
                 self._key,
                 f"{version}.{encoded_payload}".encode(),
@@ -75,7 +71,7 @@ class ApplicationSessionCodec:
             ).digest()
             if not hmac.compare_digest(signature, expected):
                 raise InvalidApplicationSession("Application session signature is invalid")
-            payload = json.loads(base64.urlsafe_b64decode(_pad_base64(encoded_payload)))
+            payload = json.loads(_decode_base64(encoded_payload))
             principal = SessionPrincipal(
                 subject=str(payload["subject"]),
                 email=str(payload["email"]),
@@ -103,6 +99,17 @@ class ApplicationSessionCodec:
 
 def _encode_base64(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def _decode_base64(value: str) -> bytes:
+    decoded = base64.b64decode(
+        _pad_base64(value),
+        altchars=b"-_",
+        validate=True,
+    )
+    if _encode_base64(decoded) != value:
+        raise ValueError("Base64 value is not canonical")
+    return decoded
 
 
 def _pad_base64(value: str) -> str:

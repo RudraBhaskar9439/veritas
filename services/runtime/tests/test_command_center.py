@@ -167,6 +167,61 @@ def test_live_read_model_is_derived_from_the_integrity_chain() -> None:
     asyncio.run(scenario())
 
 
+def test_live_read_model_omits_semantically_unchanged_impacted_claims() -> None:
+    async def scenario() -> None:
+        service, planned, run = await _fixture()
+        record = await service._repository.get(  # type: ignore[attr-defined]
+            "subject-1", planned.plan.plan_id
+        )
+        assert record is not None
+        unchanged_claim_id = record.plan.steps[0].claim_id
+        remaining_steps = tuple(
+            step for step in record.plan.steps if step.claim_id != unchanged_claim_id
+        )
+        assert remaining_steps
+        remaining_artifact_ids = {step.artifact_id for step in remaining_steps}
+        plan = record.plan.model_copy(
+            update={
+                "steps": remaining_steps,
+                "unchanged_impacted_claim_ids": (
+                    *record.plan.unchanged_impacted_claim_ids,
+                    unchanged_claim_id,
+                ),
+                "approvals": tuple(
+                    approval
+                    for approval in record.plan.approvals
+                    if approval.claim_id != unchanged_claim_id
+                ),
+            }
+        )
+        pruned_record = CommandCenterRecord(
+            plan=plan,
+            manifest=record.manifest,
+            impact=record.impact,
+            approvals=tuple(
+                approval
+                for approval in record.approvals
+                if approval.claim_id != unchanged_claim_id
+            ),
+            run=run,
+            verification=record.verification,
+            certificate=record.certificate,
+            snapshots=record.snapshots,
+            agent_review=record.agent_review,
+        )
+
+        incident = await CommandCenterService(
+            MemoryCommandCenterRepository(pruned_record)
+        ).latest("subject-1")
+
+        assert incident is not None
+        assert unchanged_claim_id not in {claim.id for claim in incident.claims}
+        assert {artifact.id for artifact in incident.artifacts} == remaining_artifact_ids
+        assert incident.coverage.affected_claims == len({step.claim_id for step in remaining_steps})
+
+    asyncio.run(scenario())
+
+
 def test_approval_continuation_validates_binding_before_advancing() -> None:
     async def scenario() -> None:
         service, planned, run = await _fixture()

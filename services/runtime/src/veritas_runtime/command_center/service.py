@@ -93,6 +93,12 @@ def _incident(record: CommandCenterRecord) -> CommandCenterIncident:
     for impact_claim in record.impact.affected_claims:
         claim = claim_index[impact_claim.claim_id]
         steps = tuple(step for step in plan.steps if step.claim_id == claim.claim_id)
+        # Lineage deliberately includes every registered claim that depends on the
+        # changed source. A typed plan, however, omits claims whose rendered
+        # statement is still semantically unchanged. Keep that valid in-flight
+        # state visible without pretending a repair exists for it.
+        if not steps:
+            continue
         representative = steps[0]
         dispositions = {step.disposition for step in steps}
         claims.append(
@@ -126,6 +132,8 @@ def _incident(record: CommandCenterRecord) -> CommandCenterIncident:
         steps = tuple(
             step for step in plan.steps if step.artifact_id == impact_artifact.artifact_id
         )
+        if not steps:
+            continue
         artifact = next(
             item for item in manifest.artifacts if item.artifact_id == impact_artifact.artifact_id
         )
