@@ -29,11 +29,11 @@ Build API, ingress, worker, and web images from the accepted commit. Push immuta
 
 ## 5. Migrate and compose services
 
-Grant the dedicated migrator database identity schema-owner privileges once from an administrative connection, then execute the Terraform-created `veritas-preview-migrations` Cloud Run job before starting traffic. The job takes a PostgreSQL advisory lock, verifies the immutable SHA-256 ledger, and applies SQL migrations `0001` through `0009` transactionally; checksum drift fails closed. Grant API, ingress, and worker only their required table privileges after the schema exists. Bind runtime configuration and Secret Manager references. Keep the worker private; expose the API/web boundary and only the narrow signed Drive notification endpoint on ingress. Confirm Cloud Scheduler invokes the worker with OIDC and that unauthenticated worker calls fail.
+Grant the dedicated migrator database identity schema-owner privileges once from an administrative connection, then execute the Terraform-created `veritas-preview-migrations` Cloud Run job before starting traffic. The job takes a PostgreSQL advisory lock, verifies the immutable SHA-256 ledger, and applies SQL migrations `0001` through `0011` transactionally; checksum drift fails closed. Grant API, ingress, and worker only their required table privileges after the schema exists. Bind runtime configuration and Secret Manager references. Keep the worker private; expose the API/web boundary and only the narrow signed Drive and authenticated Gmail notification endpoints on ingress. Confirm Cloud Scheduler invokes the worker with OIDC and that unauthenticated worker calls fail.
 
 ## 6. Configure Google OAuth and watches
 
-Set the exact redirect URI, verified origins, consent-screen test users, and least-privilege scopes. Connect the dedicated account, verify encrypted credential storage, create Drive watches, and record renewal/expiry state.
+Set the exact redirect URI, verified origins, consent-screen test users, and least-privilege scopes. Gmail uses `gmail.readonly` for inbound history and message reads and `gmail.compose` for unsent correction drafts; it never requests full mailbox control. Reconnect the dedicated account after any scope change, verify encrypted credential storage, create Drive and Gmail watches, and record renewal/expiry state. Confirm the Gmail API publisher can publish only to its dedicated topic, Pub/Sub push uses the dedicated `gmail-push` identity, ingress rejects a missing or wrong OIDC token, and the private worker renews Gmail watches before expiry.
 
 ## 7. Run live phase gates in order
 

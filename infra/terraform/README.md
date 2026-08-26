@@ -7,6 +7,7 @@ The foundation provisions the production boundaries required by the verified arc
 - Artifact Registry for immutable images;
 - versioned Cloud Storage evidence snapshots;
 - Pub/Sub event and dead-letter topics;
+- a dedicated Gmail watch topic and authenticated push subscription whose OIDC identity is verified by ingress;
 - Cloud Tasks repair queue with bounded retry policy;
 - KMS and Secret Manager credential boundaries;
 - PostgreSQL 16 with IAM authentication and point-in-time recovery;

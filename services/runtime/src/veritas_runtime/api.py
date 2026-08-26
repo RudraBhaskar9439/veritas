@@ -6,8 +6,10 @@ from veritas_runtime.composition import (
     approval_actor_resolver,
     build_api_components,
     operation_actor_resolver,
+    session_principal_resolver,
     subject_resolver,
 )
+from veritas_runtime.email_tasks.routes import create_email_task_router
 from veritas_runtime.execution.routes import create_execution_router
 from veritas_runtime.lineage.routes import create_impact_router
 from veritas_runtime.operations.routes import create_operations_router
@@ -37,6 +39,7 @@ if components is None:
     app.include_router(create_verification_router(None, None))
     app.include_router(create_operations_router(None, None, None))
     app.include_router(create_command_center_router(None, None))
+    app.include_router(create_email_task_router(None, None))
 else:
     resolve_subject = subject_resolver(components.session_codec, secure_cookie=secure_cookie)
     app.include_router(create_evidence_bootstrap_router(components.evidence, resolve_subject))
@@ -64,6 +67,15 @@ else:
             components.operations,
             resolve_subject,
             operation_actor_resolver(components.session_codec, secure_cookie=secure_cookie),
+        )
+    )
+    app.include_router(
+        create_email_task_router(
+            components.email_tasks,
+            session_principal_resolver(
+                components.session_codec,
+                secure_cookie=secure_cookie,
+            ),
         )
     )
     app.router.add_event_handler("shutdown", components.close)

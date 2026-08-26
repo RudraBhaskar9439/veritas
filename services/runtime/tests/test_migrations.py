@@ -53,7 +53,7 @@ def test_discovery_rejects_empty_or_malformed_sets(tmp_path: Path) -> None:
 
 
 def test_packaged_migrations_and_database_configuration_are_required() -> None:
-    assert (migration_directory() / "0010_drive_operation_batches.sql").is_file()
+    assert (migration_directory() / "0011_email_task_workflows.sql").is_file()
 
     with pytest.raises(RuntimeError, match="database configuration is required"):
         asyncio.run(_connect(Settings()))

@@ -15,6 +15,7 @@ class WorkspaceCapability(StrEnum):
     DOCS_REPAIR = "docs.repair"
     SLIDES_REPAIR = "slides.repair"
     GMAIL_CORRECTION_DRAFT = "gmail.correction-draft"
+    GMAIL_INBOX_READ = "gmail.inbox-read"
     TASKS_REPAIR = "tasks.repair"
 
 
@@ -40,6 +41,9 @@ CAPABILITY_SCOPES: dict[WorkspaceCapability, frozenset[str]] = {
     ),
     WorkspaceCapability.GMAIL_CORRECTION_DRAFT: frozenset(
         {"https://www.googleapis.com/auth/gmail.compose"}
+    ),
+    WorkspaceCapability.GMAIL_INBOX_READ: frozenset(
+        {"https://www.googleapis.com/auth/gmail.readonly"}
     ),
     WorkspaceCapability.TASKS_REPAIR: frozenset({"https://www.googleapis.com/auth/tasks"}),
 }

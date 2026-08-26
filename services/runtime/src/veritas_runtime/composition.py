@@ -29,6 +29,12 @@ from veritas_runtime.changes.tokens import ChannelTokenCodec
 from veritas_runtime.command_center.database import SqlCommandCenterRepository
 from veritas_runtime.command_center.service import CommandCenterService
 from veritas_runtime.database_runtime import DatabaseRuntime, build_database_runtime
+from veritas_runtime.email_tasks.database import SqlEmailTaskWorkflowRepository
+from veritas_runtime.email_tasks.google import GoogleGmailTaskGateway
+from veritas_runtime.email_tasks.service import (
+    EmailTaskRegistrationCoordinator,
+    EmailTaskWorkflowService,
+)
 from veritas_runtime.execution.database import SqlExecutionRepository
 from veritas_runtime.execution.google import GoogleWorkspaceRepairGateway
 from veritas_runtime.execution.service import RepairExecutionService
@@ -77,6 +83,7 @@ class ApiComponents:
     operations: ReliableOperationService
     command_center: CommandCenterService
     approval_continuation: HumanApprovalContinuation
+    email_tasks: EmailTaskRegistrationCoordinator | None
 
     async def close(self) -> None:
         await self.http.aclose()
@@ -134,6 +141,18 @@ def build_api_components(settings: Settings) -> ApiComponents | None:
         execution,
         verification,
     )
+    email_repository = SqlEmailTaskWorkflowRepository(engine)
+    email_tasks = (
+        EmailTaskRegistrationCoordinator(
+            EmailTaskWorkflowService(SqlManifestRepository(engine), email_repository),
+            email_repository,
+            sessions,
+            GoogleGmailTaskGateway(http),
+            settings.gmail_pubsub_topic,
+        )
+        if settings.gmail_pubsub_topic is not None
+        else None
+    )
     return ApiComponents(
         database=database,
         engine=engine,
@@ -169,6 +188,7 @@ def build_api_components(settings: Settings) -> ApiComponents | None:
             repairs,
             orchestrator,
         ),
+        email_tasks=email_tasks,
     )
 
 

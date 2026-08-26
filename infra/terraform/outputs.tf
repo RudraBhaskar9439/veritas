@@ -8,6 +8,11 @@ output "workspace_event_topic" {
   description = "Canonical Workspace event topic."
 }
 
+output "gmail_event_topic" {
+  value       = google_pubsub_topic.gmail_events.id
+  description = "Authenticated Gmail watch notification topic."
+}
+
 output "repair_queue" {
   value       = google_cloud_tasks_queue.repairs.id
   description = "Durable per-artifact repair command queue."

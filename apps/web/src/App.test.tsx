@@ -569,4 +569,64 @@ describe('Veritas command center', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/command-center/incidents/latest');
     expect(await screen.findByRole('button', { name: 'View certificate record' })).toBeVisible();
   });
+
+  it('activates an exact customer email to manifest-bound task route', async () => {
+    const live: Incident = { ...demoIncident, source: 'live' };
+    const route = {
+      claimId: 'claim-scale-acquisition',
+      claimStatement: 'The company should pause the planned increase in acquisition spend.',
+      claimRisk: 'decision',
+      artifactId: 'artifact-acquisition-task',
+      taskId: 'task-42',
+      taskListId: 'list-7',
+    };
+    const workflow = {
+      workflowId: 'workflow-42',
+      mailboxEmail: 'operator@example.com',
+      authorizedSender: 'customer@example.com',
+      routingKey: 'VX-A1B2C3D4E5F6',
+      packetId: live.packetId,
+      claimId: route.claimId,
+      artifactId: route.artifactId,
+      taskId: route.taskId,
+      taskListId: route.taskListId,
+      status: 'active',
+      createdAt: '2026-08-26T10:00:00Z',
+      updatedAt: '2026-08-26T10:00:00Z',
+    };
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            packetId: live.packetId,
+            mailboxEmail: 'operator@example.com',
+            routes: [route],
+            workflows: [],
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([])))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow, watch: {}, reused: false })));
+    render(<App initialIncident={live} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set up customer email' }));
+    expect(await screen.findByDisplayValue('operator@example.com')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('customer@company.com'), {
+      target: { value: 'customer@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Activate customer email route' }));
+
+    expect(await screen.findByText('[VX-A1B2C3D4E5F6] Update customer delivery')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Open ready-to-send Gmail ↗' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('operator%40example.com'),
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toEqual({
+      packetId: live.packetId,
+      claimId: route.claimId,
+      artifactId: route.artifactId,
+      authorizedSender: 'customer@example.com',
+    });
+  });
 });

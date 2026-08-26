@@ -17,6 +17,15 @@ from veritas_runtime.changes.operations import (
 from veritas_runtime.changes.processor import DriveChangeProcessor
 from veritas_runtime.changes.snapshots import GcsSnapshotObjectStore, ImmutableSnapshotService
 from veritas_runtime.database_runtime import DatabaseRuntime, build_database_runtime
+from veritas_runtime.email_tasks.database import SqlEmailTaskWorkflowRepository
+from veritas_runtime.email_tasks.gemini import GeminiEmailTaskGateway
+from veritas_runtime.email_tasks.google import GoogleGmailTaskGateway
+from veritas_runtime.email_tasks.processor import (
+    GMAIL_PROCESS_OPERATION,
+    GmailTaskOperationHandler,
+    GmailTaskProcessor,
+)
+from veritas_runtime.email_tasks.service import GmailWatchRenewalService
 from veritas_runtime.execution.database import SqlExecutionRepository
 from veritas_runtime.execution.google import GoogleWorkspaceRepairGateway
 from veritas_runtime.execution.service import RepairExecutionService
@@ -41,11 +50,13 @@ class WorkerRuntimeService:
         self,
         operations: ReliableOperationService,
         outbox: DriveNotificationOutboxDispatcher,
+        watch_renewer: GmailWatchRenewalService | None = None,
         *,
         batch_size: int = 10,
     ) -> None:
         self._operations = operations
         self._outbox = outbox
+        self._watch_renewer = watch_renewer
         self._batch_size = batch_size
 
     async def tick(self, worker_id: str) -> tuple[OperationTick, ...]:
@@ -56,6 +67,8 @@ class WorkerRuntimeService:
             results.append(tick)
             if tick.operation_id is None:
                 break
+        if self._watch_renewer is not None:
+            await self._watch_renewer.renew()
         return tuple(results)
 
 
@@ -66,8 +79,10 @@ class WorkerComponents:
     auth: GoogleAuthComponents
     service: WorkerRuntimeService
     gemini: GeminiReviewGateway
+    email_gemini: GeminiEmailTaskGateway
 
     async def close(self) -> None:
+        await self.email_gemini.close()
         await self.gemini.close()
         await self.http.aclose()
         await self.database.close()
@@ -105,6 +120,11 @@ def build_worker_components(settings: Settings) -> WorkerComponents | None:
         settings.google_cloud_location,
         settings.gemini_model,
     )
+    email_gemini = GeminiEmailTaskGateway(
+        settings.google_cloud_project,
+        settings.google_cloud_location,
+        settings.gemini_model,
+    )
     execution = RepairExecutionService(
         SqlExecutionRepository(database.engine),
         sessions,
@@ -122,6 +142,8 @@ def build_worker_components(settings: Settings) -> WorkerComponents | None:
             settings.gemini_model,
         ),
     )
+    email_repository = SqlEmailTaskWorkflowRepository(database.engine)
+    gmail_gateway = GoogleGmailTaskGateway(http)
     operations = ReliableOperationService(
         SqlOperationRepository(database.engine),
         {
@@ -129,7 +151,15 @@ def build_worker_components(settings: Settings) -> WorkerComponents | None:
                 processor,
                 sessions,
                 orchestrator,
-            )
+            ),
+            GMAIL_PROCESS_OPERATION: GmailTaskOperationHandler(
+                GmailTaskProcessor(
+                    email_repository,
+                    gmail_gateway,
+                    email_gemini,
+                ),
+                sessions,
+            ),
         },
         telemetry=StructuredLogOperationTelemetry(),
     )
@@ -138,8 +168,17 @@ def build_worker_components(settings: Settings) -> WorkerComponents | None:
         http=http,
         auth=auth,
         gemini=gemini,
+        email_gemini=email_gemini,
         service=WorkerRuntimeService(
             operations,
             DriveNotificationOutboxDispatcher(watch_repository, operations),
+            GmailWatchRenewalService(
+                email_repository,
+                sessions,
+                gmail_gateway,
+                settings.gmail_pubsub_topic,
+            )
+            if settings.gmail_pubsub_topic is not None
+            else None,
         ),
     )

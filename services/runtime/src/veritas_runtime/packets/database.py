@@ -50,6 +50,22 @@ class SqlManifestRepository:
             row = await _select_by_key(connection, key)
         return _persisted(row) if row is not None else None
 
+    async def latest_for_packet(self, packet_id: str) -> ClaimManifest | None:
+        async with self._engine.connect() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(claim_manifests)
+                        .where(claim_manifests.c.packet_id == packet_id)
+                        .order_by(claim_manifests.c.version.desc())
+                        .limit(1)
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+        return _persisted(dict(row)).manifest if row is not None else None
+
     async def persist(
         self,
         draft: ManifestDraft,

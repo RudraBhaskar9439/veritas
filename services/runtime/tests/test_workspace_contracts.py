@@ -29,7 +29,8 @@ def test_missing_scope_fails_closed_without_revealing_scope_value() -> None:
     assert "1 required scope" in str(raised.value)
 
 
-def test_scope_contract_uses_compose_not_full_mailbox_access() -> None:
+def test_scope_contract_uses_bounded_gmail_access_not_full_mailbox_control() -> None:
     assert "https://www.googleapis.com/auth/gmail.compose" in REQUIRED_WORKSPACE_SCOPES
+    assert "https://www.googleapis.com/auth/gmail.readonly" in REQUIRED_WORKSPACE_SCOPES
     assert "https://mail.google.com/" not in REQUIRED_WORKSPACE_SCOPES
     assert "https://www.googleapis.com/auth/drive" not in REQUIRED_WORKSPACE_SCOPES

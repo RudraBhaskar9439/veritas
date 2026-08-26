@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     application_session_key: SecretStr | None = None
     drive_channel_token_key: SecretStr | None = None
     drive_webhook_url: str | None = None
+    gmail_pubsub_topic: str | None = None
+    gmail_push_audience: str | None = None
+    gmail_push_service_account_email: str | None = None
     snapshot_bucket: str | None = None
     google_cloud_project: str | None = None
     google_cloud_location: str = "us-central1"
@@ -58,6 +61,14 @@ class Settings(BaseSettings):
     @property
     def gemini_configured(self) -> bool:
         return bool(self.google_cloud_project and self.google_cloud_location and self.gemini_model)
+
+    @property
+    def gmail_ingress_configured(self) -> bool:
+        return bool(
+            self.database_configured
+            and self.gmail_push_audience
+            and self.gmail_push_service_account_email
+        )
 
     @property
     def database_configured(self) -> bool:

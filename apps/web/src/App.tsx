@@ -44,6 +44,54 @@ interface DeadLetterSummary {
   updatedAt: string;
 }
 
+interface EmailTaskRoute {
+  claimId: string;
+  claimStatement: string;
+  claimRisk: string;
+  artifactId: string;
+  taskId: string;
+  taskListId: string;
+}
+
+interface EmailTaskWorkflow {
+  workflowId: string;
+  mailboxEmail: string;
+  authorizedSender: string;
+  routingKey: string;
+  packetId: string;
+  claimId: string;
+  artifactId: string;
+  taskId: string;
+  taskListId: string;
+  status: 'active' | 'paused';
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface EmailTaskSetup {
+  packetId: string;
+  mailboxEmail: string;
+  routes: ReadonlyArray<EmailTaskRoute>;
+  workflows: ReadonlyArray<EmailTaskWorkflow>;
+}
+
+interface EmailTaskEvent {
+  eventId: string;
+  workflowId: string;
+  gmailMessageId: string;
+  sender: string;
+  subjectLine: string;
+  bodyHash: string;
+  proposedTitle: string | null;
+  proposedNote: string | null;
+  status: 'received' | 'ignored' | 'escalated' | 'applied';
+  rationale: string;
+  riskFlags: ReadonlyArray<string>;
+  taskRevision: string | null;
+  receiptChecksum: string;
+  receivedAt: string;
+}
+
 type LiveGenerationRequest = typeof generationRequest;
 
 type GenerationState =
@@ -811,6 +859,8 @@ function Overview({
         <Metric value="0" label="Human edits lost" detail="protected by hash" accent />
       </section>
 
+      <EmailTaskAutomation />
+
       <Timeline activeStage={replayStage} />
 
       <ChangeProofPanel />
@@ -946,6 +996,389 @@ function Overview({
         </div>
       </section>
     </>
+  );
+}
+
+function EmailTaskAutomation() {
+  const incident = useIncident();
+  const [opened, setOpened] = useState(false);
+  const [setup, setSetup] = useState<EmailTaskSetup | null>(null);
+  const [events, setEvents] = useState<ReadonlyArray<EmailTaskEvent>>([]);
+  const [selectedRoute, setSelectedRoute] = useState('');
+  const [authorizedSender, setAuthorizedSender] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (incident.source !== 'live' || !opened) return;
+    let disposed = false;
+    let refreshing = false;
+    setLoading(true);
+    const load = async () => {
+      if (disposed || refreshing) return;
+      refreshing = true;
+      try {
+        const packet = encodeURIComponent(incident.packetId);
+        const [setupResponse, eventResponse] = await Promise.all([
+          fetch(`/api/v1/email-task-workflows/setup?packetId=${packet}`, {
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+          }),
+          fetch(`/api/v1/email-task-events?packetId=${packet}`, {
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+          }),
+        ]);
+        if (!setupResponse.ok) throw new Error(await safeApiError(setupResponse));
+        if (!eventResponse.ok) throw new Error(await safeApiError(eventResponse));
+        const nextSetup = (await setupResponse.json()) as EmailTaskSetup;
+        const nextEvents = (await eventResponse.json()) as ReadonlyArray<EmailTaskEvent>;
+        if (!disposed) {
+          setSetup(nextSetup);
+          setEvents(nextEvents);
+          setSelectedRoute((value) =>
+            value || nextSetup.routes.length === 0
+              ? value
+              : `${nextSetup.routes[0].claimId}:${nextSetup.routes[0].artifactId}`,
+          );
+          setError(null);
+          setLoading(false);
+        }
+      } catch (loadError: unknown) {
+        if (!disposed) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Customer email automation could not be loaded.',
+          );
+          setLoading(false);
+        }
+      } finally {
+        refreshing = false;
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 3000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [incident.packetId, incident.source, opened]);
+
+  if (incident.source !== 'live') return null;
+
+  const activeWorkflow = setup?.workflows.find(
+    (workflow) => workflow.packetId === incident.packetId && workflow.status === 'active',
+  );
+  const route = setup?.routes.find(
+    (item) => `${item.claimId}:${item.artifactId}` === selectedRoute,
+  );
+  const subject = activeWorkflow
+    ? `[${activeWorkflow.routingKey}] Update customer delivery`
+    : '[Routing code appears after activation] Update customer delivery';
+  const exampleBody =
+    'Hi team, please move the customer onboarding review to Friday at 3 PM. The customer has confirmed the new time.';
+  const composeUrl = activeWorkflow
+    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(activeWorkflow.mailboxEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(exampleBody)}`
+    : null;
+
+  async function registerWorkflow() {
+    if (!setup || !route || !authorizedSender.trim()) return;
+    setWorking(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/v1/email-task-workflows', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          packetId: setup.packetId,
+          claimId: route.claimId,
+          artifactId: route.artifactId,
+          authorizedSender: authorizedSender.trim(),
+        }),
+      });
+      if (!response.ok) throw new Error(await safeApiError(response));
+      const result = (await response.json()) as {
+        workflow: EmailTaskWorkflow;
+      };
+      setSetup({
+        ...setup,
+        workflows: [
+          result.workflow,
+          ...setup.workflows.filter(
+            (workflow) => workflow.workflowId !== result.workflow.workflowId,
+          ),
+        ],
+      });
+      setAuthorizedSender('');
+    } catch (registerError: unknown) {
+      setError(
+        registerError instanceof Error
+          ? registerError.message
+          : 'The customer email route could not be activated.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function copyExample() {
+    if (!activeWorkflow) return;
+    const value = `To: ${activeWorkflow.mailboxEmail}\nSubject: ${subject}\n\n${exampleBody}`;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError('Copy was blocked by the browser. Use the visible To, Subject, and Body fields.');
+    }
+  }
+
+  async function disableWorkflow() {
+    if (!setup || !activeWorkflow) return;
+    setWorking(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/v1/email-task-workflows/${encodeURIComponent(activeWorkflow.workflowId)}`,
+        { method: 'DELETE', credentials: 'include', headers: { Accept: 'application/json' } },
+      );
+      if (!response.ok) throw new Error(await safeApiError(response));
+      const paused = (await response.json()) as EmailTaskWorkflow;
+      setSetup({
+        ...setup,
+        workflows: setup.workflows.map((workflow) =>
+          workflow.workflowId === paused.workflowId ? paused : workflow,
+        ),
+      });
+    } catch (disableError: unknown) {
+      setError(
+        disableError instanceof Error
+          ? disableError.message
+          : 'The customer email route could not be disabled.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  return (
+    <section className="panel emailAutomationPanel" aria-labelledby="email-automation-title">
+      <div className="emailAutomationIntro">
+        <span className="sectionKicker">Customer signal → owned action</span>
+        <h2 id="email-automation-title">One normal email. One exact task. Full proof.</h2>
+        <p>
+          Veritas listens to your connected company inbox, accepts only the customer you authorize,
+          and updates only the Google Task already bound to this claim.
+        </p>
+        <ol className="emailFlow" aria-label="Email automation flow">
+          <li>
+            <span>01</span> Customer emails your company
+          </li>
+          <li>
+            <span>02</span> Veritas verifies sender + route
+          </li>
+          <li>
+            <span>03</span> The owned task updates
+          </li>
+        </ol>
+      </div>
+
+      {!opened ? (
+        <div className="emailCallToAction">
+          <p>
+            Connect one real customer sender to the existing Google Task in this packet. Veritas
+            will show every accepted, rejected, or escalated email with its proof receipt.
+          </p>
+          <button className="primaryButton" type="button" onClick={() => setOpened(true)}>
+            Set up customer email
+          </button>
+        </div>
+      ) : loading ? (
+        <p className="emailEmpty" role="status">
+          Loading the registered task route…
+        </p>
+      ) : activeWorkflow ? (
+        <div className="emailAutomationBody">
+          <section className="automationRoute" aria-label="Active email route">
+            <div>
+              <span>Authorized customer</span>
+              <strong>{activeWorkflow.authorizedSender}</strong>
+            </div>
+            <i aria-hidden="true">→</i>
+            <div>
+              <span>Company inbox</span>
+              <strong>{activeWorkflow.mailboxEmail}</strong>
+            </div>
+            <i aria-hidden="true">→</i>
+            <div>
+              <span>Manifest-bound task</span>
+              <strong>{activeWorkflow.artifactId.replaceAll('-', ' ')}</strong>
+            </div>
+          </section>
+
+          <div className="emailDemoCard">
+            <div className="emailField">
+              <span>To</span>
+              <strong>{activeWorkflow.mailboxEmail}</strong>
+            </div>
+            <div className="emailField">
+              <span>Subject</span>
+              <strong>{subject}</strong>
+            </div>
+            <div className="emailField emailBodyField">
+              <span>Body</span>
+              <p>{exampleBody}</p>
+            </div>
+            <div className="emailDemoActions">
+              <a
+                className="primaryButton"
+                href={composeUrl ?? undefined}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open ready-to-send Gmail ↗
+              </a>
+              <button className="secondaryButton" type="button" onClick={() => void copyExample()}>
+                {copied ? 'Copied' : 'Copy email example'}
+              </button>
+              <a
+                className="secondaryButton"
+                href="https://tasks.google.com/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Google Tasks ↗
+              </a>
+              <button
+                className="dangerButton"
+                type="button"
+                disabled={working}
+                onClick={() => void disableWorkflow()}
+              >
+                {working ? 'Disabling…' : 'Disable this route'}
+              </button>
+            </div>
+          </div>
+
+          <div className="emailReceiptHeader">
+            <div>
+              <span className="sectionKicker">Live receipts</span>
+              <h3>Email-to-task activity</h3>
+            </div>
+            <span className="watchBadge">
+              <i aria-hidden="true" /> Inbox watch active
+            </span>
+          </div>
+          {events.length === 0 ? (
+            <p className="emailEmpty">
+              No matching customer email yet. Send the example above; this list refreshes every 3
+              seconds.
+            </p>
+          ) : (
+            <div className="emailEventList">
+              {events.map((event) => (
+                <article key={event.eventId}>
+                  <span className={`emailEventStatus status-${event.status}`}>{event.status}</span>
+                  <div>
+                    <strong>{event.proposedTitle ?? event.subjectLine}</strong>
+                    <span>
+                      {fullUtc(event.receivedAt)} · from {event.sender}
+                    </span>
+                    <p>{event.rationale}</p>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Body proof</dt>
+                      <dd>{event.bodyHash.slice(0, 12)}…</dd>
+                    </div>
+                    <div>
+                      <dt>Receipt</dt>
+                      <dd>{event.receiptChecksum.slice(0, 12)}…</dd>
+                    </div>
+                    <div>
+                      <dt>Task revision</dt>
+                      <dd>{event.taskRevision ?? 'not changed'}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <form
+          className="emailSetupForm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void registerWorkflow();
+          }}
+        >
+          <div className="emailSetupGrid">
+            <label>
+              <span>Company inbox being watched</span>
+              <input value={setup?.mailboxEmail ?? 'Connected Google account'} readOnly />
+            </label>
+            <label>
+              <span>Customer allowed to trigger updates</span>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="customer@company.com"
+                value={authorizedSender}
+                onChange={(event) => setAuthorizedSender(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Registered claim → Google Task</span>
+              <select
+                required
+                value={selectedRoute}
+                onChange={(event) => setSelectedRoute(event.target.value)}
+                disabled={!setup || setup.routes.length === 0}
+              >
+                {setup?.routes.map((item) => (
+                  <option
+                    key={`${item.claimId}:${item.artifactId}`}
+                    value={`${item.claimId}:${item.artifactId}`}
+                  >
+                    {item.claimStatement} → {item.artifactId.replaceAll('-', ' ')}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="emailSetupFooter">
+            <p>
+              Only this sender + the generated subject code can reach this one registered task.
+              Sensitive or ambiguous requests stop for review.
+            </p>
+            <button
+              className="primaryButton"
+              type="submit"
+              disabled={working || !route || !authorizedSender.trim()}
+            >
+              {working ? 'Securing Gmail route…' : 'Activate customer email route'}
+            </button>
+          </div>
+        </form>
+      )}
+      {setup && setup.routes.length === 0 && (
+        <p className="actionNotice">
+          This packet has no Claim Manifest edge to a Google Task, so Veritas correctly refuses to
+          invent one.
+        </p>
+      )}
+      {error && (
+        <p className="actionError" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 

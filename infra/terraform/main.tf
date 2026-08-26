@@ -25,7 +25,7 @@ locals {
     "cloudtrace.googleapis.com",
   ])
 
-  service_accounts          = toset(["api", "ingress", "migrator", "worker", "web"])
+  service_accounts          = toset(["api", "gmail-push", "ingress", "migrator", "worker", "web"])
   database_service_accounts = toset(["api", "ingress", "migrator", "worker"])
 
   runtime_entrypoints = {
@@ -49,6 +49,7 @@ locals {
     var.drive_webhook_url,
     "${local.deterministic_service_urls.ingress}/api/v1/integrations/google-drive/notifications",
   )
+  gmail_webhook_url = "${local.deterministic_service_urls.ingress}/api/v1/integrations/gmail/notifications"
 
   runtime_max_instances = var.environment == "production" ? {
     api     = 5
@@ -159,6 +160,17 @@ resource "google_pubsub_topic" "workspace_events" {
   depends_on = [google_project_service.required]
 }
 
+resource "google_pubsub_topic" "gmail_events" {
+  name       = "${local.name}-gmail-events"
+  depends_on = [google_project_service.required]
+}
+
+resource "google_pubsub_topic_iam_member" "gmail_api_publisher" {
+  topic  = google_pubsub_topic.gmail_events.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:gmail-api-push@system.gserviceaccount.com"
+}
+
 resource "google_pubsub_topic" "dead_letter" {
   name       = "${local.name}-dead-letter"
   depends_on = [google_project_service.required]
@@ -180,6 +192,35 @@ resource "google_pubsub_subscription" "orchestrator" {
     dead_letter_topic     = google_pubsub_topic.dead_letter.id
     max_delivery_attempts = 10
   }
+}
+
+resource "google_pubsub_subscription" "gmail_ingress" {
+  count = contains(keys(var.service_images), "ingress") ? 1 : 0
+
+  name  = "${local.name}-gmail-ingress"
+  topic = google_pubsub_topic.gmail_events.id
+
+  ack_deadline_seconds       = 30
+  message_retention_duration = "604800s"
+
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "600s"
+  }
+
+  push_config {
+    push_endpoint = local.gmail_webhook_url
+
+    oidc_token {
+      service_account_email = google_service_account.runtime["gmail-push"].email
+      audience              = local.deterministic_service_urls.ingress
+    }
+  }
+
+  depends_on = [
+    google_cloud_run_v2_service_iam_member.gmail_push_ingress,
+    google_service_account_iam_member.pubsub_push_token_creator,
+  ]
 }
 
 resource "google_cloud_tasks_queue" "repairs" {
@@ -385,6 +426,19 @@ resource "google_cloud_run_v2_service" "runtime" {
       dynamic "env" {
         for_each = contains(["api", "ingress"], each.key) ? {
           VERITAS_DRIVE_WEBHOOK_URL = local.drive_webhook_url
+        } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+
+      dynamic "env" {
+        for_each = contains(["api", "worker"], each.key) ? {
+          VERITAS_GMAIL_PUBSUB_TOPIC = google_pubsub_topic.gmail_events.id
+          } : each.key == "ingress" ? {
+          VERITAS_GMAIL_PUSH_AUDIENCE              = local.deterministic_service_urls.ingress
+          VERITAS_GMAIL_PUSH_SERVICE_ACCOUNT_EMAIL = google_service_account.runtime["gmail-push"].email
         } : {}
         content {
           name  = env.key
@@ -599,6 +653,12 @@ resource "google_project_iam_member" "ingress_roles" {
   member  = "serviceAccount:${google_service_account.runtime["ingress"].email}"
 }
 
+resource "google_service_account_iam_member" "pubsub_push_token_creator" {
+  service_account_id = google_service_account.runtime["gmail-push"].name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
 resource "google_logging_metric" "operation_dead_letters" {
   name        = "${local.name}-operation-dead-letters"
   description = "Veritas operations quarantined after permanent or exhausted failures."
@@ -679,6 +739,16 @@ resource "google_cloud_run_v2_service_iam_member" "worker_scheduler" {
   name     = google_cloud_run_v2_service.runtime["worker"].name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.runtime["worker"].email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "gmail_push_ingress" {
+  count = contains(keys(var.service_images), "ingress") ? 1 : 0
+
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.runtime["ingress"].name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.runtime["gmail-push"].email}"
 }
 
 resource "google_cloud_scheduler_job" "worker_tick" {
