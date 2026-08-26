@@ -3,20 +3,20 @@
 - Proof date: 2026-08-26
 - Google Cloud project: `project-c0f0f832-e02b-4eac-ae2`
 - Region: `us-central1`
-- Accepted release commit: `c880e5f` (formatter-only successor of the live-run commit `23f802f`)
+- Accepted application release commit: `72c687c`
 - Public Command Center: <https://veritas-preview-web-602044424209.us-central1.run.app/>
-- Cloud Build: `f43c0551-6494-4689-9a90-3e8ac259535c` (`SUCCESS`)
+- Cloud Build: `f1e6c0d9-196d-4796-ad2a-eed8eda1d4cf` (`SUCCESS`)
 - Migration execution: `veritas-preview-migrations-pvh24` (`Completed`)
-- Release verification: [GitHub Actions run 32951728495](https://github.com/RudraBhaskar9439/veritas/actions/runs/32951728495) (`SUCCESS`)
+- Release verification: local full suite and live end-to-end proof passed; the proof-only successor commit carries the refreshed rehearsal record.
 
 ## Immutable release binding
 
 | Component | Cloud Run revision | Image digest |
 |---|---|---|
-| API | `veritas-preview-api-00030-kc7` | `sha256:523e35c42371de76d80b7df9092aa6dc43e90ddc1ef19eb1e11ba6bd18a54b25` |
-| Drive ingress | `veritas-preview-ingress-00030-n8c` | `sha256:523e35c42371de76d80b7df9092aa6dc43e90ddc1ef19eb1e11ba6bd18a54b25` |
-| Worker | `veritas-preview-worker-00030-mrr` | `sha256:523e35c42371de76d80b7df9092aa6dc43e90ddc1ef19eb1e11ba6bd18a54b25` |
-| Web | `veritas-preview-web-00016-dkd` | `sha256:9971506b01d9050e4dd067d587e3df957c60b534f1bcb3b61baaca7e33c22461` |
+| API | `veritas-preview-api-00031-v8x` | `sha256:15438f03a9f575fe95e6526566d28a0bd0973ea214df5bc950eca49406430b12` |
+| Drive ingress | `veritas-preview-ingress-00031-7gq` | `sha256:15438f03a9f575fe95e6526566d28a0bd0973ea214df5bc950eca49406430b12` |
+| Worker | `veritas-preview-worker-00031-km4` | `sha256:15438f03a9f575fe95e6526566d28a0bd0973ea214df5bc950eca49406430b12` |
+| Web | `veritas-preview-web-00017-f67` | `sha256:76c0e5dbcbfa5478f2128e01ac31882a3136ab91b205c91628330f4b88eb3fce` |
 
 The public root and `/health/ready` both returned HTTP 200 without an authenticated application session. PostgreSQL 16 has automated backups and point-in-time recovery enabled. The evidence bucket `project-c0f0f832-e02b-4eac-ae2-veritas-preview-snapshots` has object versioning and seven-day soft delete. Pub/Sub topics, the Cloud Tasks repair queue, Secret Manager, and the enabled `workspace-credentials` KMS key are present.
 
@@ -35,8 +35,9 @@ Each run created a fresh native Workspace packet, then changed the generated She
 | `A70E9EFE1D02` | verified after recovery | Second real Gemini outage; replayed after quarantine |
 | `370C1A51AD95` | verified | Clean run on final release `23f802f`; detected 08:48:03 UTC, certified 08:49:20 UTC |
 | `74EC21579183` | verified after recovery | Final-release outage; detected 08:51:11 UTC, audited replay succeeded, certified 09:02:00 UTC |
+| `3053E54BC7DB` | verified | Clean `72c687c` run; one natural-language Google Task updated in place, detected 09:50:15 UTC, certified 09:51:12 UTC |
 
-Certificate `370C1A51AD95` independently verified all 13 registered targets, all five protected projections, eight monitored claims, and six pinned evidence versions on `23f802f`. Commit `c880e5f` changes only formatter layout in the already-tested packet-scoping query; a clean detached build deployed that successor, the migration completed, public root/readiness checks returned HTTP 200, and recovered certificate `74EC21579183` remained independently verified after rollout. The UI and stored certificates use scoped language: the packet is consistent only within its registered boundary.
+Certificate `3053E54BC7DB` independently verified all 13 registered targets, all five protected projections, eight monitored claims, and six pinned evidence versions on `72c687c`. The run changed `Metrics!B17` from 4% to 6%, passed two human approvals, updated the same active Google Task from **Increase acquisition spend** to **Pause the planned increase in acquisition spend**, preserved a single active task and 19 recoverable completed rehearsal tasks, and certified in 57 seconds. The UI and stored certificates use scoped language: the packet is consistent only within its registered boundary.
 
 ## Real failure and recovery evidence
 

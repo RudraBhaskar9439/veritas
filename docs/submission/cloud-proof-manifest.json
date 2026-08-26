@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.1",
   "status": "live_proof_partial",
-  "lastUpdated": "2026-08-26T14:30:00+05:30",
+  "lastUpdated": "2026-08-26T15:22:00+05:30",
   "projectId": "project-c0f0f832-e02b-4eac-ae2",
   "region": "us-central1",
-  "acceptedCommit": "c880e5f",
+  "acceptedCommit": "72c687c",
   "publicUrl": "https://veritas-preview-web-602044424209.us-central1.run.app/",
   "requiredEvidence": [
     {
@@ -17,7 +17,7 @@
       "id": "immutable-images",
       "description": "Four deployed image digests bound to the accepted commit",
       "status": "complete",
-      "evidence": "Cloud Build f43c0551-6494-4689-9a90-3e8ac259535c built clean commit c880e5f; runtime sha256:523e35c42371de76d80b7df9092aa6dc43e90ddc1ef19eb1e11ba6bd18a54b25 and web sha256:9971506b01d9050e4dd067d587e3df957c60b534f1bcb3b61baaca7e33c22461."
+      "evidence": "Cloud Build f1e6c0d9-196d-4796-ad2a-eed8eda1d4cf built clean commit 72c687c; runtime sha256:15438f03a9f575fe95e6526566d28a0bd0973ea214df5bc950eca49406430b12 and web sha256:76c0e5dbcbfa5478f2128e01ac31882a3136ab91b205c91628330f4b88eb3fce."
     },
     {
       "id": "workspace-generation",
@@ -35,7 +35,7 @@
       "id": "native-repair",
       "description": "Five real artifacts repaired with native preconditions",
       "status": "complete",
-      "evidence": "Certificate 370C1A51AD95 independently verified 13/13 targets after native Docs, Slides, Gmail draft, Tasks, and second Doc actions."
+      "evidence": "Certificate 3053E54BC7DB independently verified 13/13 targets after native Docs, Slides, Gmail draft, in-place human-readable Tasks, and second Doc actions on 72c687c."
     },
     {
       "id": "human-preservation",
@@ -53,7 +53,7 @@
       "id": "certificate",
       "description": "Independent report and scoped certificate checksums",
       "status": "complete",
-      "evidence": "Certificate 370C1A51AD95 on semantic release parent 23f802f covers 8 claims, 13/13 targets, 6 evidence versions, and 5/5 protected projections; recovered certificate 74EC21579183 remained verified after the formatter-only c880e5f rollout."
+      "evidence": "Certificate 3053E54BC7DB on release 72c687c covers 8 claims, 13/13 targets, 6 evidence versions, and 5/5 protected projections after a real 4%-to-6% Sheet change and two human approvals."
     },
     {
       "id": "failure-injection",
@@ -65,19 +65,19 @@
       "id": "five-runs",
       "description": "Five consecutive clean live rehearsal records",
       "status": "partial",
-      "evidence": "Nine live certificates have been issued across production revisions, including final-release certificates 370C1A51AD95 and recovered 74EC21579183. Intermittent real Gemini outages broke the consecutive-clean streak, so this item is not called complete."
+      "evidence": "Ten live certificates have been issued across production revisions, including 72c687c certificate 3053E54BC7DB and recovered certificate 74EC21579183. Intermittent real Gemini outages broke the consecutive-clean streak, so this item is not called complete."
     },
     {
       "id": "browser-audit",
       "description": "Hosted responsive, keyboard, refresh, and accessibility evidence",
       "status": "partial",
-      "evidence": "Hosted desktop semantics, refresh persistence, labelled controls, no horizontal overflow, visible approval controls, and real-time updates were inspected: one main, one H1, seven headings, thirteen labelled buttons, zero images without alt, one skip link, and no horizontal overflow at 1280x720. A final phone-width and complete keyboard/a11y pass remains to be recorded."
+      "evidence": "Hosted desktop semantics, refresh persistence, labelled controls, no horizontal overflow, visible approval controls, real-time updates, the Google Tasks deep link, one active natural-language task, and in-place task repair were inspected. A final phone-width and complete keyboard/a11y pass remains to be recorded."
     },
     {
       "id": "cost-latency",
       "description": "Real p50/p95 latency, Gemini usage, and Cloud cost",
       "status": "partial",
-      "evidence": "Per-run detected and certificate timestamps are recorded, including a 77-second final-release clean run. Exact p50/p95, token totals, and post-billing-delay Cloud cost are not yet claimed."
+      "evidence": "Per-run detected and certificate timestamps are recorded, including the 57-second 72c687c clean run. Exact p50/p95, token totals, and post-billing-delay Cloud cost are not yet claimed."
     }
   ]
 }

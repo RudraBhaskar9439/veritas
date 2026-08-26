@@ -25,4 +25,4 @@ Observed local result: 52 runtime tests passed with 96.43% statement coverage; s
 
 ## Live gate
 
-Phase 3's live gate passed on 2026-08-26. The production API created fresh native Sheets, Docs, Slides, Gmail draft, and Tasks resources in the connected Google account, returned their real resource IDs and anchors, persisted the Claim Manifest, and exposed direct links from the Command Center. The final deployed release proof is bound to commit `c880e5f` in [`../submission/live-proof-report.md`](../submission/live-proof-report.md).
+Phase 3's live gate passed on 2026-08-26. The production API created fresh native Sheets, Docs, Slides, Gmail draft, and Tasks resources in the connected Google account, returned their real resource IDs and anchors, persisted the Claim Manifest, and exposed direct links from the Command Center. The current deployed proof is bound to application release `72c687c`; Google Tasks showed one human-readable active task and the same resource updated in place after the real source change. See [`../submission/live-proof-report.md`](../submission/live-proof-report.md).
