@@ -56,7 +56,10 @@ def _prompt(payload: dict[str, object]) -> str:
         "approves them, so approvalRequiredSteps greater than zero and an awaitingApproval plan "
         "state are expected safety controls, not reasons to escalate. Draft-only steps are also "
         "expected and preserve immutable originals. Escalate only for an internal contradiction, "
-        "a scope mismatch, an unregistered action, or a missing authority boundary. Return only "
-        "the requested structured response.\nINPUT:\n"
+        "a scope mismatch, an unregistered action, or a missing authority boundary. A lineage-"
+        "affected claim can be semantically unchanged when its deterministic transformation "
+        "reproduces the registered statement; those claims are intentionally absent from repair "
+        "steps and are not a contradiction. Return only the requested structured response."
+        "\nINPUT:\n"
         + json.dumps(payload, separators=(",", ":"), sort_keys=True)
     )

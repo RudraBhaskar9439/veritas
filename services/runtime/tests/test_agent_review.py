@@ -80,9 +80,16 @@ def test_gemini_review_is_scope_bound_persisted_and_idempotent() -> None:
         first = await service.review("subject-1", "operation-1", impact, plan, NOW)
         replay = await service.review("subject-1", "operation-1", impact, plan, NOW)
         assert first.review.model == "gemini-2.5-flash"
+        assert first.review.prompt_version == "consequence-safety-review-v2"
         assert first.review.disposition == AgentDisposition.PROCEED
         assert replay.reused is True
         assert len(gateway.calls) == 1
+        assert gateway.calls[0]["repairRequiredClaimIds"] == sorted(
+            {step.claim_id for step in plan.steps}
+        )
+        assert gateway.calls[0]["semanticallyUnchangedImpactedClaimIds"] == sorted(
+            plan.unchanged_impacted_claim_ids
+        )
 
         gateway.payload = gateway.payload.model_copy(
             update={"recognized_claim_ids": ("invented-claim",)}
@@ -108,6 +115,60 @@ def test_gemini_review_is_scope_bound_persisted_and_idempotent() -> None:
                 escalation,
                 "gemini-2.5-flash",
             ).review("subject-1", "operation-3", impact, plan, NOW)
+
+    asyncio.run(scenario())
+
+
+def test_gemini_review_distinguishes_lineage_impact_from_required_repairs() -> None:
+    async def scenario() -> None:
+        impact, plan = await _plan()
+        unchanged_claim_id = plan.steps[0].claim_id
+        remaining_steps = tuple(
+            step for step in plan.steps if step.claim_id != unchanged_claim_id
+        )
+        partial_plan = plan.model_copy(
+            update={
+                "steps": remaining_steps,
+                "unchanged_impacted_claim_ids": (
+                    *plan.unchanged_impacted_claim_ids,
+                    unchanged_claim_id,
+                ),
+            }
+        )
+        gateway = StaticReviewGateway(
+            GeminiReviewPayload(
+                disposition=AgentDisposition.PROCEED,
+                rationale="Unchanged lineage claims explain the deliberately smaller repair scope.",
+                recognized_claim_ids=tuple(
+                    claim.claim_id for claim in impact.affected_claims
+                ),
+                risk_flags=(),
+            )
+        )
+
+        await GeminiConsequenceReviewService(
+            MemoryReviews(),  # type: ignore[arg-type]
+            gateway,
+            "gemini-2.5-flash",
+        ).review("subject-1", "operation-partial", impact, partial_plan, NOW)
+
+        payload = gateway.calls[0]
+        assert payload["semanticallyUnchangedImpactedClaimIds"] == [unchanged_claim_id]
+        assert payload["repairRequiredClaimIds"] == sorted(
+            {step.claim_id for step in remaining_steps}
+        )
+        affected = payload["affectedClaims"]
+        assert isinstance(affected, list)
+        repair_flags = {
+            item["claimId"]: item["requiresRepair"]
+            for item in affected
+            if isinstance(item, dict)
+        }
+        assert repair_flags[unchanged_claim_id] is False
+        assert all(
+            repair_flags[claim_id]
+            for claim_id in {step.claim_id for step in remaining_steps}
+        )
 
     asyncio.run(scenario())
 

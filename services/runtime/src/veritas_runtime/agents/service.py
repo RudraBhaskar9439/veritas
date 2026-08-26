@@ -12,7 +12,7 @@ from veritas_runtime.agents.models import (
 from veritas_runtime.lineage.models import ImpactReport
 from veritas_runtime.repairs.models import RepairPlan
 
-PROMPT_VERSION = "consequence-safety-review-v1"
+PROMPT_VERSION = "consequence-safety-review-v2"
 
 
 class AgentReviewError(RuntimeError):
@@ -103,20 +103,33 @@ def _review_input(
     impact: ImpactReport,
     plan: RepairPlan,
 ) -> dict[str, object]:
+    repair_claim_ids = {step.claim_id for step in plan.steps}
+    repair_artifact_ids = {step.artifact_id for step in plan.steps}
     return {
         "instruction": (
             "Review this already-scoped consequence repair. Proceed only when the registered "
-            "impact and deterministic policy are internally coherent. Never add claims, "
-            "artifacts, permissions, or actions. Escalate ambiguity to a human."
+            "lineage impact, deterministically unchanged claims, repair-required claims, and "
+            "policy are internally coherent. Never add claims, artifacts, permissions, or "
+            "actions. Escalate ambiguity to a human."
         ),
         "operationId": operation_id,
         "packetId": impact.packet_id,
         "affectedClaims": [
-            {"claimId": claim.claim_id, "risk": claim.risk.value}
+            {
+                "claimId": claim.claim_id,
+                "risk": claim.risk.value,
+                "requiresRepair": claim.claim_id in repair_claim_ids,
+            }
             for claim in impact.affected_claims
         ],
         "registeredPathCount": len(impact.lineage_paths),
-        "affectedArtifactCount": len(impact.affected_artifacts),
+        "lineageAffectedArtifactCount": len(impact.affected_artifacts),
+        "repairRequiredClaimIds": sorted(repair_claim_ids),
+        "semanticallyUnchangedImpactedClaimIds": sorted(
+            plan.unchanged_impacted_claim_ids
+        ),
+        "repairArtifactCount": len(repair_artifact_ids),
+        "repairTargetCount": len(plan.steps),
         "policySummary": plan.policy_summary.model_dump(mode="json", by_alias=True),
         "planState": plan.state.value,
     }
