@@ -196,7 +196,7 @@ def test_gmail_creates_only_an_idempotent_correction_draft() -> None:
 
 def test_tasks_patch_uses_if_match_and_preserves_unrelated_notes() -> None:
     step = next(step for step in _steps() if step.artifact_id == "artifact-acquisition-task")
-    patched: list[tuple[str, str]] = []
+    patched: list[tuple[str, dict[str, str]]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
@@ -205,12 +205,13 @@ def test_tasks_patch_uses_if_match_and_preserves_unrelated_notes() -> None:
                 json={
                     "id": step.resource_id,
                     "etag": '"task-etag-1"',
+                    "title": "Increase acquisition spend",
                     "notes": f"Owner: Growth\n{step.before_statement}\nKeep this human note.",
                 },
             )
         if request.method == "PATCH":
             payload = json.loads(request.content)
-            patched.append((request.headers["If-Match"], payload["notes"]))
+            patched.append((request.headers["If-Match"], payload))
             return httpx.Response(200, json={"etag": '"task-etag-2"'})
         raise AssertionError("unexpected request")
 
@@ -226,5 +227,40 @@ def test_tasks_patch_uses_if_match_and_preserves_unrelated_notes() -> None:
 
     asyncio.run(scenario())
     assert patched[0][0] == '"task-etag-1"'
-    assert step.proposed_statement in patched[0][1]
-    assert "Keep this human note." in patched[0][1]
+    assert patched[0][1]["title"] == "Pause the planned increase in acquisition spend"
+    assert step.proposed_statement in patched[0][1]["notes"]
+    assert "Keep this human note." in patched[0][1]["notes"]
+
+
+def test_tasks_preserve_a_human_renamed_title_while_repairing_the_registered_note() -> None:
+    step = next(step for step in _steps() if step.artifact_id == "artifact-acquisition-task")
+    patched: list[dict[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "id": step.resource_id,
+                    "etag": '"task-etag-1"',
+                    "title": "Rudra's growth review",
+                    "notes": step.before_statement,
+                },
+            )
+        if request.method == "PATCH":
+            patched.append(json.loads(request.content))
+            return httpx.Response(200, json={"etag": '"task-etag-2"'})
+        raise AssertionError("unexpected request")
+
+    async def scenario() -> None:
+        gateway = GoogleWorkspaceRepairGateway(
+            client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        )
+        state = await gateway.read("token", step)
+        await gateway.apply("token", step, state)
+
+    import asyncio
+
+    asyncio.run(scenario())
+    assert "title" not in patched[0]
+    assert patched[0]["notes"] == step.proposed_statement

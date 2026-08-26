@@ -380,7 +380,7 @@ def _artifact_action(steps: tuple[RepairStep, ...]) -> str:
     if RepairOperation.CREATE_CORRECTION_DRAFT in operations:
         return f"Create {len(steps)} unsent correction draft(s)"
     if RepairOperation.UPDATE_TASK in operations:
-        return f"Update {len(steps)} registered task field(s)"
+        return f"Update {len(steps)} task title and registered decision note(s)"
     return f"Replace {len(steps)} registered claim anchor(s)"
 
 

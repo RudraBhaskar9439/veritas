@@ -196,7 +196,7 @@ export const demoIncident = {
       surface: 'Google Tasks',
       name: 'Acquisition task',
       targetCount: 1,
-      action: 'Patch registered note text',
+      action: 'Update the task title and decision note',
       guardrail: 'If-Match ETag',
       result: 'updated',
     },

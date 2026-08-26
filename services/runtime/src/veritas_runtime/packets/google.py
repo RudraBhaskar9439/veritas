@@ -12,6 +12,14 @@ from veritas_runtime.packets.models import (
     MaterializedArtifact,
     PacketArtifactDraft,
 )
+from veritas_runtime.workspace.tasks import (
+    has_task_reference,
+    has_task_workflow,
+    is_legacy_task_title,
+    natural_task_title,
+    task_notes,
+    task_tracking_footer,
+)
 
 
 class WorkspacePacketWriteError(RuntimeError):
@@ -234,29 +242,69 @@ class GoogleWorkspacePacketWriter:
 
     async def _task(self, draft: PacketArtifactDraft, key: str) -> MaterializedArtifact:
         task_list_id = await self._task_list()
-        marker = f"[veritas:{key[:16]}]"
-        title = f"{marker} {draft.title}"
+        title = natural_task_title(draft.claim_blocks[0].statement, draft.title)
         listed = await self._get(
             f"{self._tasks_root}/lists/{quote(task_list_id, safe='')}/tasks",
             params={"showCompleted": "true", "showHidden": "true", "maxResults": 100},
         )
         items = listed.get("items")
         task: dict[str, Any] | None = None
+        managed: list[dict[str, Any]] = []
         if isinstance(items, list):
-            task = next(
-                (
-                    cast(dict[str, Any], item)
-                    for item in items
-                    if isinstance(item, dict) and item.get("title") == title
-                ),
-                None,
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                candidate = cast(dict[str, Any], item)
+                candidate_notes = str(candidate.get("notes") or "")
+                candidate_title = str(candidate.get("title") or "")
+                if has_task_reference(candidate_notes, key) or candidate_title == (
+                    f"[veritas:{key[:16]}] {draft.title}"
+                ):
+                    task = candidate
+                if has_task_workflow(candidate_notes, draft.artifact_id) or is_legacy_task_title(
+                    candidate_title, draft.title
+                ):
+                    managed.append(candidate)
+
+        for stale in managed:
+            if stale is task or stale.get("status") == "completed":
+                continue
+            stale_id = _required_string(stale, "id", "stale Google Task ID")
+            headers = _if_match_headers(stale)
+            await self._patch(
+                f"{self._tasks_root}/lists/{quote(task_list_id, safe='')}/tasks/"
+                f"{quote(stale_id, safe='')}",
+                headers=headers,
+                json={"status": "completed"},
             )
+
+        if task is not None:
+            current_title = str(task.get("title") or "")
+            current_notes = str(task.get("notes") or "")
+            desired_footer = task_tracking_footer(draft.artifact_id, key)
+            updates: dict[str, str] = {}
+            if is_legacy_task_title(current_title, draft.title):
+                updates["title"] = title
+            if not has_task_reference(current_notes, key):
+                updates["notes"] = f"{current_notes.rstrip()}\n\n{desired_footer}"
+            if updates:
+                resource_id = _required_string(task, "id", "Google Task ID")
+                task = await self._patch(
+                    f"{self._tasks_root}/lists/{quote(task_list_id, safe='')}/tasks/"
+                    f"{quote(resource_id, safe='')}",
+                    headers=_if_match_headers(task),
+                    json=updates,
+                )
         if task is None:
             task = await self._post(
                 f"{self._tasks_root}/lists/{quote(task_list_id, safe='')}/tasks",
                 json={
                     "title": title,
-                    "notes": "\n\n".join(block.statement for block in draft.claim_blocks),
+                    "notes": task_notes(
+                        tuple(block.statement for block in draft.claim_blocks),
+                        draft.artifact_id,
+                        key,
+                    ),
                 },
             )
         resource_id = _required_string(task, "id", "Google Task ID")
@@ -324,10 +372,14 @@ class GoogleWorkspacePacketWriter:
         return await self._request("PATCH", url, **kwargs)
 
     async def _request(self, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
+        supplied_headers = kwargs.pop("headers", {})
+        headers = {"Authorization": f"Bearer {self._token}"}
+        if isinstance(supplied_headers, dict):
+            headers.update({str(key): str(value) for key, value in supplied_headers.items()})
         response = await self._client.request(
             method,
             url,
-            headers={"Authorization": f"Bearer {self._token}"},
+            headers=headers,
             **kwargs,
         )
         try:
@@ -346,6 +398,11 @@ class GoogleWorkspacePacketWriter:
         if not isinstance(payload, dict):
             raise WorkspacePacketWriteError("Workspace packet response must be an object")
         return cast(dict[str, Any], payload)
+
+
+def _if_match_headers(task: dict[str, Any]) -> dict[str, str]:
+    etag = task.get("etag")
+    return {"If-Match": etag} if isinstance(etag, str) and etag else {}
 
 
 def _document_text(

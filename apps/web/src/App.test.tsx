@@ -153,6 +153,11 @@ describe('Veritas command center', () => {
                   kind: 'google_slides',
                   resourceId: 'real-slides',
                 },
+                {
+                  artifactId: 'acquisition-task',
+                  kind: 'google_task',
+                  resourceId: 'real-task',
+                },
               ],
             },
             checksum: 'a'.repeat(64),
@@ -183,6 +188,10 @@ describe('Veritas command center', () => {
     expect(screen.getByRole('link', { name: /src-churn/ })).toHaveAttribute(
       'href',
       'https://docs.google.com/spreadsheets/d/real-sheet/edit',
+    );
+    expect(screen.getByRole('link', { name: /acquisition-task/ })).toHaveAttribute(
+      'href',
+      'https://tasks.google.com/',
     );
   });
 

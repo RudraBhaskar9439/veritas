@@ -12,6 +12,7 @@ from veritas_runtime.execution.models import ArtifactState, MutationReceipt
 from veritas_runtime.packets.models import ArtifactKind
 from veritas_runtime.repairs.models import RepairOperation, RepairStep
 from veritas_runtime.workspace.contracts import WorkspaceCapability
+from veritas_runtime.workspace.tasks import is_legacy_task_title, natural_task_title
 
 
 class WorkspaceExecutionError(RuntimeError):
@@ -288,7 +289,7 @@ class GoogleWorkspaceRepairGateway:
             revision_id=_required_string(payload, "etag", "Tasks ETag"),
             anchor=step.anchor,
             statement=_registered_statement(notes, step),
-            write_context={"notes": notes},
+            write_context={"notes": notes, "title": str(payload.get("title") or "")},
         )
 
     async def _apply_task(
@@ -298,11 +299,17 @@ class GoogleWorkspaceRepairGateway:
         if notes.count(step.before_statement) != 1:
             raise WorkspaceExecutionError("Task registered statement is not uniquely replaceable")
         updated_notes = notes.replace(step.before_statement, step.proposed_statement, 1)
+        current_title = _context_string(current, "title")
+        payload: dict[str, str] = {"notes": updated_notes}
+        if current_title == natural_task_title(step.before_statement) or is_legacy_task_title(
+            current_title
+        ):
+            payload["title"] = natural_task_title(step.proposed_statement)
         response = await self._client.patch(
             f"{self._tasks_root}/lists/{quote(_task_list(step), safe='')}/tasks/"
             f"{quote(step.resource_id, safe='')}",
             headers={**_authorization(token), "If-Match": current.revision_id},
-            json={"notes": updated_notes},
+            json=payload,
         )
         payload = _response_object(response, precondition_statuses={409, 412})
         return MutationReceipt(

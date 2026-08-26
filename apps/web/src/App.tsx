@@ -677,6 +677,9 @@ function workspaceResourceUrl(resource: PacketResource): string | null {
   if (resource.kind === 'gmail') {
     return `https://mail.google.com/mail/u/0/#drafts/${resource.resourceId}`;
   }
+  if (resource.kind === 'google_task') {
+    return 'https://tasks.google.com/';
+  }
   return null;
 }
 

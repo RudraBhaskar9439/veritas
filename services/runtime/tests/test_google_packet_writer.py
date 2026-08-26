@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 
 import httpx
@@ -90,8 +91,11 @@ def test_google_packet_writer_creates_native_anchored_artifacts() -> None:
             return httpx.Response(200, json={"items": []})
         if path == "/tasks/v1/lists/list-1/tasks" and request.method == "POST":
             body = json.loads(request.content)
-            assert body["title"].startswith("[veritas:")
+            assert body["title"] == "Customer churn is 9%"
+            assert "[veritas:" not in body["title"]
             assert "Customer churn is 9%." in body["notes"]
+            assert "Workflow: artifact-1" in body["notes"]
+            assert "Reference: VX-" in body["notes"]
             return httpx.Response(200, json={"id": "task-1", "etag": "task-r1"})
         raise AssertionError(f"Unexpected request: {request.method} {request.url}")
 
@@ -116,6 +120,79 @@ def test_google_packet_writer_creates_native_anchored_artifacts() -> None:
 
     asyncio.run(scenario())
     assert all(request.headers["Authorization"] == "Bearer access" for request in seen)
+
+
+def test_google_packet_writer_migrates_current_task_and_completes_stale_runs() -> None:
+    request_id = "request-task"
+    key = hashlib.sha256(f"{request_id}:artifact-1".encode()).hexdigest()
+    patched: list[tuple[str, str, dict[str, str]]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/tasks/v1/users/@me/lists":
+            return httpx.Response(200, json={"items": [{"id": "list-1", "title": "Veritas"}]})
+        if path == "/tasks/v1/lists/list-1/tasks" and request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "items": [
+                        {
+                            "id": "current-task",
+                            "etag": '"current-etag"',
+                            "status": "needsAction",
+                            "title": f"[veritas:{key[:16]}] Test google_task",
+                            "notes": "Customer churn is 9%.\n\nRetention needs attention.",
+                        },
+                        {
+                            "id": "stale-task",
+                            "etag": '"stale-etag"',
+                            "status": "needsAction",
+                            "title": "[veritas:0000000000000000] Test google_task",
+                            "notes": "Customer churn is 4%.",
+                        },
+                        {
+                            "id": "human-task",
+                            "etag": '"human-etag"',
+                            "status": "needsAction",
+                            "title": "Customer churn is 9%",
+                            "notes": "Created by a person.",
+                        },
+                    ]
+                },
+            )
+        if request.method == "PATCH":
+            payload = json.loads(request.content)
+            patched.append((path.rsplit("/", 1)[-1], request.headers["If-Match"], payload))
+            if path.endswith("/stale-task"):
+                return httpx.Response(
+                    200,
+                    json={"id": "stale-task", "etag": '"stale-etag-2"', "status": "completed"},
+                )
+            if path.endswith("/current-task"):
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "current-task",
+                        "etag": '"current-etag-2"',
+                        "title": payload["title"],
+                        "notes": payload["notes"],
+                    },
+                )
+        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            writer = GoogleWorkspacePacketWriter("access", "owner@example.test", client)
+            task = await writer.materialize(_draft(ArtifactKind.GOOGLE_TASK), request_id)
+        assert task.resource_id == "current-task"
+        assert task.revision_id == '"current-etag-2"'
+
+    asyncio.run(scenario())
+    assert patched[0] == ("stale-task", '"stale-etag"', {"status": "completed"})
+    assert patched[1][0:2] == ("current-task", '"current-etag"')
+    assert patched[1][2]["title"] == "Customer churn is 9%"
+    assert "Workflow: artifact-1" in patched[1][2]["notes"]
+    assert all(task_id != "human-task" for task_id, _, _ in patched)
 
 
 def test_google_packet_writer_reuses_idempotent_artifacts_without_creating_duplicates() -> None:

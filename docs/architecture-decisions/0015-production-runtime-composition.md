@@ -14,7 +14,7 @@ The control API now composes one shared async database engine, encrypted Google 
 
 Google OAuth completion issues a short-lived, HttpOnly application-session cookie containing only a signed subject and verified email. Google access and refresh tokens remain encrypted under Cloud KMS. The Workspace session provider refreshes expiring access tokens and re-encrypts the rotated envelope; raw tokens never enter the browser session.
 
-Packet generation now uses a real HTTP Workspace writer. It creates replay-safe Google Docs named ranges, deterministic Slides text-box anchors, an unsent Gmail draft, and a Google Task. Drive application properties, deterministic RFC message IDs, and task markers prevent duplicate artifacts when a request is retried.
+Packet generation now uses a real HTTP Workspace writer. It creates replay-safe Google Docs named ranges, deterministic Slides text-box anchors, an unsent Gmail draft, and a Google Task. Drive application properties, deterministic RFC message IDs, and task-note references prevent duplicate artifacts when a request is retried. Task references stay in a compact audit footer rather than leaking into the human-facing title; a new packet run completes superseded Veritas-owned demo tasks while preserving unrelated human tasks.
 
 Cloud Run services use four distinct service accounts. API, ingress, and worker connect to PostgreSQL through the official Cloud SQL Python Connector with automatic IAM database authentication. Terraform creates `CLOUD_IAM_SERVICE_ACCOUNT` database users and grants both Cloud SQL Client and Instance User roles; no database password is generated, stored, or passed through Terraform.
 
