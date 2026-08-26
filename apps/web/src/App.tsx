@@ -49,7 +49,7 @@ type LiveGenerationRequest = typeof generationRequest;
 type GenerationState =
   | { phase: 'idle' }
   | { phase: 'running' }
-  | { phase: 'error'; message: string }
+  | { phase: 'error'; message: string; request: LiveGenerationRequest }
   | { phase: 'complete'; result: PacketGenerationResult; request: LiveGenerationRequest };
 
 const views: ReadonlyArray<{ id: ViewId; label: string; index: string }> = [
@@ -233,6 +233,7 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
       setGeneration({
         phase: 'error',
         message: error instanceof Error ? error.message : 'Live generation failed.',
+        request,
       });
     }
   }
@@ -257,7 +258,11 @@ export function App({ initialIncident }: { initialIncident?: Incident }) {
       <StartupState
         state={state}
         generation={generation}
-        onGenerate={() => void generateLivePacket(generationRequest)}
+        onGenerate={() =>
+          void generateLivePacket(
+            generation.phase === 'error' ? generation.request : generationRequest,
+          )
+        }
         onReplay={(request) => void generateLivePacket(request)}
         onRetry={() => setRetry((value) => value + 1)}
         onDemo={() => {

@@ -299,6 +299,57 @@ describe('Veritas command center', () => {
     expect(replayPacketBody.blueprint.packetId).toBe(packetBody.blueprint.packetId);
   });
 
+  it('retries a failed fresh packet with the same idempotency identity', async () => {
+    const liveIncident: Incident = { ...demoIncident, source: 'live' };
+    const sources = [
+      {
+        sourceId: 'src-churn',
+        kind: 'google_sheet',
+        resourceId: 'retry-sheet',
+        anchor: 'Metrics!B17',
+        version: '1',
+        value: 0.04,
+      },
+    ];
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('abcdef12-1234-4000-8000-123456789abc');
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: 'Workspace dependency unavailable' }), {
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sources })))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            manifest: {
+              packetId: 'packet-q3-executive-review-abcdef121234',
+              sources,
+              artifacts: [],
+            },
+            checksum: 'c'.repeat(64),
+            reused: false,
+          }),
+        ),
+      )
+      .mockResolvedValue(new Response('null'));
+    render(<App initialIncident={liveIncident} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'New monitored packet' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Workspace dependency unavailable');
+    fireEvent.click(screen.getByRole('button', { name: 'Generate real Workspace packet' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Decision packet created and monitored.' }),
+    ).toBeInTheDocument();
+
+    const firstAttempt = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const retriedAttempt = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    const retriedPacket = JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
+    expect(retriedAttempt.requestId).toBe(firstAttempt.requestId);
+    expect(retriedPacket.blueprint.packetId).toBe('packet-q3-executive-review-abcdef121234');
+  });
+
   it('uses one server-side action for approval, continuation, and verification', async () => {
     const pending: Incident = {
       ...demoIncident,
