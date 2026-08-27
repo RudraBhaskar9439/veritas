@@ -4,7 +4,8 @@
 - Verified locally: 2026-08-27
 - Local command: `node scripts/verify-phase-12.mjs`
 - Accepted application release commit: `5425b0c06511e6de13a7028b6485bba172af7292`
-- Clean release workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/33032292084>
+- Clean application workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/33032292084>
+- Clean proof-package workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/33032968328>
 
 ## Completed without Google Cloud
 

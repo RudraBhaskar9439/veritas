@@ -50,8 +50,8 @@
 ## Final freeze
 
 - [x] Latest GitHub workflow is fully green.
-- [ ] Working tree is clean and release tag is pushed.
-- [ ] Submission was reread once as a Taskmaster judge and once as an architecture judge.
+- [x] Working tree was clean and a release tag was pushed after verification.
+- [x] Submission was reread once as a Taskmaster judge and once as an architecture judge.
 - [ ] Devpost preview was checked after saving.
 - [ ] Submission confirmation and final URLs are archived.
 
