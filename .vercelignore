@@ -20,14 +20,14 @@ secrets/
 *.tfstate
 *.tfstate.*
 
-cloudbuild.preview.yaml
-compose.yaml
-demo/
-docs/
-evaluation/
-infra/
-schemas/
-scripts/
-services/
-pyproject.toml
-uv.lock
+/cloudbuild.preview.yaml
+/compose.yaml
+/demo/
+/docs/
+/evaluation/
+/infra/
+/schemas/
+/scripts/
+/services/
+/pyproject.toml
+/uv.lock
