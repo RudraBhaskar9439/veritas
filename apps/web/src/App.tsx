@@ -114,11 +114,17 @@ interface EmailTaskEvent {
   bodyHash: string;
   proposedTitle: string | null;
   proposedNote: string | null;
-  status: 'received' | 'ignored' | 'escalated' | 'applied';
+  status: 'received' | 'ignored' | 'escalated' | 'reviewing' | 'rejected' | 'applied';
   rationale: string;
   riskFlags: ReadonlyArray<string>;
   taskRevision: string | null;
   receiptChecksum: string;
+  reviewDecision: 'approve' | 'reject' | null;
+  reviewRequestId: string | null;
+  reviewReason: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewReceiptChecksum: string | null;
   receivedAt: string;
 }
 
@@ -1058,6 +1064,7 @@ function EmailTaskAutomation() {
   const [authorizedSender, setAuthorizedSender] = useState('');
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState(false);
+  const [reviewingEvent, setReviewingEvent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1275,6 +1282,42 @@ function EmailTaskAutomation() {
     }
   }
 
+  async function reviewEmailEvent(event: EmailTaskEvent, decision: 'approve' | 'reject') {
+    setReviewingEvent(event.eventId);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/v1/email-task-events/${encodeURIComponent(event.eventId)}/review`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            requestId: crypto.randomUUID(),
+            decision,
+            reason:
+              decision === 'approve'
+                ? 'Approved by the authenticated operator after reviewing the customer request and current task.'
+                : 'Rejected by the authenticated operator after reviewing the customer request and current task.',
+          }),
+        },
+      );
+      if (!response.ok) throw new Error(await safeApiError(response));
+      const result = (await response.json()) as { event: EmailTaskEvent };
+      setEvents((current) =>
+        current.map((item) => (item.eventId === result.event.eventId ? result.event : item)),
+      );
+    } catch (reviewError: unknown) {
+      setError(
+        reviewError instanceof Error
+          ? reviewError.message
+          : 'The escalated customer request could not be reviewed.',
+      );
+    } finally {
+      setReviewingEvent(null);
+    }
+  }
+
   return (
     <section className="panel emailAutomationPanel" aria-labelledby="email-automation-title">
       <div className="emailAutomationIntro">
@@ -1483,6 +1526,20 @@ function EmailTaskAutomation() {
                       {fullUtc(event.receivedAt)} · from {event.sender}
                     </span>
                     <p>{event.rationale}</p>
+                    {event.status === 'escalated' && event.proposedTitle && event.proposedNote && (
+                      <div className="emailProposal">
+                        <span>Proposed Google Task update</span>
+                        <strong>{event.proposedTitle}</strong>
+                        <p>{event.proposedNote}</p>
+                      </div>
+                    )}
+                    {event.reviewedBy && event.reviewDecision && (
+                      <p className="emailReviewProof">
+                        {event.reviewDecision === 'approve' ? 'Approved' : 'Rejected'} by{' '}
+                        {event.reviewedBy}
+                        {event.reviewedAt ? ` at ${fullUtc(event.reviewedAt)}` : ''}.
+                      </p>
+                    )}
                   </div>
                   <dl>
                     <div>
@@ -1497,7 +1554,36 @@ function EmailTaskAutomation() {
                       <dt>Task revision</dt>
                       <dd>{event.taskRevision ?? 'not changed'}</dd>
                     </div>
+                    {event.reviewReceiptChecksum && (
+                      <div>
+                        <dt>Review receipt</dt>
+                        <dd>{event.reviewReceiptChecksum.slice(0, 12)}…</dd>
+                      </div>
+                    )}
                   </dl>
+                  {event.status === 'escalated' && (
+                    <fieldset className="emailReviewActions">
+                      <legend className="srOnly">Human authority decision</legend>
+                      <button
+                        className="primaryButton"
+                        type="button"
+                        disabled={reviewingEvent !== null}
+                        onClick={() => void reviewEmailEvent(event, 'approve')}
+                      >
+                        {reviewingEvent === event.eventId
+                          ? 'Applying approved update…'
+                          : 'Approve & update task'}
+                      </button>
+                      <button
+                        className="dangerButton"
+                        type="button"
+                        disabled={reviewingEvent !== null}
+                        onClick={() => void reviewEmailEvent(event, 'reject')}
+                      >
+                        Reject request
+                      </button>
+                    </fieldset>
+                  )}
                 </article>
               ))}
             </div>

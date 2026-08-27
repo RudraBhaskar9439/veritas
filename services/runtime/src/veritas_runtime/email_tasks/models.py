@@ -27,6 +27,8 @@ class EmailTaskEventStatus(StrEnum):
     RECEIVED = "received"
     IGNORED = "ignored"
     ESCALATED = "escalated"
+    REVIEWING = "reviewing"
+    REJECTED = "rejected"
     APPLIED = "applied"
 
 
@@ -34,6 +36,17 @@ class EmailTaskDisposition(StrEnum):
     UPDATE = "update"
     IGNORE = "ignore"
     ESCALATE = "escalate"
+
+
+class EmailTaskReviewDecision(StrEnum):
+    APPROVE = "approve"
+    REJECT = "reject"
+
+
+class ReviewEmailTaskEventRequest(CamelModel):
+    request_id: str = Field(min_length=8, max_length=255)
+    decision: EmailTaskReviewDecision
+    reason: str = Field(min_length=12, max_length=600)
 
 
 class RegisterEmailTaskWorkflowRequest(CamelModel):
@@ -182,6 +195,12 @@ class EmailTaskEvent(CamelModel):
     risk_flags: tuple[str, ...] = Field(max_length=8)
     task_revision: str | None = Field(default=None, max_length=255)
     receipt_checksum: str = Field(pattern=r"^[a-f0-9]{64}$")
+    review_decision: EmailTaskReviewDecision | None = None
+    review_request_id: str | None = Field(default=None, max_length=255)
+    review_reason: str | None = Field(default=None, max_length=600)
+    reviewed_by: str | None = Field(default=None, max_length=320)
+    reviewed_at: datetime | None = None
+    review_receipt_checksum: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     received_at: datetime
     created_at: datetime
     updated_at: datetime

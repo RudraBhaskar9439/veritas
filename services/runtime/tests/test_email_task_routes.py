@@ -8,6 +8,9 @@ from fastapi.testclient import TestClient
 from veritas_runtime.auth.sessions import SessionPrincipal
 from veritas_runtime.email_tasks.models import (
     EmailTaskEligibleRoute,
+    EmailTaskEvent,
+    EmailTaskEventResult,
+    EmailTaskEventStatus,
     EmailTaskRegistrationResult,
     EmailTaskSetup,
     EmailTaskThreadBinding,
@@ -76,6 +79,41 @@ class RecordingCoordinator:
     async def list_events(self, subject: str, packet_id: str):  # type: ignore[no-untyped-def]
         assert (subject, packet_id) == ("subject-1", "packet-1")
         return ()
+
+    async def review_event(self, subject, reviewer, event_id, request):  # type: ignore[no-untyped-def]
+        assert (subject, reviewer, event_id) == (
+            "subject-1",
+            "operator@example.com",
+            "event-1",
+        )
+        event = EmailTaskEvent(
+            event_id=event_id,
+            workflow_id="workflow-1",
+            gmail_message_id="message-1",
+            gmail_thread_id="thread-1",
+            history_id="101",
+            sender="customer@example.com",
+            recipient="operator@example.com",
+            subject_line="Re: Customer onboarding",
+            body_hash="a" * 64,
+            proposed_title="Move onboarding review to Friday",
+            proposed_note="Customer confirmed the Friday review.",
+            status=EmailTaskEventStatus.APPLIED,
+            rationale="The customer requested a decision-changing schedule update.",
+            risk_flags=("decision_reversal",),
+            task_revision="task-v2",
+            receipt_checksum="b" * 64,
+            review_decision=request.decision,
+            review_request_id=request.request_id,
+            review_reason=request.reason,
+            reviewed_by=reviewer,
+            reviewed_at=NOW,
+            review_receipt_checksum="c" * 64,
+            received_at=NOW,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        return EmailTaskEventResult(event=event, reused=False)
 
     async def register(self, subject, mailbox_email, request):  # type: ignore[no-untyped-def]
         self.registered = (subject, mailbox_email, request)
@@ -156,6 +194,19 @@ def test_email_task_setup_and_registration_routes_are_authenticated_and_camel_ca
     assert bound.status_code == 200
     assert bound.json()["workflowId"] == "workflow-1"
 
+    reviewed = client.post(
+        "/api/v1/email-task-events/event-1/review",
+        json={
+            "requestId": "review-request-1",
+            "decision": "approve",
+            "reason": "Approved after reviewing the customer request.",
+        },
+    )
+    assert reviewed.status_code == 200
+    assert reviewed.json()["event"]["status"] == "applied"
+    assert reviewed.json()["event"]["reviewedBy"] == "operator@example.com"
+    assert reviewed.json()["event"]["reviewReceiptChecksum"] == "c" * 64
+
     paused = client.delete("/api/v1/email-task-workflows/workflow-1")
     assert paused.status_code == 200
     assert paused.json()["status"] == "paused"
@@ -172,6 +223,7 @@ def test_email_task_routes_fail_closed_when_not_composed() -> None:
     assert client.get("/api/v1/email-task-workflows").status_code == 503
     assert client.get("/api/v1/email-task-workflows/setup?packetId=packet-1").status_code == 503
     assert client.get("/api/v1/email-task-events?packetId=packet-1").status_code == 503
+    assert client.post("/api/v1/email-task-events/event-1/review", json={}).status_code == 503
     assert client.post("/api/v1/email-task-workflows", json={}).status_code == 503
     assert client.post("/api/v1/email-task-workflows/workflow-1/conversation").status_code == 503
     assert (

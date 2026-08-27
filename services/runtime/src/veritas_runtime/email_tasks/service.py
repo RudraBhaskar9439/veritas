@@ -5,10 +5,14 @@ from typing import Protocol
 from uuid import NAMESPACE_URL, uuid5
 
 from veritas_runtime.auth.oauth import OAuthExchangeError
+from veritas_runtime.email_tasks.google import EmailTaskPreconditionFailed
 from veritas_runtime.email_tasks.models import (
     EmailTaskEligibleRoute,
     EmailTaskEvent,
+    EmailTaskEventResult,
+    EmailTaskEventStatus,
     EmailTaskRegistrationResult,
+    EmailTaskReviewDecision,
     EmailTaskSetup,
     EmailTaskThreadBinding,
     EmailTaskThreadSource,
@@ -18,9 +22,12 @@ from veritas_runtime.email_tasks.models import (
     EmailTaskWorkflowStatus,
     GmailConversationSeed,
     GmailWatchStream,
+    GoogleTaskState,
     RegisterEmailTaskWorkflowRequest,
+    ReviewEmailTaskEventRequest,
 )
 from veritas_runtime.email_tasks.policy import normalize_email, workflow_routing_key
+from veritas_runtime.email_tasks.processor import managed_task_notes
 from veritas_runtime.execution.service import WorkspaceSession
 from veritas_runtime.execution.sessions import WorkspaceSessionUnavailable
 from veritas_runtime.packets.generator import manifest_checksum
@@ -51,6 +58,22 @@ class GmailWatchGateway(Protocol):
         body: str,
         message_id: str,
     ) -> GmailConversationSeed: ...
+
+    async def get_task(
+        self,
+        access_token: str,
+        task_list_id: str,
+        task_id: str,
+    ) -> GoogleTaskState: ...
+
+    async def update_task(
+        self,
+        access_token: str,
+        task_list_id: str,
+        current: GoogleTaskState,
+        title: str,
+        notes: str,
+    ) -> GoogleTaskState: ...
 
 
 class EmailTaskWorkspaceSessionProvider(Protocol):
@@ -129,6 +152,40 @@ class EmailTaskWorkflowRepository(Protocol):
         subject: str,
         packet_id: str,
     ) -> tuple[EmailTaskEvent, ...]: ...
+
+    async def get_event_by_id(
+        self,
+        subject: str,
+        event_id: str,
+    ) -> EmailTaskEvent | None: ...
+
+    async def claim_event_review(
+        self,
+        subject: str,
+        event_id: str,
+        decision: EmailTaskReviewDecision,
+        request_id: str,
+        reason: str,
+        reviewed_by: str,
+        reviewed_at: datetime,
+    ) -> EmailTaskEventResult: ...
+
+    async def finalize_event_review(
+        self,
+        event_id: str,
+        request_id: str,
+        status: EmailTaskEventStatus,
+        task_revision: str | None,
+        review_receipt_checksum: str,
+        updated_at: datetime,
+    ) -> EmailTaskEventResult: ...
+
+    async def release_event_review(
+        self,
+        event_id: str,
+        request_id: str,
+        updated_at: datetime,
+    ) -> EmailTaskEvent | None: ...
 
 
 class EmailTaskWorkflowService:
@@ -383,6 +440,155 @@ class EmailTaskRegistrationCoordinator:
     ) -> tuple[EmailTaskEvent, ...]:
         return await self._workflows.list_events(subject, packet_id)
 
+    async def review_event(
+        self,
+        subject: str,
+        reviewer: str,
+        event_id: str,
+        request: ReviewEmailTaskEventRequest,
+        now: datetime | None = None,
+    ) -> EmailTaskEventResult:
+        instant = (now or datetime.now(UTC)).astimezone(UTC)
+        event = await self._repository.get_event_by_id(subject, event_id)
+        if event is None:
+            raise EmailTaskWorkflowError("The escalated email request was not found")
+        if event.review_request_id == request.request_id:
+            if event.review_decision != request.decision:
+                raise EmailTaskWorkflowError(
+                    "Review request identity was reused with another decision"
+                )
+            if event.status in {EmailTaskEventStatus.APPLIED, EmailTaskEventStatus.REJECTED}:
+                return EmailTaskEventResult(event=event, reused=True)
+        elif event.status != EmailTaskEventStatus.ESCALATED:
+            raise EmailTaskWorkflowError("The email request has already been resolved")
+
+        workflow = await self._workflows.get(subject, event.workflow_id)
+        reviewer_email = normalize_email(reviewer)
+        try:
+            session = await self._sessions.get(subject)
+            session.authorization.require(WorkspaceCapability.TASKS_REPAIR)
+        except (OAuthExchangeError, WorkspaceSessionUnavailable, MissingWorkspaceScope) as error:
+            raise EmailTaskWorkflowError(
+                "Reconnect Google Workspace before reviewing this customer request"
+            ) from error
+
+        current: GoogleTaskState | None = None
+        if request.decision == EmailTaskReviewDecision.APPROVE:
+            if not event.proposed_title or not event.proposed_note:
+                raise EmailTaskWorkflowError(
+                    "This escalated request has no bounded task update to approve"
+                )
+            current = await self._gmail.get_task(
+                session.access_token,
+                workflow.task_list_id,
+                workflow.task_id,
+            )
+
+        try:
+            claimed = await self._repository.claim_event_review(
+                subject,
+                event_id,
+                request.decision,
+                request.request_id,
+                request.reason,
+                reviewer_email,
+                instant,
+            )
+        except ValueError as error:
+            raise EmailTaskWorkflowError(str(error)) from error
+
+        if claimed.event.status in {
+            EmailTaskEventStatus.APPLIED,
+            EmailTaskEventStatus.REJECTED,
+        }:
+            return EmailTaskEventResult(event=claimed.event, reused=True)
+
+        if request.decision == EmailTaskReviewDecision.REJECT:
+            return await self._finalize_review(
+                claimed.event,
+                EmailTaskEventStatus.REJECTED,
+                None,
+                instant,
+            )
+
+        if current is None or not claimed.event.proposed_title or not claimed.event.proposed_note:
+            await self._repository.release_event_review(event_id, request.request_id, instant)
+            raise EmailTaskWorkflowError("The approved task update is incomplete")
+        if claimed.event.event_id in current.notes:
+            return await self._finalize_review(
+                claimed.event,
+                EmailTaskEventStatus.APPLIED,
+                current.etag,
+                instant,
+            )
+
+        notes = managed_task_notes(
+            current.notes,
+            claimed.event.event_id,
+            claimed.event.sender,
+            claimed.event.gmail_message_id,
+            claimed.event.proposed_note,
+        )
+        try:
+            updated = await self._gmail.update_task(
+                session.access_token,
+                workflow.task_list_id,
+                current,
+                claimed.event.proposed_title,
+                notes,
+            )
+        except EmailTaskPreconditionFailed as error:
+            refreshed = await self._gmail.get_task(
+                session.access_token,
+                workflow.task_list_id,
+                workflow.task_id,
+            )
+            if claimed.event.event_id in refreshed.notes:
+                return await self._finalize_review(
+                    claimed.event,
+                    EmailTaskEventStatus.APPLIED,
+                    refreshed.etag,
+                    instant,
+                )
+            await self._repository.release_event_review(event_id, request.request_id, instant)
+            raise EmailTaskWorkflowError(
+                "The Google Task changed during review. No customer update was overwritten."
+            ) from error
+        return await self._finalize_review(
+            claimed.event,
+            EmailTaskEventStatus.APPLIED,
+            updated.etag,
+            instant,
+        )
+
+    async def _finalize_review(
+        self,
+        event: EmailTaskEvent,
+        status: EmailTaskEventStatus,
+        task_revision: str | None,
+        instant: datetime,
+    ) -> EmailTaskEventResult:
+        if (
+            event.review_decision is None
+            or event.review_request_id is None
+            or event.review_reason is None
+            or event.reviewed_by is None
+            or event.reviewed_at is None
+        ):
+            raise EmailTaskWorkflowError("The email review authority receipt is incomplete")
+        checksum = _review_checksum(event, status, task_revision)
+        try:
+            return await self._repository.finalize_event_review(
+                event.event_id,
+                event.review_request_id,
+                status,
+                task_revision,
+                checksum,
+                instant,
+            )
+        except ValueError as error:
+            raise EmailTaskWorkflowError(str(error)) from error
+
     async def start_conversation(
         self,
         subject: str,
@@ -495,6 +701,33 @@ class EmailTaskRegistrationCoordinator:
         if watch is None or watch.expiration <= datetime.now(UTC):
             return setup.model_copy(update={"workflows": ()})
         return setup
+
+
+def _review_checksum(
+    event: EmailTaskEvent,
+    status: EmailTaskEventStatus,
+    task_revision: str | None,
+) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            {
+                "eventReceipt": event.receipt_checksum,
+                "decision": event.review_decision.value if event.review_decision else None,
+                "requestId": event.review_request_id,
+                "reason": event.review_reason,
+                "reviewedBy": event.reviewed_by,
+                "reviewedAt": (
+                    event.reviewed_at.astimezone(UTC).isoformat()
+                    if event.reviewed_at is not None
+                    else None
+                ),
+                "result": status.value,
+                "taskRevision": task_revision,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
 
 
 class GmailWatchRenewalRepository(Protocol):

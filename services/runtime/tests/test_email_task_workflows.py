@@ -14,9 +14,12 @@ from packet_support import (
 from veritas_runtime.auth.database import metadata
 from veritas_runtime.changes.database import registered_evidence_sources
 from veritas_runtime.email_tasks.database import SqlEmailTaskWorkflowRepository
+from veritas_runtime.email_tasks.google import EmailTaskPreconditionFailed
 from veritas_runtime.email_tasks.models import (
     EmailTaskEvent,
+    EmailTaskEventResult,
     EmailTaskEventStatus,
+    EmailTaskReviewDecision,
     EmailTaskThreadBinding,
     EmailTaskThreadSource,
     EmailTaskUnmatchedRequest,
@@ -24,7 +27,9 @@ from veritas_runtime.email_tasks.models import (
     EmailTaskWorkflowStatus,
     GmailConversationSeed,
     GmailWatchStream,
+    GoogleTaskState,
     RegisterEmailTaskWorkflowRequest,
+    ReviewEmailTaskEventRequest,
 )
 from veritas_runtime.email_tasks.policy import (
     InvalidEmailAddress,
@@ -62,6 +67,7 @@ class MemoryWorkflows:
         self.watch = None
         self.threads = {}
         self.unmatched = {}
+        self.events = {}
 
     async def packet_registered_for_subject(self, subject: str, packet_id: str) -> bool:
         return self.owns_packet and subject == "subject-1" and bool(packet_id)
@@ -130,7 +136,93 @@ class MemoryWorkflows:
         return bound
 
     async def list_events_for_subject(self, subject: str, packet_id: str):  # type: ignore[no-untyped-def]
-        return ()
+        workflows = {
+            workflow.workflow_id
+            for (workflow_subject, _), (workflow, _) in self.records.items()
+            if workflow_subject == subject and workflow.packet_id == packet_id
+        }
+        return tuple(event for event in self.events.values() if event.workflow_id in workflows)
+
+    async def get_event_by_id(self, subject, event_id):  # type: ignore[no-untyped-def]
+        event = self.events.get(event_id)
+        if event is None:
+            return None
+        workflow = await self.get_by_workflow_id(subject, event.workflow_id)
+        return event if workflow is not None else None
+
+    async def claim_event_review(
+        self,
+        subject,
+        event_id,
+        decision,
+        request_id,
+        reason,
+        reviewed_by,
+        reviewed_at,
+    ):  # type: ignore[no-untyped-def]
+        event = await self.get_event_by_id(subject, event_id)
+        if event is None:
+            raise ValueError("The escalated email request was not found")
+        if event.review_request_id == request_id:
+            return EmailTaskEventResult(event=event, reused=True)
+        if event.status != EmailTaskEventStatus.ESCALATED:
+            raise ValueError("The email request has already been resolved")
+        claimed = event.model_copy(
+            update={
+                "status": EmailTaskEventStatus.REVIEWING,
+                "review_decision": decision,
+                "review_request_id": request_id,
+                "review_reason": reason,
+                "reviewed_by": reviewed_by,
+                "reviewed_at": reviewed_at,
+                "updated_at": reviewed_at,
+            }
+        )
+        self.events[event_id] = claimed
+        return EmailTaskEventResult(event=claimed, reused=False)
+
+    async def finalize_event_review(
+        self,
+        event_id,
+        request_id,
+        status,
+        task_revision,
+        review_receipt_checksum,
+        updated_at,
+    ):  # type: ignore[no-untyped-def]
+        event = self.events[event_id]
+        if event.review_request_id != request_id:
+            raise ValueError("Another operator owns this email review")
+        if event.status == status and event.review_receipt_checksum:
+            return EmailTaskEventResult(event=event, reused=True)
+        resolved = event.model_copy(
+            update={
+                "status": status,
+                "task_revision": task_revision,
+                "review_receipt_checksum": review_receipt_checksum,
+                "updated_at": updated_at,
+            }
+        )
+        self.events[event_id] = resolved
+        return EmailTaskEventResult(event=resolved, reused=False)
+
+    async def release_event_review(self, event_id, request_id, updated_at):  # type: ignore[no-untyped-def]
+        event = self.events.get(event_id)
+        if event is None or event.review_request_id != request_id:
+            return event
+        released = event.model_copy(
+            update={
+                "status": EmailTaskEventStatus.ESCALATED,
+                "review_decision": None,
+                "review_request_id": None,
+                "review_reason": None,
+                "reviewed_by": None,
+                "reviewed_at": None,
+                "updated_at": updated_at,
+            }
+        )
+        self.events[event_id] = released
+        return released
 
     async def pause_for_subject(self, subject, workflow_id, updated_at):  # type: ignore[no-untyped-def]
         for key, (workflow, digest) in self.records.items():
@@ -408,6 +500,99 @@ def test_sql_repository_persists_only_subject_owned_workflows() -> None:
         with pytest.raises(ValueError, match="different evidence"):
             await workflows.persist_event(event.model_copy(update={"receipt_checksum": "c" * 64}))
 
+        escalated_event = event.model_copy(
+            update={
+                "event_id": "event-review-1",
+                "gmail_message_id": "message-review-1",
+                "status": EmailTaskEventStatus.ESCALATED,
+                "task_revision": None,
+                "receipt_checksum": "f" * 64,
+            }
+        )
+        assert (await workflows.persist_event(escalated_event)).reused is False
+        assert (
+            await workflows.get_event_by_id("subject-1", escalated_event.event_id)
+        ) == escalated_event
+        claimed = await workflows.claim_event_review(
+            "subject-1",
+            escalated_event.event_id,
+            EmailTaskReviewDecision.APPROVE,
+            "review-request-1",
+            "Approved after checking the current task and customer request.",
+            "operator@example.com",
+            NOW + timedelta(minutes=4),
+        )
+        assert claimed.event.status == EmailTaskEventStatus.REVIEWING
+        assert (
+            await workflows.claim_event_review(
+                "subject-1",
+                escalated_event.event_id,
+                EmailTaskReviewDecision.APPROVE,
+                "review-request-1",
+                "Approved after checking the current task and customer request.",
+                "operator@example.com",
+                NOW + timedelta(minutes=4),
+            )
+        ).reused is True
+        resolved = await workflows.finalize_event_review(
+            escalated_event.event_id,
+            "review-request-1",
+            EmailTaskEventStatus.APPLIED,
+            "task-v3",
+            "1" * 64,
+            NOW + timedelta(minutes=5),
+        )
+        assert resolved.event.status == EmailTaskEventStatus.APPLIED
+        assert resolved.event.review_receipt_checksum == "1" * 64
+        assert (
+            await workflows.finalize_event_review(
+                escalated_event.event_id,
+                "review-request-1",
+                EmailTaskEventStatus.APPLIED,
+                "task-v3",
+                "1" * 64,
+                NOW + timedelta(minutes=5),
+            )
+        ).reused is True
+        with pytest.raises(ValueError, match="another decision"):
+            await workflows.claim_event_review(
+                "subject-1",
+                escalated_event.event_id,
+                EmailTaskReviewDecision.REJECT,
+                "review-request-1",
+                "Rejected after reviewing the customer request again.",
+                "operator@example.com",
+                NOW,
+            )
+        with pytest.raises(ValueError, match="already been resolved"):
+            await workflows.claim_event_review(
+                "subject-1",
+                escalated_event.event_id,
+                EmailTaskReviewDecision.APPROVE,
+                "review-request-2",
+                "Approved after reviewing the customer request again.",
+                "operator@example.com",
+                NOW,
+            )
+        with pytest.raises(ValueError, match="only finish"):
+            await workflows.finalize_event_review(
+                escalated_event.event_id,
+                "review-request-1",
+                EmailTaskEventStatus.ESCALATED,
+                None,
+                "2" * 64,
+                NOW,
+            )
+        with pytest.raises(ValueError, match="not found"):
+            await workflows.finalize_event_review(
+                "missing-email-event",
+                "review-request-1",
+                EmailTaskEventStatus.REJECTED,
+                None,
+                "2" * 64,
+                NOW,
+            )
+
         paused = await workflows.pause_for_subject(
             "subject-1",
             created.workflow.workflow_id,
@@ -506,6 +691,15 @@ def test_registration_coordinator_checks_scopes_starts_watch_and_hides_expired_s
             )
 
     class Gmail:
+        def __init__(self) -> None:
+            self.task = GoogleTaskState(
+                task_id="workspace-artifact-acquisition-task",
+                title="Increase acquisition spend",
+                notes="Owner: growth team",
+                etag="task-v1",
+            )
+            self.updates = 0
+
         async def start_watch(
             self,
             subject,
@@ -547,15 +741,44 @@ def test_registration_coordinator_checks_scopes_starts_watch_and_hides_expired_s
                 gmail_thread_id="gmail-thread-1",
             )
 
+        async def get_task(self, access_token, task_list_id, task_id):  # type: ignore[no-untyped-def]
+            assert access_token == "token-for-subject-1"
+            assert (task_list_id, task_id) == (
+                "workspace-task-list",
+                "workspace-artifact-acquisition-task",
+            )
+            return self.task
+
+        async def update_task(
+            self,
+            access_token,
+            task_list_id,
+            current,
+            title,
+            notes,
+        ):  # type: ignore[no-untyped-def]
+            assert access_token == "token-for-subject-1"
+            assert task_list_id == "workspace-task-list"
+            assert current.etag == self.task.etag
+            self.updates += 1
+            self.task = GoogleTaskState(
+                task_id=current.task_id,
+                title=title,
+                notes=notes,
+                etag=f"task-v{self.updates + 1}",
+            )
+            return self.task
+
     async def scenario() -> None:
         manifest = await _manifest()
         repository = MemoryWorkflows()
         workflows = EmailTaskWorkflowService(LatestManifest(manifest), repository)  # type: ignore[arg-type]
+        gmail = Gmail()
         coordinator = EmailTaskRegistrationCoordinator(
             workflows,
             repository,  # type: ignore[arg-type]
             Sessions(),
-            Gmail(),
+            gmail,
             "projects/project-1/topics/gmail-events",
         )
         created = await coordinator.register(
@@ -578,6 +801,239 @@ def test_registration_coordinator_checks_scopes_starts_watch_and_hides_expired_s
         assert (
             await coordinator.setup("subject-1", "operator@example.com", manifest.packet_id)
         ).workflows == (created.workflow,)
+
+        escalated = EmailTaskEvent(
+            event_id="email-event-review-1",
+            workflow_id=created.workflow.workflow_id,
+            gmail_message_id="customer-message-review-1",
+            gmail_thread_id="gmail-thread-1",
+            history_id="102",
+            sender="customer@example.com",
+            recipient="operator@example.com",
+            subject_line="Re: Increase acquisition spend — customer update",
+            body_hash="b" * 64,
+            proposed_title="Decrease acquisition spend by 10%",
+            proposed_note="Customer requested a 10% decrease from the quoted acquisition spend.",
+            status=EmailTaskEventStatus.ESCALATED,
+            rationale="The customer reversed the registered acquisition recommendation.",
+            risk_flags=("decision_reversal",),
+            task_revision=None,
+            receipt_checksum="c" * 64,
+            received_at=NOW,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        repository.events[escalated.event_id] = escalated
+        approval = ReviewEmailTaskEventRequest(
+            request_id="approval-request-1",
+            decision=EmailTaskReviewDecision.APPROVE,
+            reason="Approved after reviewing the customer request and current task.",
+        )
+        applied = await coordinator.review_event(
+            "subject-1",
+            "operator@example.com",
+            escalated.event_id,
+            approval,
+            NOW + timedelta(minutes=1),
+        )
+        assert applied.reused is False
+        assert applied.event.status == EmailTaskEventStatus.APPLIED
+        assert applied.event.reviewed_by == "operator@example.com"
+        assert applied.event.review_decision == EmailTaskReviewDecision.APPROVE
+        assert applied.event.task_revision == "task-v2"
+        assert applied.event.review_receipt_checksum is not None
+        assert gmail.task.title == "Decrease acquisition spend by 10%"
+        assert "Owner: growth team" in gmail.task.notes
+        assert escalated.event_id in gmail.task.notes
+        assert (
+            await coordinator.review_event(
+                "subject-1",
+                "operator@example.com",
+                escalated.event_id,
+                approval,
+                NOW + timedelta(minutes=2),
+            )
+        ).reused is True
+        assert gmail.updates == 1
+
+        rejected_event = escalated.model_copy(
+            update={
+                "event_id": "email-event-review-2",
+                "gmail_message_id": "customer-message-review-2",
+                "receipt_checksum": "d" * 64,
+            }
+        )
+        repository.events[rejected_event.event_id] = rejected_event
+        rejected = await coordinator.review_event(
+            "subject-1",
+            "operator@example.com",
+            rejected_event.event_id,
+            ReviewEmailTaskEventRequest(
+                request_id="rejection-request-1",
+                decision=EmailTaskReviewDecision.REJECT,
+                reason="Rejected because the company is retaining the approved plan.",
+            ),
+            NOW + timedelta(minutes=3),
+        )
+        assert rejected.event.status == EmailTaskEventStatus.REJECTED
+        assert rejected.event.task_revision is None
+        assert gmail.updates == 1
+
+        with pytest.raises(EmailTaskWorkflowError, match="not found"):
+            await coordinator.review_event(
+                "subject-1",
+                "operator@example.com",
+                "missing-email-event",
+                approval,
+                NOW,
+            )
+        with pytest.raises(EmailTaskWorkflowError, match="another decision"):
+            await coordinator.review_event(
+                "subject-1",
+                "operator@example.com",
+                escalated.event_id,
+                ReviewEmailTaskEventRequest(
+                    request_id=approval.request_id,
+                    decision=EmailTaskReviewDecision.REJECT,
+                    reason="Rejected after a second review of the customer request.",
+                ),
+                NOW,
+            )
+        with pytest.raises(EmailTaskWorkflowError, match="already been resolved"):
+            await coordinator.review_event(
+                "subject-1",
+                "operator@example.com",
+                rejected_event.event_id,
+                ReviewEmailTaskEventRequest(
+                    request_id="another-review-request",
+                    decision=EmailTaskReviewDecision.REJECT,
+                    reason="Rejected after a second review of the customer request.",
+                ),
+                NOW,
+            )
+
+        no_proposal = escalated.model_copy(
+            update={
+                "event_id": "email-event-no-proposal",
+                "gmail_message_id": "customer-message-no-proposal",
+                "proposed_title": None,
+                "proposed_note": None,
+                "receipt_checksum": "2" * 64,
+            }
+        )
+        repository.events[no_proposal.event_id] = no_proposal
+        with pytest.raises(EmailTaskWorkflowError, match="no bounded task update"):
+            await coordinator.review_event(
+                "subject-1",
+                "operator@example.com",
+                no_proposal.event_id,
+                ReviewEmailTaskEventRequest(
+                    request_id="no-proposal-request",
+                    decision=EmailTaskReviewDecision.APPROVE,
+                    reason="Approved after reviewing the ambiguous customer request.",
+                ),
+                NOW,
+            )
+
+        missing_review_scopes = EmailTaskRegistrationCoordinator(
+            workflows,
+            repository,  # type: ignore[arg-type]
+            Sessions(frozenset()),
+            Gmail(),
+            "projects/project-1/topics/gmail-events",
+        )
+        with pytest.raises(EmailTaskWorkflowError, match="Reconnect Google Workspace"):
+            await missing_review_scopes.review_event(
+                "subject-1",
+                "operator@example.com",
+                no_proposal.event_id,
+                ReviewEmailTaskEventRequest(
+                    request_id="missing-scope-request",
+                    decision=EmailTaskReviewDecision.REJECT,
+                    reason="Rejected after reviewing the customer request and current task.",
+                ),
+                NOW,
+            )
+
+        conflict_event = escalated.model_copy(
+            update={
+                "event_id": "email-event-conflict",
+                "gmail_message_id": "customer-message-conflict",
+                "receipt_checksum": "3" * 64,
+            }
+        )
+        repository.events[conflict_event.event_id] = conflict_event
+
+        class ConflictGmail(Gmail):
+            async def update_task(
+                self,
+                access_token,
+                task_list_id,
+                current,
+                title,
+                notes,
+            ):  # type: ignore[no-untyped-def]
+                del access_token, task_list_id, current, title, notes
+                raise EmailTaskPreconditionFailed("concurrent human edit")
+
+        conflict_coordinator = EmailTaskRegistrationCoordinator(
+            workflows,
+            repository,  # type: ignore[arg-type]
+            Sessions(),
+            ConflictGmail(),
+            "projects/project-1/topics/gmail-events",
+        )
+        with pytest.raises(EmailTaskWorkflowError, match="changed during review"):
+            await conflict_coordinator.review_event(
+                "subject-1",
+                "operator@example.com",
+                conflict_event.event_id,
+                ReviewEmailTaskEventRequest(
+                    request_id="conflict-review-request",
+                    decision=EmailTaskReviewDecision.APPROVE,
+                    reason="Approved after checking the customer request and current task.",
+                ),
+                NOW,
+            )
+        assert repository.events[conflict_event.event_id].status == EmailTaskEventStatus.ESCALATED
+        assert repository.events[conflict_event.event_id].review_request_id is None
+
+        recovery_event = escalated.model_copy(
+            update={
+                "event_id": "email-event-recovery",
+                "gmail_message_id": "customer-message-recovery",
+                "receipt_checksum": "4" * 64,
+            }
+        )
+        repository.events[recovery_event.event_id] = recovery_event
+        recovery_gmail = Gmail()
+        recovery_gmail.task = recovery_gmail.task.model_copy(
+            update={
+                "title": recovery_event.proposed_title,
+                "notes": f"Owner: growth team\n{recovery_event.event_id}",
+                "etag": "task-recovered",
+            }
+        )
+        recovered = await EmailTaskRegistrationCoordinator(
+            workflows,
+            repository,  # type: ignore[arg-type]
+            Sessions(),
+            recovery_gmail,
+            "projects/project-1/topics/gmail-events",
+        ).review_event(
+            "subject-1",
+            "operator@example.com",
+            recovery_event.event_id,
+            ReviewEmailTaskEventRequest(
+                request_id="recovery-review-request",
+                decision=EmailTaskReviewDecision.APPROVE,
+                reason="Approved after checking the recovered customer task update.",
+            ),
+            NOW,
+        )
+        assert recovered.event.status == EmailTaskEventStatus.APPLIED
+        assert recovered.event.task_revision == "task-recovered"
+        assert recovery_gmail.updates == 0
 
         unmatched = EmailTaskUnmatchedRequest(
             request_id="unmatched-bind-1",

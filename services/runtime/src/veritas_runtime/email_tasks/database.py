@@ -22,6 +22,8 @@ from veritas_runtime.changes.database import registered_evidence_sources
 from veritas_runtime.email_tasks.models import (
     EmailTaskEvent,
     EmailTaskEventResult,
+    EmailTaskEventStatus,
+    EmailTaskReviewDecision,
     EmailTaskThreadBinding,
     EmailTaskThreadSource,
     EmailTaskUnmatchedRequest,
@@ -78,6 +80,7 @@ email_task_events = Table(
     Column("gmail_message_id", String(255), nullable=False),
     Column("status", String(32), nullable=False),
     Column("receipt_checksum", String(64), nullable=False),
+    Column("review_receipt_checksum", String(64), nullable=True),
     Column("event_json", Text, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
@@ -641,6 +644,200 @@ class SqlEmailTaskWorkflowRepository:
             )
         return _event(row) if row is not None else None
 
+    async def get_event_by_id(
+        self,
+        subject: str,
+        event_id: str,
+    ) -> EmailTaskEvent | None:
+        async with self._engine.connect() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_events)
+                        .join(
+                            email_task_workflows,
+                            email_task_events.c.workflow_id == email_task_workflows.c.workflow_id,
+                        )
+                        .where(
+                            email_task_workflows.c.subject == subject,
+                            email_task_events.c.event_id == event_id,
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+        return _event(row) if row is not None else None
+
+    async def claim_event_review(
+        self,
+        subject: str,
+        event_id: str,
+        decision: EmailTaskReviewDecision,
+        request_id: str,
+        reason: str,
+        reviewed_by: str,
+        reviewed_at: datetime,
+    ) -> EmailTaskEventResult:
+        async with self._engine.begin() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_events)
+                        .join(
+                            email_task_workflows,
+                            email_task_events.c.workflow_id == email_task_workflows.c.workflow_id,
+                        )
+                        .where(
+                            email_task_workflows.c.subject == subject,
+                            email_task_events.c.event_id == event_id,
+                        )
+                        .with_for_update()
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                raise ValueError("The escalated email request was not found")
+            current = _event(row)
+            if current.review_request_id == request_id:
+                if current.review_decision != decision:
+                    raise ValueError("Review request identity was reused with another decision")
+                return EmailTaskEventResult(event=current, reused=True)
+            if current.status != EmailTaskEventStatus.ESCALATED:
+                raise ValueError("The email request has already been resolved")
+            claimed = current.model_copy(
+                update={
+                    "status": EmailTaskEventStatus.REVIEWING,
+                    "review_decision": decision,
+                    "review_request_id": request_id,
+                    "review_reason": reason,
+                    "reviewed_by": reviewed_by,
+                    "reviewed_at": reviewed_at,
+                    "updated_at": reviewed_at,
+                }
+            )
+            await connection.execute(
+                update(email_task_events)
+                .where(
+                    email_task_events.c.event_id == event_id,
+                    email_task_events.c.status == EmailTaskEventStatus.ESCALATED.value,
+                )
+                .values(
+                    status=claimed.status.value,
+                    event_json=claimed.model_dump_json(by_alias=True),
+                    updated_at=reviewed_at,
+                )
+            )
+        return EmailTaskEventResult(event=claimed, reused=False)
+
+    async def finalize_event_review(
+        self,
+        event_id: str,
+        request_id: str,
+        status: EmailTaskEventStatus,
+        task_revision: str | None,
+        review_receipt_checksum: str,
+        updated_at: datetime,
+    ) -> EmailTaskEventResult:
+        if status not in {EmailTaskEventStatus.APPLIED, EmailTaskEventStatus.REJECTED}:
+            raise ValueError("Email review can only finish as applied or rejected")
+        async with self._engine.begin() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_events)
+                        .where(email_task_events.c.event_id == event_id)
+                        .with_for_update()
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                raise ValueError("The escalated email request was not found")
+            current = _event(row)
+            if current.review_request_id != request_id:
+                raise ValueError("Another operator owns this email review")
+            if current.status == status and current.review_receipt_checksum:
+                return EmailTaskEventResult(event=current, reused=True)
+            if current.status != EmailTaskEventStatus.REVIEWING:
+                raise ValueError("The email request is not awaiting this review")
+            resolved = current.model_copy(
+                update={
+                    "status": status,
+                    "task_revision": task_revision,
+                    "review_receipt_checksum": review_receipt_checksum,
+                    "updated_at": updated_at,
+                }
+            )
+            await connection.execute(
+                update(email_task_events)
+                .where(
+                    email_task_events.c.event_id == event_id,
+                    email_task_events.c.status == EmailTaskEventStatus.REVIEWING.value,
+                )
+                .values(
+                    status=resolved.status.value,
+                    review_receipt_checksum=review_receipt_checksum,
+                    event_json=resolved.model_dump_json(by_alias=True),
+                    updated_at=updated_at,
+                )
+            )
+        return EmailTaskEventResult(event=resolved, reused=False)
+
+    async def release_event_review(
+        self,
+        event_id: str,
+        request_id: str,
+        updated_at: datetime,
+    ) -> EmailTaskEvent | None:
+        async with self._engine.begin() as connection:
+            row = (
+                (
+                    await connection.execute(
+                        select(email_task_events)
+                        .where(email_task_events.c.event_id == event_id)
+                        .with_for_update()
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                return None
+            current = _event(row)
+            if (
+                current.status != EmailTaskEventStatus.REVIEWING
+                or current.review_request_id != request_id
+            ):
+                return current
+            released = current.model_copy(
+                update={
+                    "status": EmailTaskEventStatus.ESCALATED,
+                    "review_decision": None,
+                    "review_request_id": None,
+                    "review_reason": None,
+                    "reviewed_by": None,
+                    "reviewed_at": None,
+                    "updated_at": updated_at,
+                }
+            )
+            await connection.execute(
+                update(email_task_events)
+                .where(
+                    email_task_events.c.event_id == event_id,
+                    email_task_events.c.status == EmailTaskEventStatus.REVIEWING.value,
+                )
+                .values(
+                    status=released.status.value,
+                    event_json=released.model_dump_json(by_alias=True),
+                    updated_at=updated_at,
+                )
+            )
+        return released
+
     async def list_events_for_subject(
         self,
         subject: str,
@@ -693,6 +890,7 @@ class SqlEmailTaskWorkflowRepository:
                     gmail_message_id=event.gmail_message_id,
                     status=event.status.value,
                     receipt_checksum=event.receipt_checksum,
+                    review_receipt_checksum=event.review_receipt_checksum,
                     event_json=event.model_dump_json(by_alias=True),
                     created_at=event.created_at,
                     updated_at=event.updated_at,
@@ -820,6 +1018,11 @@ def _event(row: RowMapping | dict[str, object]) -> EmailTaskEvent:
     event = EmailTaskEvent.model_validate(json.loads(raw))
     if event.receipt_checksum != str(row["receipt_checksum"]):
         raise ValueError("Stored email-task receipt checksum mismatch")
+    stored_review_checksum = row.get("review_receipt_checksum")
+    if event.review_receipt_checksum != (
+        str(stored_review_checksum) if stored_review_checksum is not None else None
+    ):
+        raise ValueError("Stored email-task review receipt checksum mismatch")
     return event
 
 

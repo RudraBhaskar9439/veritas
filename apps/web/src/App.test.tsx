@@ -679,4 +679,115 @@ describe('Veritas command center', () => {
       '/api/v1/email-task-workflows/workflow-42/conversation',
     );
   });
+
+  it('lets an authenticated operator approve an escalated email into the exact task', async () => {
+    const live: Incident = { ...demoIncident, source: 'live' };
+    const route = {
+      claimId: 'claim-scale-acquisition',
+      claimStatement: 'The company should increase acquisition spend.',
+      claimRisk: 'decision',
+      artifactId: 'artifact-acquisition-task',
+      taskId: 'task-42',
+      taskListId: 'list-7',
+    };
+    const workflow = {
+      workflowId: 'workflow-42',
+      mailboxEmail: 'operator@example.com',
+      authorizedSender: 'customer@example.com',
+      packetId: live.packetId,
+      claimId: route.claimId,
+      artifactId: route.artifactId,
+      taskId: route.taskId,
+      taskListId: route.taskListId,
+      status: 'active',
+      createdAt: '2026-08-26T10:00:00Z',
+      updatedAt: '2026-08-26T10:00:00Z',
+    };
+    const thread = {
+      bindingId: 'binding-42',
+      workflowId: workflow.workflowId,
+      gmailThreadId: 'gmail-thread-42',
+      bootstrapMessageId: 'gmail-message-42',
+      subjectLine: 'Increase acquisition spend — customer update',
+      source: 'company_started',
+      createdAt: '2026-08-26T10:01:00Z',
+      updatedAt: '2026-08-26T10:01:00Z',
+    };
+    const escalated = {
+      eventId: 'email-event-42',
+      workflowId: workflow.workflowId,
+      gmailMessageId: 'customer-message-42',
+      gmailThreadId: thread.gmailThreadId,
+      historyId: '102',
+      sender: 'customer@example.com',
+      recipient: 'operator@example.com',
+      subjectLine: 'Re: Increase acquisition spend — customer update',
+      bodyHash: 'a'.repeat(64),
+      proposedTitle: 'Decrease acquisition spend by 10%',
+      proposedNote: 'Customer requested a 10% decrease from the quoted acquisition spend.',
+      status: 'escalated',
+      rationale: 'The customer reversed the current acquisition recommendation.',
+      riskFlags: ['decision_reversal'],
+      taskRevision: null,
+      receiptChecksum: 'b'.repeat(64),
+      reviewDecision: null,
+      reviewRequestId: null,
+      reviewReason: null,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewReceiptChecksum: null,
+      receivedAt: '2026-08-26T10:02:00Z',
+      createdAt: '2026-08-26T10:02:00Z',
+      updatedAt: '2026-08-26T10:02:00Z',
+    };
+    const applied = {
+      ...escalated,
+      status: 'applied',
+      taskRevision: 'task-v2',
+      reviewDecision: 'approve',
+      reviewRequestId: '00000000-0000-4000-8000-000000000042',
+      reviewReason:
+        'Approved by the authenticated operator after reviewing the customer request and current task.',
+      reviewedBy: 'operator@example.com',
+      reviewedAt: '2026-08-26T10:03:00Z',
+      reviewReceiptChecksum: 'c'.repeat(64),
+    };
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000042');
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            packetId: live.packetId,
+            mailboxEmail: 'operator@example.com',
+            routes: [route],
+            workflows: [workflow],
+            threads: [thread],
+            unmatchedRequests: [],
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([escalated])))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ event: applied, reused: false })));
+    render(<App initialIncident={live} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set up customer email' }));
+    expect(
+      (await screen.findAllByText('Decrease acquisition spend by 10%')).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/Proposed Google Task update/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve & update task' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock.mock.calls[2][0]).toBe('/api/v1/email-task-events/email-event-42/review');
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toEqual({
+      requestId: '00000000-0000-4000-8000-000000000042',
+      decision: 'approve',
+      reason:
+        'Approved by the authenticated operator after reviewing the customer request and current task.',
+    });
+    expect(await screen.findByText(/Approved by operator@example.com/)).toBeVisible();
+    expect(screen.getByText('task-v2')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Approve & update task' })).not.toBeInTheDocument();
+  });
 });

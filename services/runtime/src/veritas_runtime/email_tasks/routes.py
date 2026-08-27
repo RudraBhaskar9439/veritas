@@ -6,11 +6,13 @@ from veritas_runtime.auth.sessions import SessionPrincipal
 from veritas_runtime.email_tasks.models import (
     BindEmailTaskUnmatchedRequest,
     EmailTaskEvent,
+    EmailTaskEventResult,
     EmailTaskRegistrationResult,
     EmailTaskSetup,
     EmailTaskThreadBinding,
     EmailTaskWorkflow,
     RegisterEmailTaskWorkflowRequest,
+    ReviewEmailTaskEventRequest,
 )
 from veritas_runtime.email_tasks.service import (
     EmailTaskRegistrationCoordinator,
@@ -48,6 +50,13 @@ def create_email_task_router(
 
         @router.get("/api/v1/email-task-events", tags=["email-tasks"])
         async def unavailable_events() -> None:
+            raise HTTPException(status_code=503, detail="Email-task workflows are not configured")
+
+        @router.post(
+            "/api/v1/email-task-events/{event_id}/review",
+            tags=["email-tasks"],
+        )
+        async def unavailable_review(event_id: str) -> None:
             raise HTTPException(status_code=503, detail="Email-task workflows are not configured")
 
         @router.delete("/api/v1/email-task-workflows/{workflow_id}", tags=["email-tasks"])
@@ -95,6 +104,25 @@ def create_email_task_router(
     ) -> tuple[EmailTaskEvent, ...]:
         try:
             return await coordinator.list_events(principal.subject, packet_id)
+        except EmailTaskWorkflowError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @router.post(
+        "/api/v1/email-task-events/{event_id}/review",
+        tags=["email-tasks"],
+    )
+    async def review_event(
+        event_id: str,
+        request: ReviewEmailTaskEventRequest,
+        principal: Annotated[SessionPrincipal, Depends(resolver)],
+    ) -> EmailTaskEventResult:
+        try:
+            return await coordinator.review_event(
+                principal.subject,
+                principal.email,
+                event_id,
+                request,
+            )
         except EmailTaskWorkflowError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
 

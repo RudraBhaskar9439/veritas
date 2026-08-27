@@ -12,6 +12,13 @@ returned Gmail thread ID as the private authority binding. A later reply can rea
 through that exact thread, sender, recipient, and manifest edge. Gemini interprets the request but
 cannot choose a destination.
 
+Clear reversible requests can update the Task automatically. Decision reversals, sensitive
+actions, low-confidence interpretations, and policy flags enter an authenticated human authority
+boundary. The operator sees the proposed title and note, then either approves the exact bounded
+update or rejects it. Approval re-reads the live Task, uses its ETag as a write precondition,
+preserves human notes, and records the resulting Task revision. Rejection performs no Workspace
+mutation.
+
 ## Authority checks
 
 A reply can reach a Task only when all of these remain true:
@@ -47,6 +54,11 @@ sender, outcome, bounded rationale, proposed Task title, SHA-256 body proof, con
 receipt, and resulting Task revision. The raw inbound body is not returned to the browser or
 written to application logs.
 
+An escalated request records a separate human-review receipt bound to the immutable inbound
+receipt, authenticated reviewer, approve/reject decision, reason, timestamp, outcome, and resulting
+Task revision. Review requests are idempotent. A concurrent Task edit fails closed and returns the
+request to the pending authority boundary without overwriting the human change.
+
 Task notes preserve human text and replace only a delimited Veritas-managed customer-update block.
 A content-addressed event marker makes retries idempotent even if the Task write succeeded
 immediately before a worker interruption.
@@ -59,7 +71,9 @@ immediately before a worker interruption.
 4. From the authorized customer account, press Reply and request a clear reversible task change.
 5. Verify one natural Google Task updates, unrelated Task text survives, and an applied receipt
    appears in the command center.
-6. Start a separate new email from the same customer and verify it appears under **Unmatched
+6. Send a decision reversal, approve the exact proposed update in the command center, and verify
+   the Task changes once with a separate authenticated review receipt.
+7. Start a separate new email from the same customer and verify it appears under **Unmatched
    requests** without changing a Task.
-7. Bind that thread, reply once more, and verify the exact same authority checks apply.
-8. Disable the automation, send another reply, and verify the Task does not change.
+8. Bind that thread, reply once more, and verify the exact same authority checks apply.
+9. Disable the automation, send another reply, and verify the Task does not change.

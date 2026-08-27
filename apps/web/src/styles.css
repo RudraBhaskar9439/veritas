@@ -2775,6 +2775,16 @@ code {
   background: var(--amber-pale);
 }
 
+.emailEventStatus.status-reviewing {
+  color: #765c1b;
+  background: #fff1bd;
+}
+
+.emailEventStatus.status-rejected {
+  color: var(--red);
+  background: var(--red-pale);
+}
+
 .emailEventStatus.status-ignored {
   color: var(--soft);
   background: #ebefec;
@@ -2803,6 +2813,50 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.emailProposal {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 11px 12px;
+  border: 1px solid rgba(176, 119, 30, 0.24);
+  border-radius: 8px;
+  background: var(--amber-pale);
+}
+
+.emailProposal > span {
+  color: var(--amber) !important;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.57rem !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.emailProposal > strong {
+  font-size: 0.78rem;
+}
+
+.emailReviewProof {
+  margin-top: 7px !important;
+  color: var(--green) !important;
+  font-weight: 700;
+}
+
+.emailReviewActions {
+  display: flex !important;
+  grid-column: 2 / -1;
+  flex-wrap: wrap;
+  gap: 9px !important;
+  margin: 0;
+  padding: 4px 0 0;
+  border: 0;
+}
+
+.emailReviewActions > button {
+  width: auto;
+  min-width: 170px;
+  justify-content: center;
 }
 
 .unmatchedList article > .secondaryButton {
@@ -3027,6 +3081,14 @@ button:disabled {
   .automationRoute,
   .emailEventList article {
     grid-template-columns: 1fr;
+  }
+
+  .emailReviewActions {
+    grid-column: auto;
+  }
+
+  .emailReviewActions > button {
+    width: 100%;
   }
 
   .automationRoute > i {
