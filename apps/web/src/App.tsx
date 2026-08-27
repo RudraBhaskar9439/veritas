@@ -378,7 +378,10 @@ function CommandCenter({
   const [selectedClaimId, setSelectedClaimId] = useState(() => storedClaim(incident));
   const [replayStage, setReplayStage] = useState<number>(incident.timeline.length);
   const [isReplaying, setIsReplaying] = useState(false);
+  const [isLiveAnimating, setIsLiveAnimating] = useState(false);
   const [verificationRetry, setVerificationRetry] = useState<VerificationRetryState>('idle');
+  const observedIncidentId = useRef(incident.id);
+  const observedTimelineLength = useRef(incident.timeline.length);
   const selectedClaim =
     incident.claims.find((claim) => claim.id === selectedClaimId) ?? incident.claims[0];
 
@@ -391,23 +394,42 @@ function CommandCenter({
   }, [selectedClaimId]);
 
   useEffect(() => {
-    if (!isReplaying) return;
-    const timer = window.setInterval(() => {
-      setReplayStage((stage) => {
-        const next = stage + 1;
-        if (next >= incident.timeline.length) {
-          setIsReplaying(false);
-          return incident.timeline.length;
-        }
-        return next;
-      });
-    }, 720);
+    if (!isReplaying && !isLiveAnimating) return;
+    const timer = window.setInterval(
+      () => {
+        setReplayStage((stage) => {
+          const next = stage + 1;
+          if (next >= incident.timeline.length) {
+            setIsReplaying(false);
+            setIsLiveAnimating(false);
+            return incident.timeline.length;
+          }
+          return next;
+        });
+      },
+      isReplaying ? 720 : 460,
+    );
     return () => window.clearInterval(timer);
-  }, [isReplaying, incident.timeline.length]);
+  }, [isLiveAnimating, isReplaying, incident.timeline.length]);
 
   useEffect(() => {
-    if (!isReplaying) setReplayStage(incident.timeline.length);
-  }, [incident.timeline.length, isReplaying]);
+    const previousIncidentId = observedIncidentId.current;
+    const previousTimelineLength = observedTimelineLength.current;
+    const isNewIncident = previousIncidentId !== incident.id;
+    const hasNewReceipts =
+      previousIncidentId === incident.id && incident.timeline.length > previousTimelineLength;
+
+    observedIncidentId.current = incident.id;
+    observedTimelineLength.current = incident.timeline.length;
+
+    if (isReplaying) return;
+    if (incident.source === 'live' && (isNewIncident || hasNewReceipts)) {
+      setReplayStage(isNewIncident ? 0 : previousTimelineLength);
+      setIsLiveAnimating(incident.timeline.length > 0);
+      return;
+    }
+    if (!isLiveAnimating) setReplayStage(incident.timeline.length);
+  }, [incident.id, incident.source, incident.timeline.length, isLiveAnimating, isReplaying]);
 
   useEffect(() => {
     if (incident.source !== 'live') return;
@@ -451,6 +473,7 @@ function CommandCenter({
   }
 
   function replayIncident() {
+    setIsLiveAnimating(false);
     setReplayStage(0);
     setIsReplaying(true);
     setView('overview');
@@ -582,6 +605,7 @@ function CommandCenter({
               selectedClaim={selectedClaim}
               onSelectClaim={setSelectedClaimId}
               replayStage={replayStage}
+              isStreaming={isReplaying || isLiveAnimating}
               visibleClaims={visibleClaims}
               visibleArtifacts={visibleArtifacts}
               verifiedTargets={verifiedTargets}
@@ -771,6 +795,7 @@ interface OverviewProps {
   selectedClaim: ClaimChange;
   onSelectClaim: (claimId: string) => void;
   replayStage: number;
+  isStreaming: boolean;
   visibleClaims: number;
   visibleArtifacts: number;
   verifiedTargets: number;
@@ -783,6 +808,7 @@ function Overview({
   selectedClaim,
   onSelectClaim,
   replayStage,
+  isStreaming,
   visibleClaims,
   visibleArtifacts,
   verifiedTargets,
@@ -897,7 +923,7 @@ function Overview({
 
       <EmailTaskAutomation />
 
-      <Timeline activeStage={replayStage} />
+      <Timeline activeStage={replayStage} isStreaming={isStreaming} />
 
       <ChangeProofPanel />
 
@@ -2042,15 +2068,158 @@ function Metric({
   );
 }
 
-function Timeline({ activeStage }: { activeStage: number }) {
+function Timeline({ activeStage, isStreaming }: { activeStage: number; isStreaming: boolean }) {
   const incident = useIncident();
+  const visibleEvents = incident.timeline.slice(0, activeStage);
+  const visibleLabels = new Set(visibleEvents.map((event) => event.label.toLowerCase()));
+  const pendingApprovals = incident.approvals.filter(
+    (approval) => approval.status === 'pending',
+  ).length;
+  const sourceReady = visibleLabels.has('detected');
+  const lineageReady = visibleLabels.has('traced');
+  const repairReady = visibleLabels.has('repaired');
+  const verifierReady = visibleLabels.has('verified') || incident.checks.length > 0;
+  const streamState = isStreaming
+    ? 'Streaming signed receipts'
+    : pendingApprovals > 0
+      ? `Paused · ${pendingApprovals} approval${pendingApprovals === 1 ? '' : 's'}`
+      : incident.status === 'verified'
+        ? 'Sealed · certificate issued'
+        : incident.status === 'attention'
+          ? 'Attention required'
+          : 'Watching Workspace';
   return (
-    <section className="timelineSection" aria-labelledby="timeline-title">
-      <div className="timelineIntro">
-        <span className="sectionKicker">Live transaction trace</span>
-        <h2 id="timeline-title">Source change → scoped certificate</h2>
+    <section className="executionObservatory" aria-labelledby="timeline-title">
+      <header className="executionHeader">
+        <div>
+          <span className="sectionKicker">Live execution observatory</span>
+          <h2 id="timeline-title">Watch the agent move through the causal graph.</h2>
+          <p>Persisted backend receipts appear here automatically—no page reload required.</p>
+        </div>
+        <span className="executionConnection" data-streaming={isStreaming}>
+          <i aria-hidden="true" /> {streamState}
+        </span>
+      </header>
+
+      <div className="executionBody">
+        <div className="executionTerminal" role="log" aria-label="Live signed execution receipts">
+          <div className="terminalTopline">
+            <span>VERITAS / RUN {incident.id.slice(-8).toUpperCase()}</span>
+            <span>3S LIVE POLL</span>
+          </div>
+          <ol aria-live="polite" aria-relevant="additions">
+            {visibleEvents.map((event, index) => (
+              <li
+                key={`${event.label}-${event.occurredAt}-${event.receipt}`}
+                data-newest={index === visibleEvents.length - 1}
+              >
+                <time dateTime={event.occurredAt}>{event.time}</time>
+                <strong>{event.label.toUpperCase()}</strong>
+                <span>{event.detail}</span>
+                <code title={`Proof receipt ${event.receipt}`}>{event.receipt.slice(0, 10)}</code>
+              </li>
+            ))}
+            {visibleEvents.length === 0 && (
+              <li className="terminalWaiting">
+                <span className="terminalPrompt" aria-hidden="true">
+                  ›
+                </span>
+                <span>Reading the first persisted receipt…</span>
+              </li>
+            )}
+          </ol>
+          <div className="terminalGate" data-status={incident.status}>
+            <span className="terminalPrompt" aria-hidden="true">
+              ›
+            </span>
+            <strong>
+              {pendingApprovals > 0
+                ? 'HUMAN AUTHORITY BOUNDARY'
+                : incident.status === 'verified'
+                  ? 'INDEPENDENT VERIFIER'
+                  : 'EVENT WATCH'}
+            </strong>
+            <span>
+              {pendingApprovals > 0
+                ? `${pendingApprovals} decision${pendingApprovals === 1 ? '' : 's'} waiting; safe automatic work remains preserved.`
+                : incident.status === 'verified'
+                  ? `${incident.checks.length} checks persisted; ${incident.certificate?.shortId ?? 'certificate'} sealed.`
+                  : 'Waiting for the next registered Workspace change.'}
+            </span>
+          </div>
+          <small>Append-only evidence · receipt IDs shown at right · no simulated log lines</small>
+        </div>
+
+        <div
+          className="executionGraph"
+          role="img"
+          aria-label={`Live causal graph: source ${sourceReady ? 'accepted' : 'waiting'}, claims ${lineageReady ? 'traced' : 'waiting'}, repairs ${repairReady ? 'complete' : pendingApprovals > 0 ? 'waiting for approval' : 'pending'}, verifier ${verifierReady ? 'complete' : 'pending'}`}
+        >
+          <div className="executionGraphLabel">
+            <span>Causal graph state</span>
+            <code>{incident.packetId}</code>
+          </div>
+          <div className="executionGraphPath" data-streaming={isStreaming}>
+            <article data-state={sourceReady ? 'complete' : 'waiting'}>
+              <i aria-hidden="true">01</i>
+              <div>
+                <span>Evidence</span>
+                <strong>{sourceReady ? 'Delta accepted' : 'Watching source'}</strong>
+                <small>{changedEvidence(incident)?.anchor ?? 'registered anchor'}</small>
+              </div>
+            </article>
+            <span className="executionEdge" data-active={lineageReady} aria-hidden="true" />
+            <article data-state={lineageReady ? 'complete' : 'waiting'}>
+              <i aria-hidden="true">02</i>
+              <div>
+                <span>Claim graph</span>
+                <strong>
+                  {lineageReady
+                    ? `${incident.coverage.affectedClaims} claims resolved`
+                    : 'Awaiting trace'}
+                </strong>
+                <small>{incident.coverage.lineagePaths} manifest paths</small>
+              </div>
+            </article>
+            <span
+              className="executionEdge"
+              data-active={repairReady || pendingApprovals > 0}
+              aria-hidden="true"
+            />
+            <article
+              data-state={repairReady ? 'complete' : pendingApprovals > 0 ? 'active' : 'waiting'}
+            >
+              <i aria-hidden="true">03</i>
+              <div>
+                <span>Repair boundary</span>
+                <strong>
+                  {repairReady
+                    ? `${incident.artifacts.length} artifacts repaired`
+                    : pendingApprovals > 0
+                      ? `${pendingApprovals} approvals required`
+                      : 'Plan is materializing'}
+                </strong>
+                <small>registered targets only</small>
+              </div>
+            </article>
+            <span className="executionEdge" data-active={verifierReady} aria-hidden="true" />
+            <article data-state={verifierReady ? 'complete' : 'waiting'}>
+              <i aria-hidden="true">04</i>
+              <div>
+                <span>Independent verifier</span>
+                <strong>
+                  {verifierReady
+                    ? `${incident.coverage.verifiedTargets}/${incident.coverage.targets} re-read`
+                    : 'Waiting for terminal run'}
+                </strong>
+                <small>{incident.checks.length} persisted checks</small>
+              </div>
+            </article>
+          </div>
+        </div>
       </div>
-      <ol className="timeline">
+
+      <ol className="timeline" aria-label="Signed execution stages">
         {incident.timeline.map((event, index) => {
           const completed = index < activeStage;
           const active = index === activeStage;
@@ -2143,6 +2312,14 @@ function CertificateCard({
 }) {
   const incident = useIncident();
   const certificate = incident.certificate;
+  const pendingApprovals = incident.approvals.filter(
+    (approval) => approval.status === 'pending',
+  ).length;
+  const certificateTitle = certificate
+    ? 'This packet is consistent within its monitored boundary.'
+    : pendingApprovals > 0
+      ? 'Verification is waiting at the human authority boundary.'
+      : 'The independent verifier is preparing the monitored boundary.';
   return (
     <aside className="panel certificateCard" aria-labelledby="certificate-title">
       <div className="certificateTopline">
@@ -2156,7 +2333,7 @@ function CertificateCard({
         V
       </div>
       <span className="sectionKicker">Evidence Integrity Certificate</span>
-      <h2 id="certificate-title">This packet is consistent within its monitored boundary.</h2>
+      <h2 id="certificate-title">{certificateTitle}</h2>
       <blockquote>
         {certificate?.statement ??
           'No certificate is issued until every registered target and protected region passes independent verification.'}
@@ -2190,6 +2367,16 @@ function CertificateCard({
         <button className="secondaryButton" type="button" onClick={() => window.print()}>
           View certificate record <span aria-hidden="true">↗</span>
         </button>
+      ) : pendingApprovals > 0 ? (
+        <div className="certificateHold" role="status">
+          <span aria-hidden="true">Ⅱ</span>
+          <div>
+            <strong>
+              Waiting for {pendingApprovals} human decision{pendingApprovals === 1 ? '' : 's'}
+            </strong>
+            <small>Verification starts automatically after the repair run resumes.</small>
+          </div>
+        </div>
       ) : incident.source === 'live' && incident.runId ? (
         <button
           className="secondaryButton"
@@ -2337,6 +2524,13 @@ function VerificationView({
   verificationRetry: VerificationRetryState;
 }) {
   const incident = useIncident();
+  const passedChecks = incident.checks.filter((check) => check.passed).length;
+  const pendingApprovals = incident.approvals.filter(
+    (approval) => approval.status === 'pending',
+  ).length;
+  const hasChecks = incident.checks.length > 0;
+  const traced = incident.timeline.some((event) => event.label.toLowerCase() === 'traced');
+  const repaired = incident.timeline.some((event) => event.label.toLowerCase() === 'repaired');
   return (
     <>
       <ViewHeader
@@ -2350,26 +2544,83 @@ function VerificationView({
           <div className="panelHeader">
             <div>
               <span className="sectionKicker">Certificate gates</span>
-              <h2>{incident.checks.filter((check) => check.passed).length} checks passed</h2>
+              <h2>
+                {hasChecks
+                  ? `${passedChecks} checks passed`
+                  : pendingApprovals > 0
+                    ? 'Verification waiting'
+                    : 'Verifier standing by'}
+              </h2>
             </div>
-            <span className="verifiedBadge">
-              <span aria-hidden="true">✓</span> No exceptions
+            <span className="verifiedBadge" data-pending={!hasChecks}>
+              <span aria-hidden="true">{hasChecks ? '✓' : '…'}</span>{' '}
+              {hasChecks ? 'No exceptions' : 'Not started'}
             </span>
           </div>
-          <ol className="checkList">
-            {incident.checks.map((check) => (
-              <li key={check.label}>
-                <span className="checkIcon" aria-hidden="true">
-                  {check.passed ? '✓' : '!'}
-                </span>
+          {hasChecks ? (
+            <ol className="checkList">
+              {incident.checks.map((check) => (
+                <li key={check.label}>
+                  <span className="checkIcon" aria-hidden="true">
+                    {check.passed ? '✓' : '!'}
+                  </span>
+                  <div>
+                    <strong>{check.label}</strong>
+                    <span>{check.detail}</span>
+                  </div>
+                  <code>{check.receipt}</code>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="verificationWaiting" role="status">
+              <div className="verificationWaitingIntro">
+                <span aria-hidden="true">Ⅱ</span>
                 <div>
-                  <strong>{check.label}</strong>
-                  <span>{check.detail}</span>
+                  <strong>Zero checks is a gate, not a failure.</strong>
+                  <p>
+                    The read-only verifier cannot grade a run that is still paused for human
+                    authority. It starts automatically when the repair run reaches a terminal state.
+                  </p>
                 </div>
-                <code>{check.receipt}</code>
-              </li>
-            ))}
-          </ol>
+              </div>
+              <ol className="verificationPrerequisites" aria-label="Verification prerequisites">
+                <li data-state={traced ? 'complete' : 'waiting'}>
+                  <span aria-hidden="true">{traced ? '✓' : '1'}</span>
+                  <div>
+                    <strong>Registered paths traced</strong>
+                    <small>
+                      {traced
+                        ? `${incident.coverage.lineagePaths} manifest paths locked`
+                        : 'Waiting for causal trace'}
+                    </small>
+                  </div>
+                </li>
+                <li
+                  data-state={pendingApprovals > 0 ? 'active' : repaired ? 'complete' : 'waiting'}
+                >
+                  <span aria-hidden="true">{repaired ? '✓' : '2'}</span>
+                  <div>
+                    <strong>Human authority boundary</strong>
+                    <small>
+                      {pendingApprovals > 0
+                        ? `${pendingApprovals} decision${pendingApprovals === 1 ? '' : 's'} pending`
+                        : repaired
+                          ? 'Repair run reached terminal state'
+                          : 'Waiting for repair run'}
+                    </small>
+                  </div>
+                </li>
+                <li data-state="waiting">
+                  <span aria-hidden="true">3</span>
+                  <div>
+                    <strong>Independent target re-read</strong>
+                    <small>Begins automatically after the authority boundary clears</small>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          )}
         </div>
         <CertificateCard
           onRetryVerification={onRetryVerification}

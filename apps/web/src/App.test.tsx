@@ -91,6 +91,16 @@ describe('Veritas command center', () => {
     expect(screen.queryByText('Resolved in 9 seconds')).toBeNull();
   });
 
+  it('renders only persisted receipts in the live execution observatory', () => {
+    render(<App initialIncident={demoIncident} />);
+
+    const executionLog = screen.getByRole('log', { name: 'Live signed execution receipts' });
+    expect(executionLog).toHaveTextContent('DETECTED');
+    expect(executionLog).toHaveTextContent(demoIncident.timeline[0].detail);
+    expect(executionLog).toHaveTextContent(demoIncident.timeline[0].receipt.slice(0, 10));
+    expect(executionLog).toHaveTextContent('no simulated log lines');
+  });
+
   it('can replay the incident through an announced live region', () => {
     render(<App initialIncident={demoIncident} />);
     fireEvent.click(screen.getByRole('button', { name: 'Replay incident' }));
@@ -542,6 +552,91 @@ describe('Veritas command center', () => {
     expect(screen.getByRole('heading', { name: 'New source change arrived' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Blast radius' }));
     expect(screen.getByText('12 registered paths · 0 inferred paths')).toBeInTheDocument();
+  });
+
+  it('streams a newly persisted receipt into the graph without a page reload', async () => {
+    vi.useFakeTimers();
+    const initial: Incident = {
+      ...demoIncident,
+      source: 'live',
+      status: 'repairing',
+      certificate: null,
+      checks: [],
+      timeline: demoIncident.timeline.slice(0, 2),
+    };
+    const refreshed: Incident = {
+      ...initial,
+      timeline: [
+        ...initial.timeline,
+        {
+          time: '10:42:10',
+          occurredAt: '2026-08-21T10:42:10Z',
+          label: 'Planned',
+          detail: '13 typed operations persisted',
+          receipt: 'plan0b9a4c2d18ef',
+        },
+      ],
+    };
+    vi.spyOn(window, 'fetch').mockResolvedValue(new Response(JSON.stringify(refreshed)));
+    render(<App initialIncident={initial} />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(screen.getByRole('log')).not.toHaveTextContent('13 typed operations persisted');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(460);
+    });
+    expect(screen.getByRole('log')).toHaveTextContent('13 typed operations persisted');
+    expect(screen.getByRole('img', { name: /Live causal graph/ })).toBeInTheDocument();
+  });
+
+  it('explains why checks are gated while human approvals are pending', () => {
+    const pending: Incident = {
+      ...demoIncident,
+      source: 'live',
+      status: 'awaiting_approval',
+      certificate: null,
+      checks: [],
+      coverage: {
+        ...demoIncident.coverage,
+        verifiedTargets: 0,
+        verifiedProtectedArtifacts: 0,
+      },
+      approvals: [
+        {
+          approvalId: 'approval-1',
+          planId: demoIncident.id,
+          runId: demoIncident.runId,
+          claimId: 'retention-target',
+          claimLabel: 'Retention target',
+          status: 'pending',
+          reason: null,
+        },
+        {
+          approvalId: 'approval-2',
+          planId: demoIncident.id,
+          runId: demoIncident.runId,
+          claimId: 'acquisition',
+          claimLabel: 'Acquisition spend',
+          status: 'pending',
+          reason: null,
+        },
+      ],
+    };
+    render(<App initialIncident={pending} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Verification' }));
+
+    expect(screen.getByRole('heading', { name: 'Verification waiting' })).toBeInTheDocument();
+    expect(screen.getByText('Zero checks is a gate, not a failure.')).toBeInTheDocument();
+    expect(screen.getByText('2 decisions pending')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: 'Verification is waiting at the human authority boundary.',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry independent verification' })).toBeNull();
   });
 
   it('retries independent verification without changing the completed repair run', async () => {
