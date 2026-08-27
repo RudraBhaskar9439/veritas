@@ -1670,6 +1670,7 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
   const requestIds = useRef(new Map<string, string>());
   if (pending.length === 0) return null;
   const authorityReady = incident.status === 'awaiting_approval';
+  const runMissing = incident.source === 'live' && !incident.runId;
 
   async function decide(approval: IncidentApproval, decision: 'approve' | 'reject') {
     if (incident.source !== 'live') return;
@@ -1766,8 +1767,9 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
       </div>
       {!authorityReady && (
         <p className="actionNotice" role="status">
-          Safe automatic work is still running. Decisions unlock only after the durable run reaches
-          the human authority boundary.
+          {runMissing
+            ? 'This plan stopped before a durable repair run was created. Replay the quarantined operation to revalidate the evidence and unlock decisions safely.'
+            : 'Safe automatic work is still running. Decisions unlock only after the durable run reaches the human authority boundary.'}
         </p>
       )}
       {error && (
@@ -1787,7 +1789,9 @@ function RecoveryQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
   const [message, setMessage] = useState<string | null>(null);
   const replayed = useRef(new Set<string>());
   const needsRecovery =
-    incident.source === 'live' && incident.status === 'repairing' && !incident.agentReview;
+    incident.source === 'live' &&
+    !incident.agentReview &&
+    (!incident.runId || incident.status === 'repairing');
 
   useEffect(() => {
     if (!needsRecovery) return;

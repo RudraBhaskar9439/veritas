@@ -468,7 +468,8 @@ describe('Veritas command center', () => {
     const repairing: Incident = {
       ...demoIncident,
       source: 'live',
-      status: 'repairing',
+      status: 'attention',
+      runId: null,
       certificate: null,
       agentReview: null,
       approvals: [],

@@ -176,6 +176,37 @@ def test_live_read_model_is_derived_from_the_integrity_chain() -> None:
     asyncio.run(scenario())
 
 
+def test_plan_without_a_durable_run_requires_operator_attention() -> None:
+    async def scenario() -> None:
+        service, planned, _run = await _fixture()
+        record = await service._repository.get(  # type: ignore[attr-defined]
+            "subject-1", planned.plan.plan_id
+        )
+        assert record is not None
+        stranded = CommandCenterRecord(
+            plan=record.plan,
+            manifest=record.manifest,
+            impact=record.impact,
+            approvals=record.approvals,
+            run=None,
+            verification=None,
+            certificate=None,
+            snapshots=record.snapshots,
+            agent_review=None,
+        )
+
+        incident = await CommandCenterService(
+            MemoryCommandCenterRepository(stranded)
+        ).latest("subject-1")
+
+        assert incident is not None
+        assert incident.run_id is None
+        assert incident.status.value == "attention"
+        assert "dependency needs attention" in incident.summary
+
+    asyncio.run(scenario())
+
+
 def test_live_read_model_omits_semantically_unchanged_impacted_claims() -> None:
     async def scenario() -> None:
         service, planned, run = await _fixture()

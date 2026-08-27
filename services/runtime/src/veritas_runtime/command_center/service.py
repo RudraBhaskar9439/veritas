@@ -268,7 +268,13 @@ def _incident(record: CommandCenterRecord) -> CommandCenterIncident:
 def _status(run: RepairRun | None, verification: VerificationReport | None) -> IncidentStatus:
     if verification is not None and verification.status.value == "verified":
         return IncidentStatus.VERIFIED
-    if run is None or run.status == RepairRunStatus.RUNNING:
+    # A persisted plan without a run is not active work. It means orchestration
+    # stopped between planning and durable execution (for example, because the
+    # bounded Gemini review exhausted its retries). Surface that as operator
+    # attention so the UI can offer audited recovery instead of spinning forever.
+    if run is None:
+        return IncidentStatus.ATTENTION
+    if run.status == RepairRunStatus.RUNNING:
         return IncidentStatus.REPAIRING
     if run.status == RepairRunStatus.AWAITING_APPROVAL:
         return IncidentStatus.AWAITING_APPROVAL
