@@ -2,25 +2,30 @@
 
 - Proof date: 2026-08-27
 - Google Cloud project: `project-c0f0f832-e02b-4eac-ae2`
-- Region: `us-central1`
-- Accepted application release commit: `39b337f`
+- Transaction-plane region: `us-central1`
+- Vertex inference location: `global`
+- Accepted application release commit: `5425b0c`
 - Public Command Center: <https://veritas-preview-web-602044424209.us-central1.run.app/>
-- Cloud Build: `4171eeb9-70dd-4882-b526-30dd74db40c1` (`SUCCESS`)
-- Migration execution: `veritas-preview-migrations-6stz6` (`Completed`)
-- Release verification: local full suite and live end-to-end proof passed; the proof-only successor commit carries the refreshed rehearsal record.
+- Cloud Build: `00da295d-10e2-4748-9f64-9eebdc15f839` (`SUCCESS`)
+- GitHub workflow: [verified-build 33032292084](https://github.com/RudraBhaskar9439/veritas/actions/runs/33032292084) (`SUCCESS`)
+- Migration execution: `veritas-preview-migrations-h8xqg` (`Completed`)
+- Gemini 3.5 production-identity proof: `veritas-preview-model-probe-hwgqd` (`Completed`)
+- Release verification: local full suite, CI, container builds, migration ledger, public smoke checks, worker-identity Gemini proof, and earlier live Workspace end-to-end proof passed.
 
 ## Immutable release binding
 
 | Component | Cloud Run revision | Image digest |
 |---|---|---|
-| API | `veritas-preview-api-00038-d9c` | `sha256:eea9b0791a63c3493d6288d06abbde6d44a3a7b0c5c73f25736db17906d5be88` |
-| Drive ingress | `veritas-preview-ingress-00038-f7k` | `sha256:eea9b0791a63c3493d6288d06abbde6d44a3a7b0c5c73f25736db17906d5be88` |
-| Worker | `veritas-preview-worker-00038-279` | `sha256:eea9b0791a63c3493d6288d06abbde6d44a3a7b0c5c73f25736db17906d5be88` |
-| Web | `veritas-preview-web-00023-78p` | `sha256:7c4d578839cae1bf4db4d12aa115fb60a17bfa5e1b73f79f47cf8fd8680c02c3` |
+| API | `veritas-preview-api-00039-2g9` | `sha256:5f3d1f2f48fc8ad194ace4fe451fb472866c559327320378d8745b28863ae0d8` |
+| Drive ingress | `veritas-preview-ingress-00039-t6h` | `sha256:5f3d1f2f48fc8ad194ace4fe451fb472866c559327320378d8745b28863ae0d8` |
+| Worker | `veritas-preview-worker-00039-mmg` | `sha256:5f3d1f2f48fc8ad194ace4fe451fb472866c559327320378d8745b28863ae0d8` |
+| Web | `veritas-preview-web-00024-twb` | `sha256:1c817e345ebab89305f4962295363f65281f708de34f84ea87e6aeee94f5de5f` |
 
-The public root and `/health/ready` both returned HTTP 200 without an authenticated application session. PostgreSQL 16 has automated backups and point-in-time recovery enabled. The evidence bucket `project-c0f0f832-e02b-4eac-ae2-veritas-preview-snapshots` has object versioning and seven-day soft delete. Pub/Sub topics, the Cloud Tasks repair queue, Secret Manager, and the enabled `workspace-credentials` KMS key are present.
+The public root, web readiness, same-origin API, and control API readiness returned HTTP 200 after the rollout. PostgreSQL 16 has automated backups and point-in-time recovery enabled. The evidence bucket `project-c0f0f832-e02b-4eac-ae2-veritas-preview-snapshots` has object versioning and seven-day soft delete. Pub/Sub topics, the Cloud Tasks repair queue, Secret Manager, and the enabled `workspace-credentials` KMS key are present.
 
-Release `39b337f` adds a durable human authority boundary for ambiguous customer email. An escalated request now exposes the exact proposed Task title and note, accepts only an authenticated approve or reject decision, locks the event before the external write, re-reads the Task and enforces its current ETag, preserves human-authored notes, recovers idempotently after an interrupted write, and binds the inbound receipt and review outcome into a separate SHA-256 review receipt. The complete twelve-phase local gate passes with 232 backend tests, 20 frontend tests, 90.00% coverage, 40/40 evaluation scenarios, and 5/5 deterministic rehearsals.
+Release `5425b0c` carries the durable human authority boundary for ambiguous customer email and upgrades the production agent to the contest-mandated `gemini-3.5-flash` through Google Gen AI SDK v2. The private worker is configured for Vertex AI's supported `global` inference endpoint while stateful services remain in `us-central1`. One-shot execution `veritas-preview-model-probe-hwgqd` ran the exact `GeminiReviewGateway` from the immutable runtime image as the production worker service account and logged a schema-valid `proceed` result recognizing exactly `claim-1`; it exited zero. The temporary probe job was then deleted without weakening IAM, while its Cloud execution and logs remain. The complete twelve-phase local gate and GitHub workflow pass with 232 backend tests, 20 frontend tests, 90.00% coverage, 40/40 evaluation scenarios, and 5/5 deterministic rehearsals.
+
+The prior full Workspace certificates below were generated before this model upgrade and therefore correctly retain their historical Gemini 2.5 receipts. A fresh unedited submission-video run must show the current Gemini 3.5 release; the worker-identity probe proves the current image, identity, endpoint, model, and structured-output contract are operational, but it is not mislabeled as a full cross-Workspace repair run.
 
 ## Real Workspace happy-path evidence
 

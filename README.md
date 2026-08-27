@@ -9,7 +9,7 @@ The production worker uses Gemini 3.5 Flash on Vertex AI through Google's Gen AI
 ## Hackathon target
 
 - Primary track: The Taskmaster
-- Secondary prize targets: Best Architectural Design, Individual/Hobbyist, Best Multimodal UX
+- Additional prize targets: Best Architectural Design and Individual/Hobbyist
 - Demo vertical: Q3 Executive Review decision packet
 - Production boundary: real Google Workspace APIs and real Google Cloud services; no simulated actions in the recorded demo
 
@@ -30,7 +30,7 @@ evidence change
 
 ## Current status
 
-Veritas is deployed in Google Cloud project `project-c0f0f832-e02b-4eac-ae2` at [the public Command Center](https://veritas-preview-web-602044424209.us-central1.run.app/). The accepted application release commit is `39b337f`; Cloud Build produced immutable runtime and web images, four Cloud Run services serve those digests, and the production migration job is bound to the same runtime image. Real Google Workspace runs now generate native Sheets, Docs, Slides, Gmail drafts, and human-readable Tasks; a real Sheet edit autonomously drives impact analysis, guarded repair, two human approvals, in-place task updates, independent re-read, and a scoped certificate. Ambiguous customer email requests now stop at an authenticated human authority boundary with a proposed Task change, ETag protection, explicit approve/reject controls, and a separate review receipt. Live Gemini outages have also exercised bounded retry, dead-letter quarantine, and audited replay. The deterministic forty-scenario benchmark and the complete local verification suite remain green. The repository intentionally reports the five-consecutive-run proof, exact live cost and model usage, recorded video, and final Devpost submission as unfinished until their evidence exists.
+Veritas is deployed in Google Cloud project `project-c0f0f832-e02b-4eac-ae2` at [the public Command Center](https://veritas-preview-web-602044424209.us-central1.run.app/). The accepted application release commit is `5425b0c`; Cloud Build produced immutable runtime and web images, four Cloud Run services serve those digests, and the production migration job accepted the same runtime image before traffic moved. A one-shot Cloud Run proof under the real private-worker identity returned a schema-valid Gemini 3.5 Flash review through Vertex AI's global endpoint; the temporary job was removed and its execution logs remain. Real Google Workspace runs generate native Sheets, Docs, Slides, Gmail drafts, and human-readable Tasks; a real Sheet edit autonomously drives impact analysis, guarded repair, two human approvals, in-place task updates, independent re-read, and a scoped certificate. Ambiguous customer email requests stop at an authenticated human authority boundary with a proposed Task change, ETag protection, explicit approve/reject controls, and a separate review receipt. Live Gemini outages have also exercised bounded retry, dead-letter quarantine, and audited replay. The deterministic forty-scenario benchmark and the complete local and GitHub verification suites are green. The repository intentionally reports five-consecutive-run hardening, exact live cost and model usage, the recorded video, and final Devpost submission as unfinished until their evidence exists.
 
 See:
 

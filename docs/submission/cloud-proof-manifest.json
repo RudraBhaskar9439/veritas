@@ -1,23 +1,24 @@
 {
   "schemaVersion": "1.1",
   "status": "live_proof_partial",
-  "lastUpdated": "2026-08-27T06:35:38+05:30",
+  "lastUpdated": "2026-08-27T07:48:26+05:30",
   "projectId": "project-c0f0f832-e02b-4eac-ae2",
   "region": "us-central1",
-  "acceptedCommit": "39b337f",
+  "modelLocation": "global",
+  "acceptedCommit": "5425b0c",
   "publicUrl": "https://veritas-preview-web-602044424209.us-central1.run.app/",
   "requiredEvidence": [
     {
       "id": "public-url",
       "description": "Public Cloud Run Command Center URL",
       "status": "complete",
-      "evidence": "Signed-out HTTP 200 and /health/ready 200 on 2026-08-26."
+      "evidence": "Signed-out root, web /health/ready, same-origin /api/v1, and control API /health/ready returned HTTP 200 on release 5425b0c on 2026-08-27."
     },
     {
       "id": "immutable-images",
       "description": "Four deployed image digests bound to the accepted commit",
       "status": "complete",
-      "evidence": "Cloud Build 4171eeb9-70dd-4882-b526-30dd74db40c1 built clean commit 39b337f; runtime sha256:eea9b0791a63c3493d6288d06abbde6d44a3a7b0c5c73f25736db17906d5be88 and web sha256:7c4d578839cae1bf4db4d12aa115fb60a17bfa5e1b73f79f47cf8fd8680c02c3. Migration execution veritas-preview-migrations-6stz6 completed before service rollout."
+      "evidence": "Cloud Build 00da295d-10e2-4748-9f64-9eebdc15f839 built clean commit 5425b0c; runtime sha256:5f3d1f2f48fc8ad194ace4fe451fb472866c559327320378d8745b28863ae0d8 and web sha256:1c817e345ebab89305f4962295363f65281f708de34f84ea87e6aeee94f5de5f. Migration execution veritas-preview-migrations-h8xqg completed before service rollout. Worker-identity execution veritas-preview-model-probe-hwgqd returned a schema-valid Gemini 3.5 Flash receipt through Vertex AI global; the temporary probe job was removed after success and Cloud logs remain."
     },
     {
       "id": "workspace-generation",
