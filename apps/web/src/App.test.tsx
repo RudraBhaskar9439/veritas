@@ -639,6 +639,43 @@ describe('Veritas command center', () => {
     expect(screen.queryByRole('button', { name: 'Retry independent verification' })).toBeNull();
   });
 
+  it('shows a preserved run conflict before approvals or verification', () => {
+    const attention: Incident = {
+      ...demoIncident,
+      source: 'live',
+      status: 'attention',
+      certificate: null,
+      checks: [],
+      approvals: [
+        {
+          approvalId: 'approval-conflict',
+          planId: demoIncident.id,
+          runId: demoIncident.runId,
+          claimId: 'acquisition',
+          claimLabel: 'Acquisition spend',
+          status: 'pending',
+          reason: null,
+        },
+      ],
+    };
+    render(<App initialIncident={attention} />);
+
+    expect(screen.getByText('Attention · run conflict')).toBeInTheDocument();
+    expect(screen.getByText('Run conflict requires review')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /repairs blocked by conflict/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verification' }));
+    expect(screen.getByRole('heading', { name: 'Verification blocked' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Conflict receipt persisted; operator recovery required'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: 'Verification is blocked by a preserved repair conflict.',
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('retries independent verification without changing the completed repair run', async () => {
     const pending: Incident = {
       ...demoIncident,

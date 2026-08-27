@@ -626,7 +626,13 @@ function CommandCenter({
         <div className="srOnly" role="status" aria-live="polite">
           {isReplaying
             ? `Incident replay step ${replayStage + 1} of ${incident.timeline.length}`
-            : 'Incident is independently verified.'}
+            : incident.status === 'verified'
+              ? 'Incident is independently verified.'
+              : incident.status === 'attention'
+                ? 'Incident requires operator attention before verification.'
+                : incident.status === 'awaiting_approval'
+                  ? 'Incident is waiting for human approval before verification.'
+                  : 'Incident repair is in progress.'}
         </div>
       </div>
     </IncidentContext.Provider>
@@ -1795,7 +1801,9 @@ function ApprovalQueue({ onIncidentChange }: { onIncidentChange: (incident: Inci
         <p className="actionNotice" role="status">
           {runMissing
             ? 'This plan stopped before a durable repair run was created. Replay the quarantined operation to revalidate the evidence and unlock decisions safely.'
-            : 'Safe automatic work is still running. Decisions unlock only after the durable run reaches the human authority boundary.'}
+            : incident.status === 'attention'
+              ? 'The automatic run stopped safely on a preserved conflict. Resolve or replay that attention item before these decisions and independent verification can unlock.'
+              : 'Safe automatic work is still running. Decisions unlock only after the durable run reaches the human authority boundary.'}
         </p>
       )}
       {error && (
@@ -2077,16 +2085,17 @@ function Timeline({ activeStage, isStreaming }: { activeStage: number; isStreami
   ).length;
   const sourceReady = visibleLabels.has('detected');
   const lineageReady = visibleLabels.has('traced');
-  const repairReady = visibleLabels.has('repaired');
+  const requiresAttention = incident.status === 'attention';
+  const repairReady = visibleLabels.has('repaired') && !requiresAttention;
   const verifierReady = visibleLabels.has('verified') || incident.checks.length > 0;
   const streamState = isStreaming
     ? 'Streaming signed receipts'
-    : pendingApprovals > 0
-      ? `Paused · ${pendingApprovals} approval${pendingApprovals === 1 ? '' : 's'}`
-      : incident.status === 'verified'
-        ? 'Sealed · certificate issued'
-        : incident.status === 'attention'
-          ? 'Attention required'
+    : requiresAttention
+      ? 'Attention · run conflict'
+      : pendingApprovals > 0
+        ? `Paused · ${pendingApprovals} approval${pendingApprovals === 1 ? '' : 's'}`
+        : incident.status === 'verified'
+          ? 'Sealed · certificate issued'
           : 'Watching Workspace';
   return (
     <section className="executionObservatory" aria-labelledby="timeline-title">
@@ -2133,18 +2142,22 @@ function Timeline({ activeStage, isStreaming }: { activeStage: number; isStreami
               ›
             </span>
             <strong>
-              {pendingApprovals > 0
-                ? 'HUMAN AUTHORITY BOUNDARY'
-                : incident.status === 'verified'
-                  ? 'INDEPENDENT VERIFIER'
-                  : 'EVENT WATCH'}
+              {requiresAttention
+                ? 'OPERATOR ATTENTION'
+                : pendingApprovals > 0
+                  ? 'HUMAN AUTHORITY BOUNDARY'
+                  : incident.status === 'verified'
+                    ? 'INDEPENDENT VERIFIER'
+                    : 'EVENT WATCH'}
             </strong>
             <span>
-              {pendingApprovals > 0
-                ? `${pendingApprovals} decision${pendingApprovals === 1 ? '' : 's'} waiting; safe automatic work remains preserved.`
-                : incident.status === 'verified'
-                  ? `${incident.checks.length} checks persisted; ${incident.certificate?.shortId ?? 'certificate'} sealed.`
-                  : 'Waiting for the next registered Workspace change.'}
+              {requiresAttention
+                ? `A repair conflict stopped the run safely. Resolve or replay it before ${pendingApprovals} approval${pendingApprovals === 1 ? '' : 's'} and verification.`
+                : pendingApprovals > 0
+                  ? `${pendingApprovals} decision${pendingApprovals === 1 ? '' : 's'} waiting; safe automatic work remains preserved.`
+                  : incident.status === 'verified'
+                    ? `${incident.checks.length} checks persisted; ${incident.certificate?.shortId ?? 'certificate'} sealed.`
+                    : 'Waiting for the next registered Workspace change.'}
             </span>
           </div>
           <small>Append-only evidence · receipt IDs shown at right · no simulated log lines</small>
@@ -2153,7 +2166,7 @@ function Timeline({ activeStage, isStreaming }: { activeStage: number; isStreami
         <div
           className="executionGraph"
           role="img"
-          aria-label={`Live causal graph: source ${sourceReady ? 'accepted' : 'waiting'}, claims ${lineageReady ? 'traced' : 'waiting'}, repairs ${repairReady ? 'complete' : pendingApprovals > 0 ? 'waiting for approval' : 'pending'}, verifier ${verifierReady ? 'complete' : 'pending'}`}
+          aria-label={`Live causal graph: source ${sourceReady ? 'accepted' : 'waiting'}, claims ${lineageReady ? 'traced' : 'waiting'}, repairs ${repairReady ? 'complete' : requiresAttention ? 'blocked by conflict' : pendingApprovals > 0 ? 'waiting for approval' : 'pending'}, verifier ${verifierReady ? 'complete' : 'pending'}`}
         >
           <div className="executionGraphLabel">
             <span>Causal graph state</span>
@@ -2183,11 +2196,17 @@ function Timeline({ activeStage, isStreaming }: { activeStage: number; isStreami
             </article>
             <span
               className="executionEdge"
-              data-active={repairReady || pendingApprovals > 0}
+              data-active={repairReady || pendingApprovals > 0 || requiresAttention}
               aria-hidden="true"
             />
             <article
-              data-state={repairReady ? 'complete' : pendingApprovals > 0 ? 'active' : 'waiting'}
+              data-state={
+                repairReady || pendingApprovals > 0 || requiresAttention
+                  ? repairReady
+                    ? 'complete'
+                    : 'active'
+                  : 'waiting'
+              }
             >
               <i aria-hidden="true">03</i>
               <div>
@@ -2195,11 +2214,17 @@ function Timeline({ activeStage, isStreaming }: { activeStage: number; isStreami
                 <strong>
                   {repairReady
                     ? `${incident.artifacts.length} artifacts repaired`
-                    : pendingApprovals > 0
-                      ? `${pendingApprovals} approvals required`
-                      : 'Plan is materializing'}
+                    : requiresAttention
+                      ? 'Run conflict requires review'
+                      : pendingApprovals > 0
+                        ? `${pendingApprovals} approvals required`
+                        : 'Plan is materializing'}
                 </strong>
-                <small>registered targets only</small>
+                <small>
+                  {requiresAttention
+                    ? `${incident.artifacts.filter((artifact) => artifact.result.includes('attention')).length} artifact conflict persisted`
+                    : 'registered targets only'}
+                </small>
               </div>
             </article>
             <span className="executionEdge" data-active={verifierReady} aria-hidden="true" />
@@ -2315,11 +2340,14 @@ function CertificateCard({
   const pendingApprovals = incident.approvals.filter(
     (approval) => approval.status === 'pending',
   ).length;
+  const requiresAttention = incident.status === 'attention';
   const certificateTitle = certificate
     ? 'This packet is consistent within its monitored boundary.'
-    : pendingApprovals > 0
-      ? 'Verification is waiting at the human authority boundary.'
-      : 'The independent verifier is preparing the monitored boundary.';
+    : requiresAttention
+      ? 'Verification is blocked by a preserved repair conflict.'
+      : pendingApprovals > 0
+        ? 'Verification is waiting at the human authority boundary.'
+        : 'The independent verifier is preparing the monitored boundary.';
   return (
     <aside className="panel certificateCard" aria-labelledby="certificate-title">
       <div className="certificateTopline">
@@ -2367,14 +2395,20 @@ function CertificateCard({
         <button className="secondaryButton" type="button" onClick={() => window.print()}>
           View certificate record <span aria-hidden="true">↗</span>
         </button>
-      ) : pendingApprovals > 0 ? (
+      ) : requiresAttention || pendingApprovals > 0 ? (
         <div className="certificateHold" role="status">
           <span aria-hidden="true">Ⅱ</span>
           <div>
             <strong>
-              Waiting for {pendingApprovals} human decision{pendingApprovals === 1 ? '' : 's'}
+              {requiresAttention
+                ? 'Resolve the repair conflict before verification'
+                : `Waiting for ${pendingApprovals} human decision${pendingApprovals === 1 ? '' : 's'}`}
             </strong>
-            <small>Verification starts automatically after the repair run resumes.</small>
+            <small>
+              {requiresAttention
+                ? `${pendingApprovals} approval${pendingApprovals === 1 ? '' : 's'} remain locked until the durable run recovers.`
+                : 'Verification starts automatically after the repair run resumes.'}
+            </small>
           </div>
         </div>
       ) : incident.source === 'live' && incident.runId ? (
@@ -2529,8 +2563,11 @@ function VerificationView({
     (approval) => approval.status === 'pending',
   ).length;
   const hasChecks = incident.checks.length > 0;
+  const requiresAttention = incident.status === 'attention';
   const traced = incident.timeline.some((event) => event.label.toLowerCase() === 'traced');
-  const repaired = incident.timeline.some((event) => event.label.toLowerCase() === 'repaired');
+  const repaired =
+    incident.timeline.some((event) => event.label.toLowerCase() === 'repaired') &&
+    !requiresAttention;
   return (
     <>
       <ViewHeader
@@ -2547,9 +2584,11 @@ function VerificationView({
               <h2>
                 {hasChecks
                   ? `${passedChecks} checks passed`
-                  : pendingApprovals > 0
-                    ? 'Verification waiting'
-                    : 'Verifier standing by'}
+                  : requiresAttention
+                    ? 'Verification blocked'
+                    : pendingApprovals > 0
+                      ? 'Verification waiting'
+                      : 'Verifier standing by'}
               </h2>
             </div>
             <span className="verifiedBadge" data-pending={!hasChecks}>
@@ -2579,8 +2618,9 @@ function VerificationView({
                 <div>
                   <strong>Zero checks is a gate, not a failure.</strong>
                   <p>
-                    The read-only verifier cannot grade a run that is still paused for human
-                    authority. It starts automatically when the repair run reaches a terminal state.
+                    {requiresAttention
+                      ? 'The repair run stopped safely on a persisted conflict. The read-only verifier cannot start until recovery succeeds and the remaining human decisions clear.'
+                      : 'The read-only verifier cannot grade a run that is still paused for human authority. It starts automatically when the repair run reaches a terminal state.'}
                   </p>
                 </div>
               </div>
@@ -2596,26 +2636,37 @@ function VerificationView({
                     </small>
                   </div>
                 </li>
-                <li
-                  data-state={pendingApprovals > 0 ? 'active' : repaired ? 'complete' : 'waiting'}
-                >
+                <li data-state={requiresAttention ? 'active' : repaired ? 'complete' : 'waiting'}>
                   <span aria-hidden="true">{repaired ? '✓' : '2'}</span>
                   <div>
-                    <strong>Human authority boundary</strong>
+                    <strong>Automatic repair run</strong>
                     <small>
-                      {pendingApprovals > 0
-                        ? `${pendingApprovals} decision${pendingApprovals === 1 ? '' : 's'} pending`
+                      {requiresAttention
+                        ? 'Conflict receipt persisted; operator recovery required'
                         : repaired
                           ? 'Repair run reached terminal state'
                           : 'Waiting for repair run'}
                     </small>
                   </div>
                 </li>
-                <li data-state="waiting">
+                <li data-state={!requiresAttention && pendingApprovals > 0 ? 'active' : 'waiting'}>
                   <span aria-hidden="true">3</span>
                   <div>
+                    <strong>Human authority boundary</strong>
+                    <small>
+                      {requiresAttention
+                        ? `${pendingApprovals} decision${pendingApprovals === 1 ? '' : 's'} remain locked behind recovery`
+                        : pendingApprovals > 0
+                          ? `${pendingApprovals} decision${pendingApprovals === 1 ? '' : 's'} pending`
+                          : 'No pending human decisions'}
+                    </small>
+                  </div>
+                </li>
+                <li data-state="waiting">
+                  <span aria-hidden="true">4</span>
+                  <div>
                     <strong>Independent target re-read</strong>
-                    <small>Begins automatically after the authority boundary clears</small>
+                    <small>Begins automatically after recovery and authority gates clear</small>
                   </div>
                 </li>
               </ol>
