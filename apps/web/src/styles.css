@@ -280,9 +280,25 @@ dd {
 .sidebar nav {
   display: flex;
   flex: 1;
+  min-height: 0;
   flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  padding: 20px 2px 12px 0;
+}
+
+.navGroup {
+  display: grid;
   gap: 4px;
-  padding-top: 24px;
+}
+
+.navGroupLabel {
+  padding: 0 12px 5px;
+  color: #98a39e;
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .navItem {
@@ -290,7 +306,7 @@ dd {
   width: 100%;
   align-items: center;
   gap: 12px;
-  padding: 11px 12px;
+  padding: 9px 10px;
   border: 0;
   border-radius: 8px;
   color: #65706c;
@@ -2582,6 +2598,20 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .routeCardGrid,
+  .artifactProofGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .typedPlanList li {
+    grid-template-columns: 28px 34px minmax(0, 1fr) 108px;
+  }
+
+  .typedPlanList .planResult {
+    grid-column: 3 / -1;
+    justify-self: start;
+  }
+
   .certificateCard {
     min-height: 490px;
   }
@@ -2765,21 +2795,29 @@ code {
   }
 
   .mobileNav {
+    position: sticky;
+    z-index: 18;
+    top: 66px;
     display: grid;
     margin-bottom: 14px;
     padding: 3px;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
     border-radius: 8px;
-    background: #dfe4de;
+    background: rgba(223, 228, 222, 0.96);
+    box-shadow: 0 8px 24px rgba(21, 36, 30, 0.08);
+    backdrop-filter: blur(14px);
   }
 
   .mobileNav button {
-    padding: 9px 4px;
+    min-width: 0;
+    padding: 8px 3px;
     border: 0;
     border-radius: 6px;
     color: #6d7773;
     background: transparent;
-    font-size: 9px;
+    font-size: 8px;
+    line-height: 1.15;
   }
 
   .mobileNav button[data-active='true'] {
@@ -3616,6 +3654,645 @@ button:disabled {
   opacity: 0.55;
 }
 
+.routeDirectory {
+  margin-top: 28px;
+  padding: clamp(24px, 3vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(247, 248, 244, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.routeDirectoryHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 22px;
+}
+
+.routeDirectoryHeader h2 {
+  margin: 6px 0 0;
+  font-size: clamp(1.65rem, 3vw, 2.8rem);
+  letter-spacing: -0.055em;
+}
+
+.routeDirectoryHeader p {
+  max-width: 390px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.routeCardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.routeCard {
+  position: relative;
+  display: grid;
+  min-height: 175px;
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid #d4ddd6;
+  border-radius: 13px;
+  color: var(--ink);
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.routeCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(22, 118, 81, 0.42);
+  box-shadow: 0 14px 28px rgba(21, 36, 30, 0.09);
+}
+
+.routeCardIndex,
+.routeCardGroup,
+.routeCardStatus {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+
+.routeCardIndex {
+  color: var(--green);
+}
+
+.routeCardGroup {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  color: var(--soft);
+}
+
+.routeCard strong {
+  align-self: end;
+  margin-top: 22px;
+  font-size: 1.05rem;
+}
+
+.routeCard small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.routeCardStatus {
+  align-self: end;
+  margin-top: 13px;
+  color: var(--green);
+}
+
+.routeCard > i {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  color: var(--green);
+  font-style: normal;
+}
+
+.repairPlanPanel,
+.recoveryStatusPanel,
+.artifactProofPanel,
+.proofDiffPanel {
+  margin-bottom: 22px;
+  padding: 26px;
+}
+
+.planSummary {
+  display: grid;
+  margin-top: 22px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.planSummary > div {
+  display: grid;
+  gap: 4px;
+  padding: 17px;
+  border-left: 1px solid var(--line);
+}
+
+.planSummary > div:first-child {
+  border-left: 0;
+}
+
+.planSummary strong {
+  font-size: 1.65rem;
+  letter-spacing: -0.05em;
+}
+
+.planSummary span {
+  color: var(--muted);
+  font-size: 0.67rem;
+}
+
+.planSummary [data-alert='true'] strong {
+  color: var(--red);
+}
+
+.typedPlanList {
+  display: grid;
+  gap: 7px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.typedPlanList li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px 34px minmax(0, 1fr) 110px 130px;
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #ffffff;
+}
+
+.planStep {
+  color: var(--soft);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+}
+
+.typedPlanList li > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.typedPlanList li > div > strong {
+  font-size: 0.78rem;
+}
+
+.typedPlanList li > div > span,
+.typedPlanList li > div > small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.66rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planLane,
+.planResult {
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.56rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.lane-automatic {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.lane-approval {
+  color: var(--amber);
+  background: var(--amber-pale);
+}
+
+.lane-draft {
+  color: var(--blue);
+  background: #e5eff4;
+}
+
+.planResult {
+  color: var(--muted);
+  background: #edf0ec;
+}
+
+.planResult[data-attention='true'] {
+  color: var(--red);
+  background: var(--red-pale);
+}
+
+.recoveryStatusPanel {
+  border-color: rgba(170, 79, 69, 0.34);
+  background: linear-gradient(135deg, #fff9f5, var(--surface));
+}
+
+.recoverySpine {
+  display: grid;
+  margin-top: 22px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.recoverySpine article {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #ffffff;
+}
+
+.recoverySpine article > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--green);
+  background: var(--green-pale);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+}
+
+.recoverySpine article[data-state='active'] > span {
+  color: var(--red);
+  background: var(--red-pale);
+}
+
+.recoverySpine article > div {
+  display: grid;
+  gap: 5px;
+}
+
+.recoverySpine strong {
+  font-size: 0.76rem;
+}
+
+.recoverySpine small {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.artifactProofGrid {
+  display: grid;
+  margin-top: 22px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.artifactProofGrid article {
+  display: grid;
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.artifactProofTopline {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  color: var(--soft);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+
+.artifactProofTopline > span:last-child {
+  padding: 5px 7px;
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.artifactProofTopline > span[data-attention='true'] {
+  color: var(--red);
+  background: var(--red-pale);
+}
+
+.artifactProofGrid h3 {
+  margin: 14px 0 5px;
+  font-size: 1rem;
+}
+
+.artifactProofGrid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.artifactProofGrid dl {
+  display: grid;
+  gap: 7px;
+  margin: 16px 0;
+}
+
+.artifactProofGrid dl > div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 0.64rem;
+}
+
+.artifactProofGrid dt {
+  color: var(--soft);
+  font-family: 'DM Mono', monospace;
+  text-transform: uppercase;
+}
+
+.artifactProofGrid dd,
+.artifactProofGrid code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.artifactOpenLink,
+.artifactLinkUnavailable {
+  align-self: end;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.artifactOpenLink {
+  color: var(--green);
+}
+
+.artifactLinkUnavailable {
+  color: var(--soft);
+}
+
+.preservationPanel {
+  display: grid;
+  margin-bottom: 22px;
+  overflow: hidden;
+  grid-template-columns: minmax(210px, 0.55fr) minmax(0, 1.45fr);
+  border: 1px solid rgba(82, 211, 147, 0.24);
+  border-radius: 16px;
+  color: #eaf5ef;
+  background: linear-gradient(135deg, #08140f, #123326);
+  box-shadow: 0 24px 62px rgba(10, 28, 21, 0.16);
+}
+
+.preservationScore {
+  display: grid;
+  align-content: center;
+  padding: 30px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.preservationScore span,
+.preservationScore small {
+  color: #88a297;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+.preservationScore strong {
+  margin: 10px 0 5px;
+  color: var(--green-bright);
+  font-size: 3.2rem;
+  letter-spacing: -0.07em;
+}
+
+.preservationStory {
+  padding: 30px;
+}
+
+.preservationStory .sectionKicker {
+  color: #67c996;
+}
+
+.preservationStory h2 {
+  max-width: 720px;
+  margin: 7px 0 8px;
+  font-size: clamp(1.6rem, 3vw, 2.6rem);
+  letter-spacing: -0.055em;
+}
+
+.preservationStory > p {
+  max-width: 760px;
+  color: #98ada4;
+  font-size: 0.75rem;
+  line-height: 1.65;
+}
+
+.preservationSteps {
+  display: grid;
+  margin-top: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.preservationSteps > div {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid rgba(131, 201, 164, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.preservationSteps span,
+.preservationSteps code {
+  color: #76a98f;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.57rem;
+}
+
+.preservationSteps strong {
+  font-size: 0.72rem;
+}
+
+.certifiedReference {
+  display: grid;
+  margin: 22px 0;
+  padding: 26px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 28px;
+  align-items: center;
+  border: 1px dashed rgba(22, 118, 81, 0.38);
+  border-radius: 15px;
+  background: rgba(244, 248, 243, 0.78);
+}
+
+.certifiedReference h2 {
+  margin: 7px 0 8px;
+  font-size: clamp(1.5rem, 2.6vw, 2.3rem);
+  letter-spacing: -0.05em;
+}
+
+.certifiedReference p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.referenceCertificate {
+  display: grid;
+  padding: 18px;
+  border-radius: 12px;
+  color: #e9f7ef;
+  background: var(--dark);
+}
+
+.referenceCertificate > strong {
+  margin-top: 18px;
+  color: var(--green-bright);
+  font-size: 2.8rem;
+  letter-spacing: -0.06em;
+}
+
+.referenceCertificate > span:not(.verifiedBadge) {
+  color: #8da49a;
+  font-size: 0.65rem;
+}
+
+.referenceCertificate dl {
+  display: grid;
+  margin: 18px 0 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid rgba(255, 255, 255, 0.13);
+}
+
+.referenceCertificate dl > div {
+  padding: 12px 8px 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.13);
+}
+
+.referenceCertificate dl > div:first-child {
+  border-left: 0;
+}
+
+.referenceCertificate dt {
+  color: #71877d;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.53rem;
+  text-transform: uppercase;
+}
+
+.referenceCertificate dd {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-size: 0.66rem;
+}
+
+.architectureCanvas {
+  padding: clamp(24px, 4vw, 44px);
+  border: 1px solid rgba(82, 211, 147, 0.23);
+  border-radius: 20px;
+  color: #eaf5ef;
+  background:
+    linear-gradient(rgba(112, 213, 161, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(112, 213, 161, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 42%, rgba(51, 164, 106, 0.18), transparent 28rem),
+    #08140f;
+  background-size: 32px 32px, 32px 32px, auto, auto;
+  box-shadow: 0 28px 70px rgba(10, 28, 21, 0.2);
+}
+
+.architectureBoundary,
+.architectureRow,
+.architectureCore,
+.architectureTrustRow {
+  display: grid;
+  gap: 12px;
+}
+
+.architectureBoundary {
+  position: relative;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 25px 16px 16px;
+  border: 1px solid rgba(112, 213, 161, 0.22);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.architectureBoundary > span {
+  position: absolute;
+  top: 7px;
+  left: 16px;
+  color: #69b78f;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+}
+
+.architectureBoundary > div,
+.architectureRow article,
+.architectureCore article,
+.architectureTrustRow article {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid rgba(148, 202, 174, 0.14);
+  border-radius: 10px;
+  background: rgba(2, 11, 8, 0.55);
+}
+
+.architectureCanvas small {
+  color: #7e988c;
+  font-size: 0.62rem;
+}
+
+.architectureArrow {
+  display: block;
+  padding: 11px;
+  color: var(--green-bright);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.architectureRow {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.architectureRow i {
+  color: var(--green-bright);
+  font-style: normal;
+}
+
+.architectureRow article > span,
+.architectureCore article > span {
+  color: #68c796;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+}
+
+.architectureCore {
+  margin-top: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.architectureCore .geminiNode {
+  border-color: rgba(210, 181, 91, 0.34);
+  background: rgba(159, 116, 35, 0.1);
+}
+
+.architectureCore .geminiNode > span {
+  color: #e1ba73;
+}
+
+.architectureTrustRow {
+  margin-top: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.architectureTrustRow article:last-child {
+  border-color: rgba(82, 211, 147, 0.34);
+}
+
 @media (max-width: 720px) {
   .startupState {
     padding: 34px 18px;
@@ -3687,6 +4364,79 @@ button:disabled {
   .recoveryOperation > button {
     width: 100%;
     justify-content: center;
+  }
+
+  .routeDirectoryHeader,
+  .certifiedReference {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .routeDirectoryHeader {
+    flex-direction: column;
+  }
+
+  .routeCardGrid,
+  .artifactProofGrid,
+  .recoverySpine,
+  .preservationSteps,
+  .architectureCore,
+  .architectureTrustRow {
+    grid-template-columns: 1fr;
+  }
+
+  .planSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planSummary > div:nth-child(3) {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .planSummary > div:nth-child(4) {
+    border-top: 1px solid var(--line);
+  }
+
+  .typedPlanList li {
+    grid-template-columns: 28px 34px minmax(0, 1fr);
+  }
+
+  .typedPlanList .planLane,
+  .typedPlanList .planResult {
+    grid-column: 3;
+    justify-self: start;
+  }
+
+  .preservationPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .preservationScore {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .referenceCertificate dl {
+    grid-template-columns: 1fr;
+  }
+
+  .referenceCertificate dl > div {
+    border-top: 1px solid rgba(255, 255, 255, 0.13);
+    border-left: 0;
+  }
+
+  .architectureRow {
+    grid-template-columns: 1fr;
+  }
+
+  .architectureRow i {
+    transform: rotate(90deg);
+    text-align: center;
+  }
+
+  .architectureBoundary {
+    grid-template-columns: 1fr;
   }
 }
 

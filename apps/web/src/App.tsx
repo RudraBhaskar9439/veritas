@@ -136,13 +136,79 @@ type GenerationState =
   | { phase: 'error'; message: string; request: LiveGenerationRequest }
   | { phase: 'complete'; result: PacketGenerationResult; request: LiveGenerationRequest };
 
-const views: ReadonlyArray<{ id: ViewId; label: string; index: string }> = [
-  { id: 'overview', label: 'Command center', index: '01' },
-  { id: 'lineage', label: 'Blast radius', index: '02' },
-  { id: 'verification', label: 'Verification', index: '03' },
+const views: ReadonlyArray<{
+  id: ViewId;
+  label: string;
+  index: string;
+  group: 'Operate' | 'Inspect';
+  summary: string;
+}> = [
+  {
+    id: 'overview',
+    label: 'Command center',
+    index: '01',
+    group: 'Operate',
+    summary: 'Incident outcome and the shortest route through the proof.',
+  },
+  {
+    id: 'execution',
+    label: 'Live run',
+    index: '02',
+    group: 'Operate',
+    summary: 'Streaming receipts, causal graph, and change proof.',
+  },
+  {
+    id: 'automation',
+    label: 'Email → Task',
+    index: '03',
+    group: 'Operate',
+    summary: 'Private Gmail thread routing and exact Task ownership.',
+  },
+  {
+    id: 'decisions',
+    label: 'Repair desk',
+    index: '04',
+    group: 'Operate',
+    summary: 'Typed repair plan, approvals, conflicts, and recovery.',
+  },
+  {
+    id: 'lineage',
+    label: 'Blast radius',
+    index: '05',
+    group: 'Inspect',
+    summary: 'Exact registered evidence-to-artifact paths.',
+  },
+  {
+    id: 'proof',
+    label: 'Proof ledger',
+    index: '06',
+    group: 'Inspect',
+    summary: 'Native resource links, revisions, hashes, and claim diffs.',
+  },
+  {
+    id: 'verification',
+    label: 'Verification',
+    index: '07',
+    group: 'Inspect',
+    summary: 'Independent checks and the scoped certificate.',
+  },
+  {
+    id: 'architecture',
+    label: 'Architecture',
+    index: '08',
+    group: 'Inspect',
+    summary: 'Google Cloud trust boundaries and durable state.',
+  },
 ];
 
+function viewFromHash(): ViewId | null {
+  const value = window.location.hash.replace(/^#\/?/, '');
+  return views.some((view) => view.id === value) ? (value as ViewId) : null;
+}
+
 function storedView(): ViewId {
+  const routed = viewFromHash();
+  if (routed) return routed;
   const value = window.localStorage.getItem(VIEW_STORAGE_KEY);
   return views.some((view) => view.id === value) ? (value as ViewId) : 'overview';
 }
@@ -390,6 +456,19 @@ function CommandCenter({
   }, [view]);
 
   useEffect(() => {
+    const syncRoute = () => {
+      const routed = viewFromHash();
+      if (routed) setView(routed);
+    };
+    window.addEventListener('hashchange', syncRoute);
+    window.addEventListener('popstate', syncRoute);
+    return () => {
+      window.removeEventListener('hashchange', syncRoute);
+      window.removeEventListener('popstate', syncRoute);
+    };
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(CLAIM_STORAGE_KEY, selectedClaimId);
   }, [selectedClaimId]);
 
@@ -469,6 +548,10 @@ function CommandCenter({
 
   function chooseView(next: ViewId) {
     setView(next);
+    const hash = `#/${next}`;
+    if (window.location.hash !== hash) {
+      window.history.pushState({ view: next }, '', hash);
+    }
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
   }
 
@@ -476,7 +559,7 @@ function CommandCenter({
     setIsLiveAnimating(false);
     setReplayStage(0);
     setIsReplaying(true);
-    setView('overview');
+    chooseView('execution');
   }
 
   async function retryVerification() {
@@ -519,7 +602,7 @@ function CommandCenter({
         </a>
 
         <header className="topbar">
-          <a className="brand" href="/" aria-label="Veritas command center home">
+          <a className="brand" href="#/overview" aria-label="Veritas command center home">
             <span className="brandMark" aria-hidden="true">
               V
             </span>
@@ -564,19 +647,26 @@ function CommandCenter({
               </span>
             </div>
           </div>
-          <nav>
-            {views.map((item) => (
-              <button
-                className="navItem"
-                data-active={view === item.id}
-                key={item.id}
-                type="button"
-                onClick={() => chooseView(item.id)}
-                aria-current={view === item.id ? 'page' : undefined}
-              >
-                <span>{item.index}</span>
-                {item.label}
-              </button>
+          <nav aria-label="Veritas destinations">
+            {(['Operate', 'Inspect'] as const).map((group) => (
+              <div className="navGroup" key={group}>
+                <span className="navGroupLabel">{group}</span>
+                {views
+                  .filter((item) => item.group === group)
+                  .map((item) => (
+                    <button
+                      className="navItem"
+                      data-active={view === item.id}
+                      key={item.id}
+                      type="button"
+                      onClick={() => chooseView(item.id)}
+                      aria-current={view === item.id ? 'page' : undefined}
+                    >
+                      <span>{item.index}</span>
+                      {item.label}
+                    </button>
+                  ))}
+              </div>
             ))}
           </nav>
           <div className="sidebarFooter">
@@ -602,25 +692,29 @@ function CommandCenter({
 
           {view === 'overview' && (
             <Overview
-              selectedClaim={selectedClaim}
-              onSelectClaim={setSelectedClaimId}
               replayStage={replayStage}
-              isStreaming={isReplaying || isLiveAnimating}
               visibleClaims={visibleClaims}
               visibleArtifacts={visibleArtifacts}
               verifiedTargets={verifiedTargets}
-              onIncidentChange={onIncidentChange}
-              onRetryVerification={() => void retryVerification()}
-              verificationRetry={verificationRetry}
+              onNavigate={chooseView}
             />
           )}
+          {view === 'execution' && (
+            <ExecutionView replayStage={replayStage} isStreaming={isReplaying || isLiveAnimating} />
+          )}
+          {view === 'automation' && <AutomationView />}
+          {view === 'decisions' && <DecisionsView onIncidentChange={onIncidentChange} />}
           {view === 'lineage' && <LineageView />}
+          {view === 'proof' && (
+            <ProofView selectedClaim={selectedClaim} onSelectClaim={setSelectedClaimId} />
+          )}
           {view === 'verification' && (
             <VerificationView
               onRetryVerification={() => void retryVerification()}
               verificationRetry={verificationRetry}
             />
           )}
+          {view === 'architecture' && <ArchitectureView />}
         </main>
 
         <div className="srOnly" role="status" aria-live="polite">
@@ -798,29 +892,19 @@ function workspaceResourceUrl(resource: PacketResource): string | null {
 }
 
 interface OverviewProps {
-  selectedClaim: ClaimChange;
-  onSelectClaim: (claimId: string) => void;
   replayStage: number;
-  isStreaming: boolean;
   visibleClaims: number;
   visibleArtifacts: number;
   verifiedTargets: number;
-  onIncidentChange: (incident: Incident) => void;
-  onRetryVerification: () => void;
-  verificationRetry: VerificationRetryState;
+  onNavigate: (view: ViewId) => void;
 }
 
 function Overview({
-  selectedClaim,
-  onSelectClaim,
   replayStage,
-  isStreaming,
   visibleClaims,
   visibleArtifacts,
   verifiedTargets,
-  onIncidentChange,
-  onRetryVerification,
-  verificationRetry,
+  onNavigate,
 }: OverviewProps) {
   const incident = useIncident();
   const source = changedEvidence(incident);
@@ -926,141 +1010,674 @@ function Overview({
         />
         <Metric value="0" label="Human edits lost" detail="protected by hash" accent />
       </section>
+      <RouteDirectory onNavigate={onNavigate} />
+    </>
+  );
+}
 
-      <EmailTaskAutomation />
+function routeStatus(incident: Incident, view: ViewId): string {
+  const pendingApprovals = incident.approvals.filter(
+    (approval) => approval.status === 'pending',
+  ).length;
+  if (view === 'execution') return `${incident.timeline.length} signed receipts`;
+  if (view === 'automation')
+    return incident.source === 'live' ? 'Workspace route ready' : 'Live only';
+  if (view === 'decisions') {
+    return incident.status === 'attention'
+      ? 'Operator attention'
+      : `${pendingApprovals} decision${pendingApprovals === 1 ? '' : 's'} pending`;
+  }
+  if (view === 'lineage') return `${incident.coverage.lineagePaths} exact paths`;
+  if (view === 'proof') return `${incident.artifacts.length} native artifacts`;
+  if (view === 'verification') {
+    return incident.certificate
+      ? `${incident.coverage.verifiedTargets}/${incident.coverage.targets} certified`
+      : 'Certificate gated';
+  }
+  if (view === 'architecture') return '8 production boundaries';
+  return incident.status.replace('_', ' ');
+}
 
-      <Timeline activeStage={replayStage} isStreaming={isStreaming} />
-
-      <ChangeProofPanel />
-
-      <ApprovalQueue onIncidentChange={onIncidentChange} />
-
-      <RecoveryQueue onIncidentChange={onIncidentChange} />
-
-      <ConsequenceMap replayStage={replayStage} />
-
-      <div className="overviewGrid">
-        <section className="panel diffPanel" aria-labelledby="diff-title">
-          <div className="panelHeader">
-            <div>
-              <span className="sectionKicker">Registered claim diff</span>
-              <h2 id="diff-title">What changed—and why</h2>
-            </div>
-            <span className={`riskTag risk-${selectedClaim.risk}`}>{selectedClaim.riskLabel}</span>
-          </div>
-
-          <div className="claimTabs" role="tablist" aria-label="Affected claims">
-            {incident.claims.map((claim, index) => (
-              <button
-                key={claim.id}
-                id={`claim-tab-${claim.id}`}
-                type="button"
-                role="tab"
-                aria-selected={selectedClaim.id === claim.id}
-                aria-controls="selected-claim-diff"
-                tabIndex={selectedClaim.id === claim.id ? 0 : -1}
-                data-active={selectedClaim.id === claim.id}
-                onClick={() => onSelectClaim(claim.id)}
-              >
-                <span>0{index + 1}</span>
-                {claim.shortLabel}
-              </button>
-            ))}
-          </div>
-
-          <div
-            id="selected-claim-diff"
-            className="diffBody"
-            role="tabpanel"
-            aria-labelledby={`claim-tab-${selectedClaim.id}`}
-          >
-            <div className="diffLine beforeLine">
-              <span className="diffSymbol" aria-hidden="true">
-                −
-              </span>
-              <div>
-                <span>Previous registered statement</span>
-                <p>{selectedClaim.before}</p>
-              </div>
-            </div>
-            <div className="diffLine afterLine">
-              <span className="diffSymbol" aria-hidden="true">
-                +
-              </span>
-              <div>
-                <span>Recomputed statement</span>
-                <p>{selectedClaim.after}</p>
-              </div>
-            </div>
-            <div className="transformationRow">
-              <div>
-                <span>Deterministic recipe</span>
-                <code>{selectedClaim.transformation}</code>
-              </div>
-              <div>
-                <span>Evidence</span>
-                <code>{selectedClaim.evidence}</code>
-              </div>
-              <div>
-                <span>Policy</span>
-                <strong>{selectedClaim.policy}</strong>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <CertificateCard
-          onRetryVerification={onRetryVerification}
-          verificationRetry={verificationRetry}
-        />
-      </div>
-
-      <section className="panel activityPanel" aria-labelledby="activity-title">
-        <div className="panelHeader">
-          <div>
-            <span className="sectionKicker">Auditable execution</span>
-            <h2 id="activity-title">Every consequential action has a receipt</h2>
-          </div>
-          <span className="appendOnly">Append-only journal</span>
+function RouteDirectory({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
+  const incident = useIncident();
+  return (
+    <section className="routeDirectory" aria-labelledby="route-directory-title">
+      <div className="routeDirectoryHeader">
+        <div>
+          <span className="sectionKicker">Judge navigation</span>
+          <h2 id="route-directory-title">Go straight to the proof you want.</h2>
         </div>
-        <div className="tableScroller">
-          <table className="activityTable" aria-label="Repair activity">
-            <thead>
-              <tr>
-                <th scope="col">Surface</th>
-                <th scope="col">Minimal action</th>
-                <th scope="col">Guardrail</th>
-                <th scope="col">Result</th>
+        <p>No long-page hunting. Every capability now has its own destination.</p>
+      </div>
+      <div className="routeCardGrid">
+        {views
+          .filter((item) => item.id !== 'overview')
+          .map((item) => (
+            <button
+              className="routeCard"
+              type="button"
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+            >
+              <span className="routeCardIndex">{item.index}</span>
+              <span className="routeCardGroup">{item.group}</span>
+              <strong>{item.label}</strong>
+              <small>{item.summary}</small>
+              <span className="routeCardStatus">{routeStatus(incident, item.id)}</span>
+              <i aria-hidden="true">→</i>
+            </button>
+          ))}
+      </div>
+    </section>
+  );
+}
+
+function ExecutionView({
+  replayStage,
+  isStreaming,
+}: {
+  replayStage: number;
+  isStreaming: boolean;
+}) {
+  return (
+    <>
+      <ViewHeader
+        kicker="Autonomous execution"
+        title="Every agent step appears as it happens."
+        description="The live terminal, causal graph, timeline, timestamps, and cryptographic receipt chain update from persisted backend state without a page reload."
+      />
+      <Timeline activeStage={replayStage} isStreaming={isStreaming} />
+      <ChangeProofPanel />
+    </>
+  );
+}
+
+function AutomationView() {
+  return (
+    <>
+      <ViewHeader
+        kicker="Customer signal automation"
+        title="A normal Gmail reply reaches one exact Google Task."
+        description="The operator registers the customer and manifest-bound Task once. Veritas then routes only the private Gmail thread, refuses ambiguous requests, and records every Task revision."
+      />
+      <EmailTaskAutomation defaultOpen />
+    </>
+  );
+}
+
+function DecisionsView({ onIncidentChange }: { onIncidentChange: (incident: Incident) => void }) {
+  return (
+    <>
+      <ViewHeader
+        kicker="Repair and authority desk"
+        title="See the plan, the guardrail, and who has authority."
+        description="Automatic, approval-required, draft-only, and conflict-stopped work are separated before any native Workspace mutation is allowed."
+      />
+      <RepairPlanPanel />
+      <AttentionRecoveryPanel />
+      <ApprovalQueue onIncidentChange={onIncidentChange} />
+      <RecoveryQueue onIncidentChange={onIncidentChange} />
+      <RepairActivityPanel />
+    </>
+  );
+}
+
+function ProofView({
+  selectedClaim,
+  onSelectClaim,
+}: {
+  selectedClaim: ClaimChange;
+  onSelectClaim: (claimId: string) => void;
+}) {
+  const incident = useIncident();
+  return (
+    <>
+      <ViewHeader
+        kicker="Native Workspace proof"
+        title="Open the artifact. Inspect the revision. Follow the receipt."
+        description="This ledger exposes the real resource boundary, minimum-write scope, native concurrency guard, preservation state, and deterministic claim diff."
+      />
+      <ConsequenceMap replayStage={incident.timeline.length} />
+      <ArtifactProofLedger />
+      <PreservationProofPanel />
+      <ClaimDiffPanel selectedClaim={selectedClaim} onSelectClaim={onSelectClaim} />
+    </>
+  );
+}
+
+function repairLane(artifact: Incident['artifacts'][number]): {
+  label: string;
+  kind: 'automatic' | 'approval' | 'draft';
+} {
+  if (artifact.guardrail.toLowerCase().includes('human approved')) {
+    return { label: 'Human approval', kind: 'approval' };
+  }
+  if (
+    artifact.surface.toLowerCase().includes('gmail') ||
+    artifact.guardrail.toLowerCase().includes('immutable')
+  ) {
+    return { label: 'Draft only', kind: 'draft' };
+  }
+  return { label: 'Automatic', kind: 'automatic' };
+}
+
+function RepairPlanPanel() {
+  const incident = useIncident();
+  const operationCount = incident.artifacts.reduce(
+    (total, artifact) => total + artifact.targetCount,
+    0,
+  );
+  const laneCounts = incident.artifacts.reduce(
+    (counts, artifact) => {
+      const lane = repairLane(artifact).kind;
+      counts[lane] += artifact.targetCount;
+      return counts;
+    },
+    { automatic: 0, approval: 0, draft: 0 },
+  );
+  const blocked = incident.artifacts.reduce(
+    (total, artifact) => total + (artifact.result.includes('attention') ? artifact.targetCount : 0),
+    0,
+  );
+  return (
+    <section className="panel repairPlanPanel" aria-labelledby="repair-plan-title">
+      <div className="panelHeader">
+        <div>
+          <span className="sectionKicker">Typed repair plan</span>
+          <h2 id="repair-plan-title">{operationCount} registered target operations</h2>
+        </div>
+        <span className="appendOnly">Policy checked</span>
+      </div>
+      <section className="planSummary" aria-label="Repair policy summary">
+        <div>
+          <strong>{laneCounts.automatic}</strong>
+          <span>Automatic</span>
+        </div>
+        <div>
+          <strong>{laneCounts.approval}</strong>
+          <span>Approval required</span>
+        </div>
+        <div>
+          <strong>{laneCounts.draft}</strong>
+          <span>Draft only</span>
+        </div>
+        <div data-alert={blocked > 0}>
+          <strong>{blocked}</strong>
+          <span>Blocked by precondition</span>
+        </div>
+      </section>
+      <ol className="typedPlanList">
+        {incident.artifacts.map((artifact, index) => {
+          const lane = repairLane(artifact);
+          const attention = artifact.result.includes('attention');
+          return (
+            <li key={artifact.id}>
+              <span className="planStep">{String(index + 1).padStart(2, '0')}</span>
+              <span
+                className={`surfaceIcon surface-${artifact.code.toLowerCase()}`}
+                aria-hidden="true"
+              >
+                {artifact.code}
+              </span>
+              <div>
+                <strong>{artifact.name}</strong>
+                <span>{artifact.action}</span>
+                <small>
+                  {artifact.targetCount} exact target{artifact.targetCount === 1 ? '' : 's'} ·{' '}
+                  {artifact.guardrail}
+                </small>
+              </div>
+              <span className={`planLane lane-${lane.kind}`}>{lane.label}</span>
+              <span className="planResult" data-attention={attention}>
+                {artifact.result}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function AttentionRecoveryPanel() {
+  const incident = useIncident();
+  const conflicts = incident.artifacts.filter((artifact) => artifact.result.includes('attention'));
+  const pendingApprovals = incident.approvals.filter(
+    (approval) => approval.status === 'pending',
+  ).length;
+  return (
+    <section className="panel recoveryStatusPanel" aria-labelledby="recovery-status-title">
+      <div className="panelHeader">
+        <div>
+          <span className="sectionKicker">Recovery visibility</span>
+          <h2 id="recovery-status-title">
+            {conflicts.length > 0
+              ? 'A native revision conflict stopped the run safely.'
+              : incident.status === 'verified'
+                ? 'No recovery action is required.'
+                : 'The durable run is progressing within policy.'}
+          </h2>
+        </div>
+        <span className="severity">{conflicts.length > 0 ? 'Attention' : incident.status}</span>
+      </div>
+      <div className="recoverySpine">
+        <article data-state={conflicts.length > 0 ? 'active' : 'complete'}>
+          <span>01</span>
+          <div>
+            <strong>Native precondition</strong>
+            <small>
+              {conflicts.length > 0
+                ? `${conflicts.map((artifact) => artifact.name).join(', ')} changed after planning; completed writes remain preserved.`
+                : 'Every native write reached its expected revision boundary.'}
+            </small>
+          </div>
+        </article>
+        <article data-state={pendingApprovals > 0 ? 'waiting' : 'complete'}>
+          <span>02</span>
+          <div>
+            <strong>Human authority</strong>
+            <small>
+              {pendingApprovals} decision{pendingApprovals === 1 ? '' : 's'} remain
+              {pendingApprovals === 1 ? 's' : ''} pending.
+            </small>
+          </div>
+        </article>
+        <article data-state={incident.certificate ? 'complete' : 'waiting'}>
+          <span>03</span>
+          <div>
+            <strong>Independent verification</strong>
+            <small>
+              {incident.certificate
+                ? `${incident.coverage.verifiedTargets}/${incident.coverage.targets} targets certified.`
+                : 'Starts only after repair and authority gates clear.'}
+            </small>
+          </div>
+        </article>
+      </div>
+      {conflicts.length > 0 && (
+        <p className="actionNotice">
+          Veritas did not overwrite newer human or Workspace state. The conflict receipt is
+          retained; reconciliation must produce a fresh, version-checked operation before
+          verification can resume.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function RepairActivityPanel() {
+  const incident = useIncident();
+  return (
+    <section className="panel activityPanel" aria-labelledby="activity-title">
+      <div className="panelHeader">
+        <div>
+          <span className="sectionKicker">Auditable execution</span>
+          <h2 id="activity-title">Every consequential action has a receipt</h2>
+        </div>
+        <span className="appendOnly">Append-only journal</span>
+      </div>
+      <div className="tableScroller">
+        <table className="activityTable" aria-label="Repair activity">
+          <thead>
+            <tr>
+              <th scope="col">Surface</th>
+              <th scope="col">Minimal action</th>
+              <th scope="col">Guardrail</th>
+              <th scope="col">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            {incident.artifacts.map((artifact) => (
+              <tr key={artifact.id}>
+                <td>
+                  <span className="artifactName">
+                    <span
+                      className={`surfaceIcon surface-${artifact.code.toLowerCase()}`}
+                      aria-hidden="true"
+                    >
+                      {artifact.code}
+                    </span>
+                    <span>
+                      <strong>{artifact.name}</strong>
+                      <small>{artifact.targetCount} registered targets</small>
+                    </span>
+                  </span>
+                </td>
+                <td>{artifact.action}</td>
+                <td>{artifact.guardrail}</td>
+                <td>
+                  <span className="successCell">
+                    <span aria-hidden="true">✓</span> {artifact.result}
+                  </span>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {incident.artifacts.map((artifact) => (
-                <tr key={artifact.id}>
-                  <td>
-                    <span className="artifactName">
-                      <span
-                        className={`surfaceIcon surface-${artifact.code.toLowerCase()}`}
-                        aria-hidden="true"
-                      >
-                        {artifact.code}
-                      </span>
-                      <span>
-                        <strong>{artifact.name}</strong>
-                        <small>{artifact.targetCount} registered targets</small>
-                      </span>
-                    </span>
-                  </td>
-                  <td>{artifact.action}</td>
-                  <td>{artifact.guardrail}</td>
-                  <td>
-                    <span className="successCell">
-                      <span aria-hidden="true">✓</span> {artifact.result}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function ArtifactProofLedger() {
+  const incident = useIncident();
+  return (
+    <section className="panel artifactProofPanel" aria-labelledby="artifact-proof-title">
+      <div className="panelHeader">
+        <div>
+          <span className="sectionKicker">Artifact proof ledger</span>
+          <h2 id="artifact-proof-title">
+            {incident.artifacts.length} native surfaces, individually inspectable
+          </h2>
+        </div>
+        <span className="appendOnly">Manifest bound</span>
+      </div>
+      <div className="artifactProofGrid">
+        {incident.artifacts.map((artifact) => (
+          <article key={artifact.id}>
+            <div className="artifactProofTopline">
+              <span
+                className={`surfaceIcon surface-${artifact.code.toLowerCase()}`}
+                aria-hidden="true"
+              >
+                {artifact.code}
+              </span>
+              <span>{artifact.surface}</span>
+              <span data-attention={artifact.result.includes('attention')}>{artifact.result}</span>
+            </div>
+            <h3>{artifact.name}</h3>
+            <p>{artifact.action}</p>
+            <dl>
+              <div>
+                <dt>Resource</dt>
+                <dd>
+                  <code>{artifact.resourceId ?? artifact.id}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Native revision</dt>
+                <dd>
+                  <code>{artifact.baseRevisionId ?? artifact.guardrail}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Owned targets</dt>
+                <dd>{artifact.targetCount}</dd>
+              </div>
+            </dl>
+            {artifact.resourceUrl ? (
+              <a
+                className="artifactOpenLink"
+                href={artifact.resourceUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open real {artifact.surface} artifact ↗
+              </a>
+            ) : (
+              <span className="artifactLinkUnavailable">
+                {incident.source === 'demo'
+                  ? 'Offline demonstration record'
+                  : 'Resource link awaiting API refresh'}
+              </span>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PreservationProofPanel() {
+  const incident = useIncident();
+  const changed = changedEvidence(incident);
+  const complete =
+    incident.coverage.verifiedProtectedArtifacts === incident.coverage.protectedArtifacts;
+  return (
+    <section className="preservationPanel" aria-labelledby="preservation-title">
+      <div className="preservationScore">
+        <span>Protected human content</span>
+        <strong>
+          {incident.coverage.verifiedProtectedArtifacts}/{incident.coverage.protectedArtifacts}
+        </strong>
+        <small>{complete ? 'independently matched' : 'verification pending'}</small>
+      </div>
+      <div className="preservationStory">
+        <span className="sectionKicker">Three-way preservation proof</span>
+        <h2 id="preservation-title">Registered claims can change without rewriting human prose.</h2>
+        <p>
+          Veritas locks a pre-mutation baseline, changes only manifest-owned anchors, and asks a
+          separate verifier to compare every protected projection after repair.
+        </p>
+        <div className="preservationSteps">
+          <div>
+            <span>01</span>
+            <strong>Baseline locked</strong>
+            <code>{changed?.contentHash.slice(0, 14) ?? 'pending'}…</code>
+          </div>
+          <div>
+            <span>02</span>
+            <strong>Minimum write</strong>
+            <code>{incident.coverage.lineagePaths} exact paths</code>
+          </div>
+          <div>
+            <span>03</span>
+            <strong>Independent compare</strong>
+            <code>{complete ? 'all protected hashes match' : 'waiting behind repair gate'}</code>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ClaimDiffPanel({
+  selectedClaim,
+  onSelectClaim,
+}: {
+  selectedClaim: ClaimChange;
+  onSelectClaim: (claimId: string) => void;
+}) {
+  const incident = useIncident();
+  return (
+    <section className="panel diffPanel proofDiffPanel" aria-labelledby="diff-title">
+      <div className="panelHeader">
+        <div>
+          <span className="sectionKicker">Registered claim diff</span>
+          <h2 id="diff-title">What changed—and why</h2>
+        </div>
+        <span className={`riskTag risk-${selectedClaim.risk}`}>{selectedClaim.riskLabel}</span>
+      </div>
+      <div className="claimTabs" role="tablist" aria-label="Affected claims">
+        {incident.claims.map((claim, index) => (
+          <button
+            key={claim.id}
+            id={`claim-tab-${claim.id}`}
+            type="button"
+            role="tab"
+            aria-selected={selectedClaim.id === claim.id}
+            aria-controls="selected-claim-diff"
+            tabIndex={selectedClaim.id === claim.id ? 0 : -1}
+            data-active={selectedClaim.id === claim.id}
+            onClick={() => onSelectClaim(claim.id)}
+          >
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            {claim.shortLabel}
+          </button>
+        ))}
+      </div>
+      <div
+        id="selected-claim-diff"
+        className="diffBody"
+        role="tabpanel"
+        aria-labelledby={`claim-tab-${selectedClaim.id}`}
+      >
+        <div className="diffLine beforeLine">
+          <span className="diffSymbol" aria-hidden="true">
+            −
+          </span>
+          <div>
+            <span>Previous registered statement</span>
+            <p>{selectedClaim.before}</p>
+          </div>
+        </div>
+        <div className="diffLine afterLine">
+          <span className="diffSymbol" aria-hidden="true">
+            +
+          </span>
+          <div>
+            <span>Recomputed statement</span>
+            <p>{selectedClaim.after}</p>
+          </div>
+        </div>
+        <div className="transformationRow">
+          <div>
+            <span>Deterministic recipe</span>
+            <code>{selectedClaim.transformation}</code>
+          </div>
+          <div>
+            <span>Evidence</span>
+            <code>{selectedClaim.evidence}</code>
+          </div>
+          <div>
+            <span>Policy</span>
+            <strong>{selectedClaim.policy}</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CertifiedReferencePanel() {
+  const incident = useIncident();
+  if (incident.certificate) return null;
+  return (
+    <section className="certifiedReference" aria-labelledby="certified-reference-title">
+      <div>
+        <span className="sectionKicker">Completed-state reference · offline evidence</span>
+        <h2 id="certified-reference-title">See what unlocks after every gate clears.</h2>
+        <p>
+          This clearly labelled reference uses the deterministic judge fixture; it does not replace
+          or alter the blocked live incident above.
+        </p>
+      </div>
+      <div className="referenceCertificate">
+        <span className="verifiedBadge">
+          <span aria-hidden="true">✓</span> Verified reference
+        </span>
+        <strong>
+          {demoIncident.coverage.verifiedTargets}/{demoIncident.coverage.targets}
+        </strong>
+        <span>targets independently re-read</span>
+        <dl>
+          <div>
+            <dt>Checks</dt>
+            <dd>{demoIncident.checks.length}</dd>
+          </div>
+          <div>
+            <dt>Protected</dt>
+            <dd>
+              {demoIncident.coverage.verifiedProtectedArtifacts}/
+              {demoIncident.coverage.protectedArtifacts}
+            </dd>
+          </div>
+          <div>
+            <dt>Certificate</dt>
+            <dd>{demoIncident.certificate?.shortId}</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+function ArchitectureView() {
+  return (
+    <>
+      <ViewHeader
+        kicker="Production architecture"
+        title="The model reasons inside a narrow authority envelope."
+        description="Deterministic services own lineage, policy, credentials, native writes, recovery, and certification. The diagram below makes every trust boundary visible."
+      />
+      <section className="architectureCanvas" aria-label="Veritas production architecture">
+        <div className="architectureBoundary workspaceBoundary">
+          <span>Google Workspace</span>
+          <div>
+            <strong>Sheets + Drive</strong>
+            <small>registered evidence events</small>
+          </div>
+          <div>
+            <strong>Gmail</strong>
+            <small>private customer threads</small>
+          </div>
+        </div>
+        <span className="architectureArrow" aria-hidden="true">
+          ↓ authenticated push
+        </span>
+        <div className="architectureRow">
+          <article>
+            <span>01</span>
+            <strong>Event ingress</strong>
+            <small>OIDC, deduplication, bounded payloads</small>
+          </article>
+          <i aria-hidden="true">→</i>
+          <article>
+            <span>02</span>
+            <strong>Cloud Tasks</strong>
+            <small>durable commands and retry identity</small>
+          </article>
+          <i aria-hidden="true">→</i>
+          <article>
+            <span>03</span>
+            <strong>Private worker</strong>
+            <small>leases, idempotency, dead letters</small>
+          </article>
+        </div>
+        <div className="architectureCore">
+          <article>
+            <span>Deterministic</span>
+            <strong>Claim Manifest graph</strong>
+            <small>exact registered scope only</small>
+          </article>
+          <article className="geminiNode">
+            <span>Gemini 3.5 Flash</span>
+            <strong>Safety review</strong>
+            <small>proceed or escalate—no tool authority</small>
+          </article>
+          <article>
+            <span>Deterministic</span>
+            <strong>Policy + repair planner</strong>
+            <small>automatic, approval, draft-only</small>
+          </article>
+        </div>
+        <span className="architectureArrow" aria-hidden="true">
+          ↓ native preconditioned writes
+        </span>
+        <div className="architectureBoundary workspaceBoundary outputBoundary">
+          <span>Owned outputs</span>
+          <div>
+            <strong>Docs + Slides</strong>
+            <small>anchor-scoped edits</small>
+          </div>
+          <div>
+            <strong>Gmail + Tasks</strong>
+            <small>correction drafts and ETag updates</small>
+          </div>
+        </div>
+        <div className="architectureTrustRow">
+          <article>
+            <strong>Cloud SQL</strong>
+            <small>checksummed operational state</small>
+          </article>
+          <article>
+            <strong>Cloud Storage + KMS</strong>
+            <small>immutable snapshots and credential custody</small>
+          </article>
+          <article>
+            <strong>Independent verifier</strong>
+            <small>read-only reconstruction and certificate</small>
+          </article>
         </div>
       </section>
     </>
@@ -1087,9 +1704,9 @@ function displayEmailSubject(subjectLine: string): string {
   return withoutLegacyRoute || 'Customer email';
 }
 
-function EmailTaskAutomation() {
+function EmailTaskAutomation({ defaultOpen = false }: { defaultOpen?: boolean }) {
   const incident = useIncident();
-  const [opened, setOpened] = useState(false);
+  const [opened, setOpened] = useState(defaultOpen);
   const [setup, setSetup] = useState<EmailTaskSetup | null>(null);
   const [events, setEvents] = useState<ReadonlyArray<EmailTaskEvent>>([]);
   const [selectedRoute, setSelectedRoute] = useState('');
@@ -2678,6 +3295,8 @@ function VerificationView({
           verificationRetry={verificationRetry}
         />
       </section>
+
+      <CertifiedReferencePanel />
 
       <section className="panel evidencePanel" aria-labelledby="evidence-title">
         <div className="panelHeader">

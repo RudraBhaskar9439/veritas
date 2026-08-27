@@ -43,6 +43,10 @@ class CommandCenterArtifact(CamelModel):
     action: str
     guardrail: str
     result: str
+    resource_id: str
+    container_id: str | None = None
+    base_revision_id: str
+    resource_url: str
 
 
 class CommandCenterTimelineEvent(CamelModel):

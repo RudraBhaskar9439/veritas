@@ -5,6 +5,7 @@ import { demoIncident, type Incident } from './incident';
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.history.replaceState(null, '', '/');
   window.scrollTo = vi.fn();
   vi.restoreAllMocks();
 });
@@ -23,6 +24,7 @@ describe('Veritas command center', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('13/13')).toBeInTheDocument();
     expect(screen.getByText('0', { selector: '.metric > strong' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Verification' }));
     expect(
       screen.getByText(/All monitored claims in this Decision Packet are consistent/),
     ).toBeInTheDocument();
@@ -30,6 +32,8 @@ describe('Veritas command center', () => {
 
   it('makes the registered blast radius legible in the opening view', () => {
     render(<App initialIncident={demoIncident} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proof ledger' }));
 
     expect(
       screen.getByRole('heading', {
@@ -43,6 +47,8 @@ describe('Veritas command center', () => {
 
   it('shows an exact deterministic diff for every affected claim', () => {
     render(<App initialIncident={demoIncident} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proof ledger' }));
 
     fireEvent.click(screen.getByRole('tab', { name: /Retention target/ }));
     expect(screen.getByText('The retention target has been achieved.')).toBeInTheDocument();
@@ -79,6 +85,8 @@ describe('Veritas command center', () => {
   it('shows exact change time and cryptographic proof receipts', () => {
     render(<App initialIncident={demoIncident} />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Live run' }));
+
     expect(
       screen.getByRole('heading', {
         name: 'When it changed, what changed, and the evidence that proves it.',
@@ -93,6 +101,8 @@ describe('Veritas command center', () => {
 
   it('renders only persisted receipts in the live execution observatory', () => {
     render(<App initialIncident={demoIncident} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Live run' }));
 
     const executionLog = screen.getByRole('log', { name: 'Live signed execution receipts' });
     expect(executionLog).toHaveTextContent('DETECTED');
@@ -395,12 +405,14 @@ describe('Veritas command center', () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001');
     render(<App initialIncident={pending} />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Repair desk' }));
     fireEvent.click(screen.getByRole('button', { name: 'Approve & continue' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(fetchMock.mock.calls[0][0]).toContain(
       `/command-center/incidents/${pending.id}/runs/${pending.runId}/approvals/approval-1`,
     );
     expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/command-center/incidents/latest');
+    fireEvent.click(screen.getByRole('button', { name: 'Command center' }));
     expect(
       await screen.findByRole('heading', {
         name: 'One number changed. Nine consequences repaired.',
@@ -437,6 +449,7 @@ describe('Veritas command center', () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000099');
     render(<App initialIncident={pending} />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Repair desk' }));
     fireEvent.click(screen.getByRole('button', { name: 'Approve & continue' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('request receipt is preserved');
     fireEvent.click(screen.getByRole('button', { name: 'Approve & continue' }));
@@ -468,6 +481,7 @@ describe('Veritas command center', () => {
     };
     render(<App initialIncident={repairing} />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Repair desk' }));
     expect(screen.getByRole('button', { name: 'Approve & continue' })).toBeDisabled();
     expect(screen.getByText(/Decisions unlock only/)).toHaveTextContent(
       'Decisions unlock only after the durable run reaches the human authority boundary',
@@ -512,6 +526,7 @@ describe('Veritas command center', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(repairing)));
     render(<App initialIncident={repairing} />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Repair desk' }));
     expect(
       await screen.findByRole('heading', {
         name: 'The agent stopped safely. Recovery needs an operator.',
@@ -579,6 +594,8 @@ describe('Veritas command center', () => {
     };
     vi.spyOn(window, 'fetch').mockResolvedValue(new Response(JSON.stringify(refreshed)));
     render(<App initialIncident={initial} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Live run' }));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000);
@@ -660,6 +677,7 @@ describe('Veritas command center', () => {
     };
     render(<App initialIncident={attention} />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Live run' }));
     expect(screen.getByText('Attention · run conflict')).toBeInTheDocument();
     expect(screen.getByText('Run conflict requires review')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /repairs blocked by conflict/ })).toBeInTheDocument();
@@ -692,6 +710,7 @@ describe('Veritas command center', () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000002');
     render(<App initialIncident={pending} />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Verification' }));
     fireEvent.click(screen.getByRole('button', { name: 'Retry independent verification' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
@@ -781,7 +800,7 @@ describe('Veritas command center', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(thread)));
     render(<App initialIncident={live} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set up customer email' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Email → Task' }));
     expect(await screen.findByDisplayValue('operator@example.com')).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('customer@company.com'), {
       target: { value: 'customer@example.com' },
@@ -904,7 +923,7 @@ describe('Veritas command center', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ event: applied, reused: false })));
     render(<App initialIncident={live} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set up customer email' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Email → Task' }));
     expect(
       (await screen.findAllByText('Decrease acquisition spend by 10%')).length,
     ).toBeGreaterThan(0);

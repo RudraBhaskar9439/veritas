@@ -147,6 +147,10 @@ def _incident(record: CommandCenterRecord) -> CommandCenterIncident:
                 action=_artifact_action(steps),
                 guardrail=_guardrail(artifact.kind, steps),
                 result=_artifact_result(steps, step_records),
+                resource_id=artifact.resource_id,
+                container_id=artifact.container_id,
+                base_revision_id=artifact.base_revision_id,
+                resource_url=_artifact_url(artifact.kind, artifact.resource_id),
             )
         )
 
@@ -388,6 +392,16 @@ def _artifact_action(steps: tuple[RepairStep, ...]) -> str:
     if RepairOperation.UPDATE_TASK in operations:
         return f"Update {len(steps)} task title and registered decision note(s)"
     return f"Replace {len(steps)} registered claim anchor(s)"
+
+
+def _artifact_url(kind: ArtifactKind, resource_id: str) -> str:
+    if kind == ArtifactKind.GOOGLE_DOC:
+        return f"https://docs.google.com/document/d/{resource_id}/edit"
+    if kind == ArtifactKind.GOOGLE_SLIDES:
+        return f"https://docs.google.com/presentation/d/{resource_id}/edit"
+    if kind == ArtifactKind.GMAIL:
+        return f"https://mail.google.com/mail/u/0/#drafts/{resource_id}"
+    return "https://tasks.google.com/"
 
 
 def _guardrail(kind: ArtifactKind, steps: tuple[RepairStep, ...]) -> str:

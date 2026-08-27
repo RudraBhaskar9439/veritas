@@ -155,6 +155,23 @@ def test_live_read_model_is_derived_from_the_integrity_chain() -> None:
         assert incident.source == "live"
         assert len(incident.claims) == 4
         assert len(incident.artifacts) == 5
+        assert all(artifact.resource_id for artifact in incident.artifacts)
+        assert all(artifact.base_revision_id for artifact in incident.artifacts)
+        assert all(artifact.resource_url.startswith("https://") for artifact in incident.artifacts)
+        assert any(
+            "docs.google.com/document/d/" in artifact.resource_url
+            for artifact in incident.artifacts
+        )
+        assert any(
+            "docs.google.com/presentation/d/" in artifact.resource_url
+            for artifact in incident.artifacts
+        )
+        assert any(
+            "mail.google.com/mail/" in artifact.resource_url for artifact in incident.artifacts
+        )
+        assert any(
+            artifact.resource_url == "https://tasks.google.com/" for artifact in incident.artifacts
+        )
         assert incident.coverage.targets == 13
         assert incident.coverage.lineage_paths == len(
             (await service._repository.get("subject-1", planned.plan.plan_id)).impact.lineage_paths  # type: ignore[attr-defined, union-attr]
@@ -195,9 +212,9 @@ def test_plan_without_a_durable_run_requires_operator_attention() -> None:
             agent_review=None,
         )
 
-        incident = await CommandCenterService(
-            MemoryCommandCenterRepository(stranded)
-        ).latest("subject-1")
+        incident = await CommandCenterService(MemoryCommandCenterRepository(stranded)).latest(
+            "subject-1"
+        )
 
         assert incident is not None
         assert incident.run_id is None

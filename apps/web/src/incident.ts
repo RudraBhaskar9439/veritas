@@ -1,4 +1,12 @@
-export type ViewId = 'overview' | 'lineage' | 'verification';
+export type ViewId =
+  | 'overview'
+  | 'execution'
+  | 'automation'
+  | 'decisions'
+  | 'lineage'
+  | 'proof'
+  | 'verification'
+  | 'architecture';
 
 export interface ClaimChange {
   id: string;
@@ -22,6 +30,10 @@ export interface ArtifactChange {
   action: string;
   guardrail: string;
   result: string;
+  resourceId?: string;
+  containerId?: string | null;
+  baseRevisionId?: string;
+  resourceUrl?: string;
 }
 
 export interface IncidentApproval {
