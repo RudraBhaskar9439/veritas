@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 
 const root = resolve(import.meta.dirname, '..');
 const requiredFiles = [
+  'README.md',
   'demo/demo-contract.json',
   'demo/rehearsal-results.json',
   'docs/architecture.md',
@@ -15,9 +16,12 @@ const requiredFiles = [
   'docs/submission/claim-evidence-matrix.md',
   'docs/submission/cloud-proof-manifest.json',
   'docs/submission/demo-script.md',
+  'docs/submission/disclosures.md',
   'docs/submission/devpost-draft.md',
+  'docs/submission/judge-testing.md',
   'docs/submission/live-proof-report.md',
   'docs/submission/recording-runbook.md',
+  'docs/submission/veritas-architecture.svg',
   'docs/verification/phase-12.md',
   'scripts/rehearse-demo.mjs',
   'services/runtime/migrations/0009_gemini_agent_reviews.sql',
@@ -73,6 +77,25 @@ for (const forbidden of ['Veritas guarantees correctness', 'This document is com
     process.exit(1);
   }
 }
+const readme = readFileSync(resolve(root, 'README.md'), 'utf8');
+for (const required of [
+  '## Judge quick start — no account required',
+  '## Local spin-up',
+  'uv sync --all-packages --dev --frozen',
+  'node scripts/verify-phase-12.mjs',
+  '## Configure a real Google Workspace environment',
+  '## Cloud deployment'
+]) {
+  if (!readme.includes(required)) {
+    console.error(`Phase 12 verification failed: README lacks ${required}`);
+    process.exit(1);
+  }
+}
+const runtimeProject = readFileSync(resolve(root, 'services/runtime/pyproject.toml'), 'utf8');
+if (!runtimeProject.includes('google-genai>=2.0,<3')) {
+  console.error('Phase 12 verification failed: current Google Gen AI SDK v2 is not pinned');
+  process.exit(1);
+}
 const geminiGateway = readFileSync(
   resolve(root, 'services/runtime/src/veritas_runtime/agents/gemini.py'),
   'utf8'
@@ -82,6 +105,11 @@ const geminiService = readFileSync(
   'utf8'
 );
 const terraform = readFileSync(resolve(root, 'infra/terraform/main.tf'), 'utf8');
+const terraformVariables = readFileSync(resolve(root, 'infra/terraform/variables.tf'), 'utf8');
+const settings = readFileSync(
+  resolve(root, 'services/runtime/src/veritas_runtime/settings.py'),
+  'utf8'
+);
 for (const contract of [
   'genai.Client(vertexai=True',
   'response_schema=GeminiReviewPayload',
@@ -92,8 +120,15 @@ for (const contract of [
     process.exit(1);
   }
 }
-if (!terraform.includes('VERITAS_GEMINI_MODEL') || !terraform.includes('gemini-2.5-flash')) {
-  console.error('Phase 12 verification failed: Terraform does not bind Gemini 2.5 Flash');
+if (
+  !terraform.includes('VERITAS_GEMINI_MODEL') ||
+  !terraform.includes('gemini-3.5-flash') ||
+  !terraform.includes('VERITAS_GOOGLE_CLOUD_LOCATION = var.gemini_location') ||
+  !terraformVariables.includes('variable "gemini_location"') ||
+  !terraformVariables.includes('default     = "global"') ||
+  !settings.includes('google_cloud_location: str = "global"')
+) {
+  console.error('Phase 12 verification failed: Gemini 3.5 Flash is not bound to Vertex AI global');
   process.exit(1);
 }
 for (const contract of [

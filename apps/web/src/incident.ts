@@ -387,7 +387,7 @@ export const demoIncident = {
   ],
   approvals: [],
   agentReview: {
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.5-flash',
     disposition: 'proceed',
     rationale:
       'Registered scope and deterministic policy are coherent; proceed within the declared authority boundaries.',

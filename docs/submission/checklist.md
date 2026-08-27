@@ -4,8 +4,9 @@
 
 - [ ] Entrant registration and country eligibility reconfirmed.
 - [x] Primary track is written exactly as **The Taskmaster**.
-- [ ] Secondary prize choices match the current Devpost rules.
-- [ ] All contributors, reused components, and licenses are disclosed.
+- [x] Eligible additional prize positioning is limited to **Individual/Hobbyist** and **Best Architectural Design**; each project can receive at most one prize.
+- [x] Build-period, AI-assistance, third-party component, and data disclosures are recorded in `disclosures.md`.
+- [x] Gemini 3.5 Flash is bound through the Google Gen AI SDK on Vertex AI.
 
 ## Product proof
 
@@ -36,7 +37,8 @@
 - [x] Google Cloud and Workspace services are named with real proof.
 - [x] Benchmark language says deterministic/offline where appropriate.
 - [ ] Repository access instructions work for judges.
-- [ ] Video, live URL, architecture diagram, screenshots, and test instructions are linked.
+- [x] Live URL, architecture diagram, and test instructions are linked in the submission package.
+- [ ] Final video URL and selected screenshots are linked after upload.
 - [x] No sentence claims universal truth or guaranteed correctness.
 
 ## Final freeze
@@ -46,3 +48,10 @@
 - [ ] Submission was reread once as a Taskmaster judge and once as an architecture judge.
 - [ ] Devpost preview was checked after saving.
 - [ ] Submission confirmation and final URLs are archived.
+
+## Entrant-only legal confirmations
+
+- [ ] Entrant was above the age of majority in their jurisdiction when entering.
+- [ ] Entrant's residence, sanctions status, employment, household, and government affiliations satisfy Section 3 of the official rules.
+- [ ] Devpost registration/team list is complete and any employer approval is documented if applicable.
+- [ ] The entrant has personally reviewed the ownership, privacy, third-party terms, and submission warranties.

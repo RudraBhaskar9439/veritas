@@ -43,7 +43,6 @@ class GeminiEmailTaskGateway:
                     )
                 ],
                 config=types.GenerateContentConfig(
-                    temperature=0,
                     max_output_tokens=1024,
                     response_mime_type="application/json",
                     response_schema=GeminiEmailTaskPayload,

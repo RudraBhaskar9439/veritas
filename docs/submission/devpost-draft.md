@@ -34,7 +34,7 @@ The repair agent also cannot certify itself. An independent, read-only verifier 
 
 ## How we built it
 
-- **Gemini 2.5 Flash on Vertex AI + Google Gen AI SDK:** schema-bound consequence safety review. Gemini may stop ambiguous work, but exact scope, policy, approvals, writes, and certification remain deterministic.
+- **Gemini 3.5 Flash on Vertex AI + Google Gen AI SDK:** schema-bound consequence safety review. Gemini may stop ambiguous work, but exact scope, policy, approvals, writes, and certification remain deterministic.
 - **Cloud Run:** separately deployable control API, event ingress, agent worker, and Command Center.
 - **Cloud SQL for PostgreSQL:** Claim Manifests, impact reports, repair plans, approvals, execution journals, verification reports, durable worker leases, dead letters, and audit events.
 - **Pub/Sub and Cloud Tasks:** asynchronous change capture and bounded command delivery.
@@ -61,7 +61,7 @@ The hardest problem was not generating better content. It was preserving authors
 - Independent verification across eight registered claims, thirteen targets, five protected artifacts, and six evidence versions.
 - Durable retries, worker-lease recovery, dead-letter quarantine, and audited replay.
 - A reproducible forty-scenario benchmark with 100% deterministic accuracy and 0% false certification on the unsafe cases.
-- More than 150 runtime tests with greater than 90% coverage, plus strict web, Terraform, and container gates.
+- 232 runtime tests with at least 90% coverage, plus 20 web tests and strict Terraform and container gates.
 
 ## What we learned
 
@@ -75,12 +75,19 @@ Expand registered packet templates beyond executive reviews, add organization-co
 
 - Primary: **The Taskmaster** — autonomous, high-value cross-application action with minimal hand-holding.
 - Secondary: **Best Architectural Design** — explicit trust boundaries, event-driven state, credential custody, failure recovery, and independent verification.
-- Additional eligible targets: **Individual/Hobbyist** and **Best Multimodal UX**.
+- Additional eligible target: **Individual/Hobbyist**. Veritas is not entered as an incorporated startup, and each project can receive at most one prize.
+
+## Data sources and disclosure
+
+The live demo uses only synthetic business values in the entrant's own Google Workspace test account. There is no scraped dataset, proprietary customer data, or external knowledge base. Google Workspace APIs are the operational data surfaces: Drive, Sheets, Docs, Slides, Gmail, and Tasks.
+
+Veritas was built during the contest period. OpenAI ChatGPT/Codex was used as an allowed AI coding assistant for implementation and documentation; Gemini 3.5 Flash is the submitted runtime model. Standard open-source packages are declared in the repository manifests and lockfiles. Full details are in [`disclosures.md`](disclosures.md).
 
 ## Links
 
 - Live application: <https://veritas-preview-web-602044424209.us-central1.run.app/>
 - Demo video: **add after recording and upload**
 - Source repository: <https://github.com/RudraBhaskar9439/veritas> (private; grant judges access if required)
-- Architecture: [`docs/architecture.md`](../architecture.md)
+- Architecture: [`veritas-architecture.svg`](veritas-architecture.svg) and [`docs/architecture.md`](../architecture.md)
 - Reproducibility and live proof: [`live-proof-report.md`](live-proof-report.md)
+- Judge testing instructions: [`judge-testing.md`](judge-testing.md)

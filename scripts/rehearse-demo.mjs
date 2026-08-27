@@ -86,7 +86,8 @@ const results = {
   runs,
   passedRuns: runs.filter((run) => run.passed).length,
   failedChecks,
-  liveWorkspaceMutations: true,
+  liveWorkspaceActionsInThisRehearsal: false,
+  recordedLiveWorkspaceProof: true,
   liveRehearsalsStatus: 'partial_not_five_consecutive',
   liveProofStatus: cloudProof.status
 };

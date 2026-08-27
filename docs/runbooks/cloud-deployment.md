@@ -4,7 +4,7 @@ This runbook begins only after the hackathon credit is redeemed and a dedicated 
 
 ## 1. Bind the environment
 
-Record the project ID, billing account, region, accepted Git commit, operator account, and dedicated Workspace test account. Never place credential values in the repository, shell history, screenshots, Terraform variables, or Devpost text.
+Record the project ID, billing account, regional transaction-plane location, Vertex inference location, accepted Git commit, operator account, and dedicated Workspace test account. The verified preview keeps stateful services in `us-central1` and invokes Gemini 3.5 Flash through Vertex AI's `global` endpoint. Never place credential values in the repository, shell history, screenshots, Terraform variables, or Devpost text.
 
 ## 2. Bootstrap infrastructure
 

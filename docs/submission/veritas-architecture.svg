@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Veritas production architecture</title>
+  <desc id="desc">Google Workspace evidence enters an authenticated Google Cloud event runtime. A private worker traverses a registered claim manifest, asks Gemini 3.5 Flash for a bounded safety review, performs guarded Workspace repairs, and sends results to an independent verifier and public Command Center.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7faf7"/>
+      <stop offset="1" stop-color="#e8f2ec"/>
+    </linearGradient>
+    <linearGradient id="cloud" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#09271f"/>
+      <stop offset="1" stop-color="#0e3b2c"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#082019" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#32946a"/>
+    </marker>
+    <marker id="arrowLight" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#69e3ad"/>
+    </marker>
+    <style>
+      .eyebrow { font: 600 15px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 2px; fill: #547067; }
+      .title { font: 700 38px Inter, Arial, sans-serif; letter-spacing: -1px; fill: #0b1f18; }
+      .subtitle { font: 400 17px Inter, Arial, sans-serif; fill: #547067; }
+      .lane { font: 700 18px Inter, Arial, sans-serif; fill: #0b1f18; }
+      .boxTitle { font: 700 17px Inter, Arial, sans-serif; fill: #10231c; }
+      .boxBody { font: 400 14px Inter, Arial, sans-serif; fill: #60756e; }
+      .darkTitle { font: 700 17px Inter, Arial, sans-serif; fill: #f6fff9; }
+      .darkBody { font: 400 14px Inter, Arial, sans-serif; fill: #b7d4c8; }
+      .pill { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 1px; fill: #1f7c56; }
+      .edge { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .7px; fill: #497168; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#canvas)"/>
+  <text x="64" y="64" class="eyebrow">VERITAS · PRODUCTION ARCHITECTURE</text>
+  <text x="64" y="116" class="title">Evidence moved. Every registered consequence followed.</text>
+  <text x="64" y="150" class="subtitle">Gemini reasons inside a narrow authority envelope. Deterministic systems own scope, writes, approvals, and proof.</text>
+
+  <rect x="64" y="190" width="300" height="580" rx="24" fill="#ffffff" stroke="#c8d9d0" filter="url(#shadow)"/>
+  <text x="92" y="232" class="lane">1 · User-owned evidence</text>
+  <rect x="92" y="264" width="244" height="84" rx="15" fill="#f4faf6" stroke="#a9cfbb"/>
+  <circle cx="119" cy="290" r="12" fill="#1b8a5b"/>
+  <text x="143" y="291" class="boxTitle">Google Sheets</text>
+  <text x="112" y="321" class="boxBody">Registered cell · Drive event</text>
+  <rect x="92" y="368" width="244" height="84" rx="15" fill="#f4faf6" stroke="#a9cfbb"/>
+  <circle cx="119" cy="394" r="12" fill="#d89b2b"/>
+  <text x="143" y="395" class="boxTitle">Customer Gmail</text>
+  <text x="112" y="425" class="boxBody">Authorized sender · thread route</text>
+  <rect x="92" y="500" width="244" height="210" rx="18" fill="#f9fbfa" stroke="#d0ddd7"/>
+  <text x="116" y="536" class="pill">IMMUTABLE INPUTS</text>
+  <text x="116" y="575" class="boxTitle">Content-addressed</text>
+  <text x="116" y="601" class="boxBody">SHA-256 evidence snapshots</text>
+  <text x="116" y="637" class="boxTitle">Exact ownership</text>
+  <text x="116" y="663" class="boxBody">Checksummed Claim Manifest</text>
+
+  <rect x="404" y="190" width="740" height="580" rx="24" fill="url(#cloud)" filter="url(#shadow)"/>
+  <text x="436" y="232" class="darkTitle">2 · Google Cloud transaction plane + global Vertex inference</text>
+  <rect x="436" y="264" width="196" height="104" rx="16" fill="#123e30" stroke="#2a6b51"/>
+  <text x="458" y="296" class="darkTitle">Cloud Run ingress</text>
+  <text x="458" y="323" class="darkBody">OIDC + channel validation</text>
+  <text x="458" y="347" class="darkBody">dedupe · transactional outbox</text>
+  <rect x="668" y="264" width="208" height="104" rx="16" fill="#123e30" stroke="#2a6b51"/>
+  <text x="690" y="296" class="darkTitle">Cloud SQL</text>
+  <text x="690" y="323" class="darkBody">manifests · journals · leases</text>
+  <text x="690" y="347" class="darkBody">approvals · audit receipts</text>
+  <rect x="912" y="264" width="200" height="104" rx="16" fill="#123e30" stroke="#2a6b51"/>
+  <text x="934" y="296" class="darkTitle">Storage + KMS</text>
+  <text x="934" y="323" class="darkBody">versioned snapshots</text>
+  <text x="934" y="347" class="darkBody">encrypted credential custody</text>
+
+  <line x1="632" y1="316" x2="662" y2="316" stroke="#69e3ad" stroke-width="3" marker-end="url(#arrowLight)"/>
+  <line x1="876" y1="316" x2="906" y2="316" stroke="#69e3ad" stroke-width="3" marker-end="url(#arrowLight)"/>
+
+  <rect x="436" y="410" width="440" height="190" rx="20" fill="#071d17" stroke="#48b984" stroke-width="2"/>
+  <text x="464" y="448" class="pill" fill="#69e3ad">PRIVATE CLOUD RUN WORKER</text>
+  <text x="464" y="483" class="darkTitle">Deterministic consequence transaction</text>
+  <text x="464" y="517" class="darkBody">1. snapshot + classify semantic delta</text>
+  <text x="464" y="543" class="darkBody">2. traverse registered lineage + policy</text>
+  <text x="464" y="569" class="darkBody">3. guarded writes + idempotent recovery</text>
+  <rect x="912" y="410" width="200" height="190" rx="20" fill="#ddff69" stroke="#c6ec48"/>
+  <text x="936" y="449" class="pill" fill="#365710">VERTEX AI · GLOBAL</text>
+  <text x="936" y="487" class="boxTitle">Gemini 3.5 Flash</text>
+  <text x="936" y="518" class="boxBody">schema-bound safety review</text>
+  <text x="936" y="544" class="boxBody">proceed or escalate only</text>
+  <text x="936" y="570" class="boxBody">cannot expand claim scope</text>
+  <line x1="876" y1="505" x2="906" y2="505" stroke="#69e3ad" stroke-width="3" marker-start="url(#arrowLight)" marker-end="url(#arrowLight)"/>
+
+  <rect x="436" y="638" width="314" height="98" rx="16" fill="#123e30" stroke="#2a6b51"/>
+  <text x="460" y="670" class="darkTitle">Independent verifier</text>
+  <text x="460" y="697" class="darkBody">read-only re-fetch · protected hashes</text>
+  <text x="460" y="719" class="darkBody">scoped integrity certificate</text>
+  <rect x="786" y="638" width="326" height="98" rx="16" fill="#123e30" stroke="#2a6b51"/>
+  <text x="810" y="670" class="darkTitle">Failure containment</text>
+  <text x="810" y="697" class="darkBody">Cloud Tasks · Pub/Sub DLQ · replay</text>
+  <text x="810" y="719" class="darkBody">Logging + Monitoring without payloads</text>
+
+  <rect x="1184" y="190" width="352" height="580" rx="24" fill="#ffffff" stroke="#c8d9d0" filter="url(#shadow)"/>
+  <text x="1212" y="232" class="lane">3 · Guarded consequences</text>
+  <rect x="1212" y="264" width="296" height="76" rx="14" fill="#f8faf9" stroke="#d0ddd7"/>
+  <text x="1236" y="294" class="boxTitle">Google Docs + Slides</text>
+  <text x="1236" y="319" class="boxBody">anchor-scoped three-way repair</text>
+  <rect x="1212" y="356" width="296" height="76" rx="14" fill="#f8faf9" stroke="#d0ddd7"/>
+  <text x="1236" y="386" class="boxTitle">Gmail drafts</text>
+  <text x="1236" y="411" class="boxBody">immutable sent mail · unsent correction</text>
+  <rect x="1212" y="448" width="296" height="76" rx="14" fill="#f8faf9" stroke="#d0ddd7"/>
+  <text x="1236" y="478" class="boxTitle">Google Tasks</text>
+  <text x="1236" y="503" class="boxBody">human-readable, ETag-guarded update</text>
+  <rect x="1212" y="562" width="296" height="148" rx="18" fill="#effaf3" stroke="#8ac9a8"/>
+  <text x="1236" y="598" class="pill">HUMAN AUTHORITY BOUNDARY</text>
+  <text x="1236" y="636" class="boxTitle">Decision-changing work pauses</text>
+  <text x="1236" y="665" class="boxBody">approve or reject with fresh revisions</text>
+  <text x="1236" y="690" class="boxBody">zero silent overwrites</text>
+
+  <line x1="364" y1="312" x2="398" y2="312" stroke="#32946a" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="368" y="294" class="edge">EVENT</text>
+  <line x1="1144" y1="478" x2="1178" y2="478" stroke="#32946a" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="1147" y="460" class="edge">WRITE</text>
+  <path d="M 1360 524 L 1360 802 L 593 802 L 593 742" fill="none" stroke="#32946a" stroke-width="3" stroke-dasharray="8 7" marker-end="url(#arrow)"/>
+  <text x="896" y="824" class="edge">INDEPENDENT NATIVE RE-READ — NOT THE MUTATION RECEIPT</text>
+
+  <rect x="64" y="812" width="344" height="54" rx="27" fill="#ffffff" stroke="#c8d9d0"/>
+  <circle cx="91" cy="839" r="8" fill="#32946a"/>
+  <text x="111" y="845" class="boxTitle">Public Cloud Run Command Center</text>
+  <line x1="408" y1="839" x2="520" y2="839" stroke="#32946a" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="546" y="845" class="boxBody">subject-scoped read model · live receipts · proof ledger</text>
+</svg>

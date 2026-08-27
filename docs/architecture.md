@@ -10,13 +10,13 @@ flowchart LR
     Tasks["Google Tasks"]
   end
 
-  subgraph Cloud["Google Cloud — single-region transactional runtime"]
+  subgraph Cloud["Google Cloud — regional transaction plane + global Vertex inference"]
     API["Cloud Run API\nauth + subject-scoped read model"]
     Ingress["Cloud Run ingress\nchannel validation + dedupe"]
     Snapshots["Cloud Storage\nimmutable evidence snapshots"]
     Scheduler["Cloud Scheduler\nauthenticated heartbeat"]
     Worker["Private Cloud Run worker\ndeterministic agent loop"]
-    Gemini["Gemini 2.5 Flash on Vertex AI\nbounded structured safety review"]
+    Gemini["Gemini 3.5 Flash on Vertex AI global\nbounded structured safety review"]
     Database["Cloud SQL PostgreSQL\noutbox + manifests + journals + leases + audits"]
     KMS["KMS + Secret Manager\ncredential custody"]
     Verify["Independent read-only verifier"]
@@ -58,7 +58,7 @@ flowchart LR
 
 ## Why the architecture matters
 
-The worker is not a brittle chain of browser calls. Gemini 2.5 Flash, accessed through Google's Gen AI SDK on Vertex AI, reviews the already-scoped impact and plan and may force human escalation. Durable deterministic code still owns evidence versions, semantic classification, registered graph traversal, policy, native API preconditions, idempotency, leases, checksums, and certificate eligibility. The model cannot invent scope or authorize itself. Each meaningful change advances automatically through the complete lifecycle under one correlation root.
+The worker is not a brittle chain of browser calls. Gemini 3.5 Flash, accessed through Google's Gen AI SDK on Vertex AI's supported global inference endpoint, reviews the already-scoped impact and plan and may force human escalation. The stateful transaction plane remains in `us-central1`. Durable deterministic code still owns evidence versions, semantic classification, registered graph traversal, policy, native API preconditions, idempotency, leases, checksums, and certificate eligibility. The model cannot invent scope or authorize itself. Each meaningful change advances automatically through the complete lifecycle under one correlation root.
 
 The mutation path and verification path are separate. A successful write response is never accepted as proof. The verifier independently re-reads every registered target and compares protected-content hashes captured before mutation.
 

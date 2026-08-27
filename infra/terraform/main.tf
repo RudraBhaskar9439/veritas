@@ -404,8 +404,8 @@ resource "google_cloud_run_v2_service" "runtime" {
       dynamic "env" {
         for_each = each.key == "worker" ? {
           VERITAS_GOOGLE_CLOUD_PROJECT  = var.project_id
-          VERITAS_GOOGLE_CLOUD_LOCATION = var.region
-          VERITAS_GEMINI_MODEL          = "gemini-2.5-flash"
+          VERITAS_GOOGLE_CLOUD_LOCATION = var.gemini_location
+          VERITAS_GEMINI_MODEL          = "gemini-3.5-flash"
         } : {}
         content {
           name  = env.key

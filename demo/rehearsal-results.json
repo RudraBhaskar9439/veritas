@@ -2,47 +2,48 @@
   "schemaVersion": "1.0",
   "mode": "automated_offline_contract_rehearsal",
   "durationSeconds": 238,
-  "inputChecksum": "b4916e2109871a81c95d806c9f87bb68615afcaac15e0aa7e22bc139d6e64dec",
+  "inputChecksum": "7eb54e1c9ec93b9c7cf94a6417519688d42505913d1f6eeb9e9edfd681ec4c13",
   "runs": [
     {
       "run": 1,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "ce20aedf90f52d1083d784c081eae43d758179256e92f96a1c43ceef7e1dc1a1"
+      "rehearsalDigest": "499ecef7d6fd88b24117950862bcb6289b07f641e85d5a5948f6417a540c7d48"
     },
     {
       "run": 2,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "ce20aedf90f52d1083d784c081eae43d758179256e92f96a1c43ceef7e1dc1a1"
+      "rehearsalDigest": "499ecef7d6fd88b24117950862bcb6289b07f641e85d5a5948f6417a540c7d48"
     },
     {
       "run": 3,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "ce20aedf90f52d1083d784c081eae43d758179256e92f96a1c43ceef7e1dc1a1"
+      "rehearsalDigest": "499ecef7d6fd88b24117950862bcb6289b07f641e85d5a5948f6417a540c7d48"
     },
     {
       "run": 4,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "ce20aedf90f52d1083d784c081eae43d758179256e92f96a1c43ceef7e1dc1a1"
+      "rehearsalDigest": "499ecef7d6fd88b24117950862bcb6289b07f641e85d5a5948f6417a540c7d48"
     },
     {
       "run": 5,
       "passed": true,
       "checksPassed": 12,
       "checksTotal": 12,
-      "rehearsalDigest": "ce20aedf90f52d1083d784c081eae43d758179256e92f96a1c43ceef7e1dc1a1"
+      "rehearsalDigest": "499ecef7d6fd88b24117950862bcb6289b07f641e85d5a5948f6417a540c7d48"
     }
   ],
   "passedRuns": 5,
   "failedChecks": [],
-  "liveWorkspaceMutations": true,
+  "liveWorkspaceActionsInThisRehearsal": false,
+  "recordedLiveWorkspaceProof": true,
   "liveRehearsalsStatus": "partial_not_five_consecutive",
   "liveProofStatus": "live_proof_partial"
 }

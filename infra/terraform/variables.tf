@@ -9,6 +9,17 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "gemini_location" {
+  description = "Vertex AI inference location. Gemini 3.5 Flash is invoked through the global endpoint."
+  type        = string
+  default     = "global"
+
+  validation {
+    condition     = var.gemini_location == "global"
+    error_message = "gemini_location must be global for the verified Gemini 3.5 Flash deployment"
+  }
+}
+
 variable "environment" {
   description = "Deployment environment."
   type        = string

@@ -4,7 +4,7 @@
 
 Veritas is a continuous evidence-integrity agent for AI-created knowledge work. It records claim-level provenance when a decision packet is created, watches registered evidence for meaningful changes, calculates the downstream blast radius, performs minimal repairs across Google Workspace artifacts, preserves human edits, and independently verifies the repaired packet.
 
-The production worker uses Gemini 2.5 Flash on Vertex AI through Google's Gen AI SDK as a bounded safety-reasoning gate. Gemini may veto ambiguous work and force escalation, but it cannot expand registered scope, override policy, approve its own action, or certify its own repairs. Every structured model decision is schema-validated, checksummed, and persisted as an inspectable reasoning receipt.
+The production worker uses Gemini 3.5 Flash on Vertex AI through Google's Gen AI SDK as a bounded safety-reasoning gate. Gemini may veto ambiguous work and force escalation, but it cannot expand registered scope, override policy, approve its own action, or certify its own repairs. Every structured model decision is schema-validated, checksummed, and persisted as an inspectable reasoning receipt.
 
 ## Hackathon target
 
@@ -21,7 +21,7 @@ evidence change
   -> semantic delta
   -> registered lineage traversal
   -> typed repair plan
-  -> Gemini 2.5 bounded safety review
+  -> Gemini 3.5 bounded safety review
   -> policy/approval gate
   -> minimal cross-artifact execution
   -> independent verification
@@ -43,6 +43,94 @@ See:
 - [Customer email → Google Task contract](docs/email-to-task-automation.md)
 - [Live production proof](docs/submission/live-proof-report.md)
 - [Public Command Center](https://veritas-preview-web-602044424209.us-central1.run.app/)
+
+## Judge quick start — no account required
+
+1. Open the [public Command Center](https://veritas-preview-web-602044424209.us-central1.run.app/).
+2. Select **Open offline judge demo**. The interface labels this data as a demonstration and never substitutes it for live data silently.
+3. Move through **Incident**, **Blast radius**, **Repair plan**, **Execution**, **Verification**, and **Proof ledger** to inspect the complete registered 4% → 9% scenario.
+4. Compare the walkthrough with the [live production proof](docs/submission/live-proof-report.md) and [judge testing guide](docs/submission/judge-testing.md). The recorded submission video is the proof of an unedited run against real Google Workspace resources.
+
+The public walkthrough does not require Google credentials and cannot mutate the entrant's Workspace. The authenticated live path is intentionally subject-scoped because it can read and update real Docs, Slides, Gmail drafts, and Tasks.
+
+## Local spin-up
+
+### Prerequisites
+
+- Git
+- Node.js 22 and Corepack
+- Python 3.12 and [uv](https://docs.astral.sh/uv/)
+- Docker with Compose (only needed for the containerized preview)
+
+### Install and verify from source
+
+```bash
+git clone https://github.com/RudraBhaskar9439/veritas.git
+cd veritas
+corepack enable
+corepack prepare pnpm@11.8.0 --activate
+pnpm install --frozen-lockfile
+uv sync --all-packages --dev --frozen
+node scripts/verify-phase-12.mjs
+terraform -chdir=infra/terraform init -backend=false
+terraform -chdir=infra/terraform validate
+docker build -f services/runtime/Dockerfile -t veritas-runtime:local .
+docker build -f apps/web/Dockerfile -t veritas-web:local .
+```
+
+These commands run every cumulative contract gate: Python lint, formatting, typing, tests with at least 90% coverage, web lint/type/tests/build, Terraform validation, both container builds, the forty-scenario evaluation, and five deterministic demo rehearsals.
+
+### Run the browser experience locally
+
+```bash
+pnpm --filter @veritas/web dev
+```
+
+Open <http://127.0.0.1:5173/> and choose **Open offline judge demo**. This is the fastest reproducible UI path and does not require Cloud or Workspace credentials.
+
+### Run the containerized preview
+
+```bash
+docker compose up --build
+```
+
+Open <http://127.0.0.1:3000/>. Liveness is available at <http://127.0.0.1:8080/health/live>. The local services start without real OAuth secrets, so `/health/ready` intentionally returns `503 not_ready` and live Google actions remain unavailable until the environment is configured.
+
+Stop the preview with `docker compose down`. Add `--volumes` only when you deliberately want to delete the local PostgreSQL volume.
+
+## Configure a real Google Workspace environment
+
+1. Copy [`config/example.env`](config/example.env) to an untracked local environment file and replace every `YOUR_...` placeholder. Never commit the resulting file.
+2. Create a Google OAuth web client with the exact callback URL, add the application origin, configure consent-screen test users, and enable Drive, Sheets, Docs, Slides, Gmail, and Tasks APIs.
+3. Use only the declared least-privilege scopes. Veritas reads inbound Gmail messages, creates unsent correction drafts, and updates only manifest-bound Tasks; it has no email-send endpoint.
+4. Provision the Google Cloud resources in [`infra/terraform`](infra/terraform) and add OAuth and application keys directly to Secret Manager, following the [Cloud deployment runbook](docs/runbooks/cloud-deployment.md).
+5. Execute the Terraform-created `veritas-preview-migrations` Cloud Run job before routing traffic.
+6. Connect the dedicated Workspace account from the Command Center, generate a decision packet, then change the registered Sheet cell. The authenticated Drive event advances the agent automatically; decision-changing consequences pause for explicit approval.
+
+Google credentials, database passwords, billing identifiers, and secret values are deliberately absent from this repository.
+
+## Cloud deployment
+
+The committed Terraform and Cloud Build definitions reproduce the deployed topology. A concise release sequence is:
+
+```bash
+gcloud builds submit --config cloudbuild.preview.yaml --substitutions=_IMAGE_TAG=YOUR_COMMIT_SHA .
+terraform -chdir=infra/terraform init
+terraform -chdir=infra/terraform plan -var='project_id=YOUR_PROJECT_ID'
+terraform -chdir=infra/terraform apply -var='project_id=YOUR_PROJECT_ID'
+```
+
+Use immutable Artifact Registry digests in `service_images`, review every Terraform plan, run migrations before traffic, and then verify `/health/ready`. Full secret, OAuth, IAM, watch-renewal, budget, and rollout instructions are in the [Cloud deployment runbook](docs/runbooks/cloud-deployment.md).
+
+## Submission evidence
+
+- [Architecture diagram](docs/submission/veritas-architecture.svg)
+- [Judge testing guide](docs/submission/judge-testing.md)
+- [Implementation and reuse disclosures](docs/submission/disclosures.md)
+- [Cloud proof manifest](docs/submission/cloud-proof-manifest.json)
+- [Claim-to-evidence matrix](docs/submission/claim-evidence-matrix.md)
+- [Four-minute recording runbook](docs/submission/recording-runbook.md)
+- [Devpost description draft](docs/submission/devpost-draft.md)
 
 ## Verification
 

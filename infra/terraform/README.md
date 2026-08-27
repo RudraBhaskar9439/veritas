@@ -18,6 +18,8 @@ The foundation provisions the production boundaries required by the verified arc
 - preview-specific Cloud Run and Cloud SQL growth ceilings;
 - an optional project-scoped gross-cost warning budget at 20%, 50%, 80%, and 100% of the configured amount.
 
+The stateful transaction plane remains in the configured regional location (the preview uses `us-central1`). Gemini 3.5 Flash inference uses Vertex AI's supported `global` endpoint through the separate `gemini_location` variable; this does not move Cloud SQL, Cloud Run, Pub/Sub, Tasks, KMS, or Storage out of their configured region.
+
 Terraform state configuration is intentionally environment-owned and is not committed. Initialize with a secure remote backend before applying outside an isolated preview project.
 
 The warning budget excludes credits when calculating thresholds so operators see gross consumption before promotional offsets. It does not stop services or guarantee a spending cap. For the hackathon preview, keep the billing account in unupgraded Free Trial status and configure a console spend cap if the account exposes that feature.

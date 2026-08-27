@@ -1,7 +1,7 @@
 # Phase 12 verification report
 
-- Status: release proof package passed; entrant video and four explicitly partial proof items remain
-- Verified locally: 2026-08-24
+- Status: release proof package passed; entrant video, final submission, and three explicitly partial proof items remain
+- Verified locally: 2026-08-27
 - Local command: `node scripts/verify-phase-12.mjs`
 - Previous accepted baseline commit: `bd219dbe72957e9f501c97fdd7d55858e8295b81`
 - Previous clean GitHub workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/32728641116>
@@ -17,7 +17,9 @@
 - recording, deployment, operations-recovery, and final-submission runbooks;
 - a twelve-item machine-readable Cloud proof manifest;
 - a comprehensive final checklist;
-- a schema-bound Gemini 2.5 Flash reasoning gate implemented with the Google Gen AI SDK, including exact-scope validation, durable checksummed receipts, escalation, and safe retry behavior;
+- a no-credential judge testing path, step-by-step README, downloadable architecture diagram, and transparent implementation/data disclosures;
+- a schema-bound Gemini 3.5 Flash reasoning gate implemented with the Google Gen AI SDK, including exact-scope validation, durable checksummed receipts, escalation, and safe retry behavior;
+- Google Gen AI SDK v2, `gemini-3.5-flash`, and Vertex AI's supported `global` inference endpoint are pinned in the runtime, Terraform, tests, demo contract, and active submission documentation;
 - a dedicated least-privilege Cloud Run schema job with an advisory lock, immutable checksum ledger, transactional migrations, and fail-closed drift detection;
 - five consecutive automated offline contract rehearsals, each passing 12/12 checks with the same deterministic digest.
 
@@ -35,7 +37,6 @@ The offline rehearsals verify timing, chronology, canonical 4% → 9% evidence, 
 
 - five consecutive clean live end-to-end rehearsals; multiple clean runs exist, but real Gemini outages interrupted the streak;
 - recorded demo video;
-- final phone-width, keyboard-only, and automated hosted accessibility recording;
 - the remainder of the live failure-injection matrix beyond the proven Gemini outage path;
 - live p50/p95 latency, Gemini usage, and Google Cloud cost;
 - final Devpost links and submission confirmation.

@@ -84,7 +84,7 @@ def test_gemini_gateway_accepts_schema_or_json_and_fails_closed(monkeypatch) -> 
         parsed_models = FakeModels(SimpleNamespace(parsed=_payload(), text=None))
         parsed_client = FakeGeminiClient(parsed_models)
         monkeypatch.setattr(gemini_module.genai, "Client", lambda **_: parsed_client)
-        gateway = GeminiEmailTaskGateway("project-1", "us-central1", "gemini-2.5-flash")
+        gateway = GeminiEmailTaskGateway("project-1", "us-central1", "gemini-3.5-flash")
         assert await gateway.extract(_email(), _task()) == _payload()
         assert "never with an AI label" in parsed_models.prompt
         await gateway.close()
