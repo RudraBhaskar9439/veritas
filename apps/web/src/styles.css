@@ -2116,16 +2116,22 @@ code {
 .activityTable th:nth-child(3) { width: 23%; }
 .activityTable th:nth-child(4) { width: 16%; }
 
-.evidenceTable th:first-child { width: 25%; }
+.evidenceTable th:first-child { width: 23%; }
 .evidenceTable th:nth-child(2) { width: 14%; }
 .evidenceTable th:nth-child(3) { width: 14%; }
-.evidenceTable th:nth-child(4) { width: 17%; }
-.evidenceTable th:nth-child(5) { width: 19%; }
-.evidenceTable th:nth-child(6) { width: 11%; }
+.evidenceTable th:nth-child(4) { width: 16%; }
+.evidenceTable th:nth-child(5) { width: 18%; }
+.evidenceTable th:nth-child(6) { width: 15%; }
 
 .evidenceTable td,
 .evidenceTable th {
   overflow-wrap: anywhere;
+}
+
+.evidenceTable td:last-child,
+.evidenceTable th:last-child {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .activityRow {
