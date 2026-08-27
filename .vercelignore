@@ -1,0 +1,33 @@
+# Veritas keeps its production runtime on Google Cloud. Vercel only needs the
+# web workspace and the demo fixture imported by the frontend build.
+.git/
+.github/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.terraform/
+.vercel/
+node_modules/
+coverage/
+dist/
+tmp/
+secrets/
+.env
+.env.*
+*.log
+*.pyc
+*.tfstate
+*.tfstate.*
+
+cloudbuild.preview.yaml
+compose.yaml
+demo/
+docs/
+evaluation/
+infra/
+schemas/
+scripts/
+services/
+pyproject.toml
+uv.lock
