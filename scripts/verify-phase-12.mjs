@@ -52,9 +52,10 @@ const completeProofIds = [
   'native-repair',
   'human-preservation',
   'correction-draft',
-  'certificate'
+  'certificate',
+  'browser-audit'
 ];
-const partialProofIds = ['failure-injection', 'five-runs', 'browser-audit', 'cost-latency'];
+const partialProofIds = ['failure-injection', 'five-runs', 'cost-latency'];
 if (
   proof.status !== 'live_proof_partial' ||
   proof.requiredEvidence.length !== 12 ||
@@ -126,5 +127,5 @@ for (const [label, command, args] of checks) {
 console.log('\nPhase 12 release submission verification passed.');
 console.log('- the four-minute narrative, proof matrix, live report, diagrams, and runbooks are complete');
 console.log('- five deterministic offline rehearsals pass 12/12 checks each');
-console.log('- eight production proof items are complete and four residual items remain explicitly partial');
-console.log('- the real video, five consecutive clean runs, final browser audit, and cost metrics remain entrant/release work');
+console.log('- nine production proof items are complete and three residual items remain explicitly partial');
+console.log('- the real video, five consecutive clean runs, and cost metrics remain entrant/release work');

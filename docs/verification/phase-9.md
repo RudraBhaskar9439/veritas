@@ -1,6 +1,6 @@
 # Phase 9 verification report
 
-- Status: hosted production E2E and desktop audit passed; final phone/keyboard accessibility recording remains partial
+- Status: hosted production E2E, responsive, keyboard, and semantic accessibility audit passed
 - Verified locally: 2026-08-21
 - Local command: `node scripts/verify-phase-9.mjs`
 - Accepted implementation commit: `a82e429a7a952ea3b7112d1885c15db7e61e8c23`
@@ -31,6 +31,8 @@
 
 Observed result: web lint, strict TypeScript, eight interaction tests, and the Vite production build pass. Backend tests independently prove the live read model, SQL integrity chain, subject isolation, approval binding, and autonomous orchestration. The cumulative Phase 0–8 implementation remains green.
 
-## Open hard gate
+## Hosted hard gate
 
-The hosted Command Center was exercised against real production incidents on 2026-08-26. Refresh persistence, real-time incident updates, visible approval controls, recovery controls, semantic landmarks, labelled buttons, heading structure, certificate persistence, and desktop horizontal overflow were inspected in the signed-in browser; signed-out root and readiness checks returned HTTP 200. The explicit offline judge dataset was never substituted for these live records. A final phone-width screenshot, complete keyboard-only path, and automated accessibility recording remain partial and are not claimed as passed.
+The hosted Command Center was exercised against real production incidents on 2026-08-26. Refresh persistence, real-time incident updates, visible approval controls, recovery controls, semantic landmarks, labelled buttons, heading structure, certificate persistence, and desktop horizontal overflow were inspected in the signed-in browser; signed-out root and readiness checks returned HTTP 200. The explicit offline judge dataset was never substituted for these live records.
+
+On 2026-08-27 the production site was also audited at a 390×844 phone viewport. The signed-out controls and full opt-in judge demo rendered without horizontal overflow. The demo contained one `main`, one H1, zero unlabeled buttons, zero images without `alt`, one skip link, and one live region. Keyboard-only Enter activation switched successfully to both Blast radius and Verification and exposed the expected headings. The temporary viewport override was reset after the audit.

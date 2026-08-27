@@ -9,13 +9,13 @@
 
 ## Product proof
 
-- [x] `cloud-proof-manifest.json` has no pending item; four incomplete claims are explicitly `partial`.
-- [ ] Public URL works in a signed-out browser and on phone width.
+- [x] `cloud-proof-manifest.json` has no pending item; three incomplete claims are explicitly `partial`.
+- [x] Public URL works in a signed-out browser and on phone width.
 - [x] Accepted commit matches deployed image digests.
 - [x] Real Workspace APIs generate and repair the packet.
 - [ ] Five consecutive clean live runs are recorded.
 - [ ] Formatting-only, wrong repair, duplicate event, worker interruption, and stale-source negatives pass.
-- [ ] Accessibility, keyboard, refresh, and responsive checks pass on the hosted URL.
+- [x] Accessibility, keyboard, refresh, and responsive checks pass on the hosted URL.
 
 ## Four-minute video
 

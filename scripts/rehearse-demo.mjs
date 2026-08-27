@@ -30,9 +30,10 @@ const completeProofIds = [
   'native-repair',
   'human-preservation',
   'correction-draft',
-  'certificate'
+  'certificate',
+  'browser-audit'
 ];
-const partialProofIds = ['failure-injection', 'five-runs', 'browser-audit', 'cost-latency'];
+const partialProofIds = ['failure-injection', 'five-runs', 'cost-latency'];
 
 const contiguous = contract.beats.every((beat, index) => {
   if (index === 0) return beat.start === 0;

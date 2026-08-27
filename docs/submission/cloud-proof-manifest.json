@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.1",
   "status": "live_proof_partial",
-  "lastUpdated": "2026-08-26T15:22:00+05:30",
+  "lastUpdated": "2026-08-27T06:35:38+05:30",
   "projectId": "project-c0f0f832-e02b-4eac-ae2",
   "region": "us-central1",
-  "acceptedCommit": "72c687c",
+  "acceptedCommit": "39b337f",
   "publicUrl": "https://veritas-preview-web-602044424209.us-central1.run.app/",
   "requiredEvidence": [
     {
@@ -17,7 +17,7 @@
       "id": "immutable-images",
       "description": "Four deployed image digests bound to the accepted commit",
       "status": "complete",
-      "evidence": "Cloud Build f1e6c0d9-196d-4796-ad2a-eed8eda1d4cf built clean commit 72c687c; runtime sha256:15438f03a9f575fe95e6526566d28a0bd0973ea214df5bc950eca49406430b12 and web sha256:76c0e5dbcbfa5478f2128e01ac31882a3136ab91b205c91628330f4b88eb3fce."
+      "evidence": "Cloud Build 4171eeb9-70dd-4882-b526-30dd74db40c1 built clean commit 39b337f; runtime sha256:eea9b0791a63c3493d6288d06abbde6d44a3a7b0c5c73f25736db17906d5be88 and web sha256:7c4d578839cae1bf4db4d12aa115fb60a17bfa5e1b73f79f47cf8fd8680c02c3. Migration execution veritas-preview-migrations-6stz6 completed before service rollout."
     },
     {
       "id": "workspace-generation",
@@ -70,8 +70,8 @@
     {
       "id": "browser-audit",
       "description": "Hosted responsive, keyboard, refresh, and accessibility evidence",
-      "status": "partial",
-      "evidence": "Hosted desktop semantics, refresh persistence, labelled controls, no horizontal overflow, visible approval controls, real-time updates, the Google Tasks deep link, one active natural-language task, and in-place task repair were inspected. A final phone-width and complete keyboard/a11y pass remains to be recorded."
+      "status": "complete",
+      "evidence": "Hosted desktop semantics, refresh persistence, labelled controls, visible approvals, real-time updates, the Google Tasks deep link, one active natural-language task, and in-place task repair were inspected. On 2026-08-27 the public 390x844 phone view had one main, one H1, zero unlabeled buttons, zero images without alt, one skip link, one live region, and scroll width exactly equal to viewport width. Keyboard-only Enter navigation exposed Blast radius and Verification content."
     },
     {
       "id": "cost-latency",

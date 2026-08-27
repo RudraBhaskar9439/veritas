@@ -1,24 +1,26 @@
 # Live production proof report
 
-- Proof date: 2026-08-26
+- Proof date: 2026-08-27
 - Google Cloud project: `project-c0f0f832-e02b-4eac-ae2`
 - Region: `us-central1`
-- Accepted application release commit: `72c687c`
+- Accepted application release commit: `39b337f`
 - Public Command Center: <https://veritas-preview-web-602044424209.us-central1.run.app/>
-- Cloud Build: `f1e6c0d9-196d-4796-ad2a-eed8eda1d4cf` (`SUCCESS`)
-- Migration execution: `veritas-preview-migrations-pvh24` (`Completed`)
+- Cloud Build: `4171eeb9-70dd-4882-b526-30dd74db40c1` (`SUCCESS`)
+- Migration execution: `veritas-preview-migrations-6stz6` (`Completed`)
 - Release verification: local full suite and live end-to-end proof passed; the proof-only successor commit carries the refreshed rehearsal record.
 
 ## Immutable release binding
 
 | Component | Cloud Run revision | Image digest |
 |---|---|---|
-| API | `veritas-preview-api-00031-v8x` | `sha256:15438f03a9f575fe95e6526566d28a0bd0973ea214df5bc950eca49406430b12` |
-| Drive ingress | `veritas-preview-ingress-00031-7gq` | `sha256:15438f03a9f575fe95e6526566d28a0bd0973ea214df5bc950eca49406430b12` |
-| Worker | `veritas-preview-worker-00031-km4` | `sha256:15438f03a9f575fe95e6526566d28a0bd0973ea214df5bc950eca49406430b12` |
-| Web | `veritas-preview-web-00017-f67` | `sha256:76c0e5dbcbfa5478f2128e01ac31882a3136ab91b205c91628330f4b88eb3fce` |
+| API | `veritas-preview-api-00038-d9c` | `sha256:eea9b0791a63c3493d6288d06abbde6d44a3a7b0c5c73f25736db17906d5be88` |
+| Drive ingress | `veritas-preview-ingress-00038-f7k` | `sha256:eea9b0791a63c3493d6288d06abbde6d44a3a7b0c5c73f25736db17906d5be88` |
+| Worker | `veritas-preview-worker-00038-279` | `sha256:eea9b0791a63c3493d6288d06abbde6d44a3a7b0c5c73f25736db17906d5be88` |
+| Web | `veritas-preview-web-00023-78p` | `sha256:7c4d578839cae1bf4db4d12aa115fb60a17bfa5e1b73f79f47cf8fd8680c02c3` |
 
 The public root and `/health/ready` both returned HTTP 200 without an authenticated application session. PostgreSQL 16 has automated backups and point-in-time recovery enabled. The evidence bucket `project-c0f0f832-e02b-4eac-ae2-veritas-preview-snapshots` has object versioning and seven-day soft delete. Pub/Sub topics, the Cloud Tasks repair queue, Secret Manager, and the enabled `workspace-credentials` KMS key are present.
+
+Release `39b337f` adds a durable human authority boundary for ambiguous customer email. An escalated request now exposes the exact proposed Task title and note, accepts only an authenticated approve or reject decision, locks the event before the external write, re-reads the Task and enforces its current ETag, preserves human-authored notes, recovers idempotently after an interrupted write, and binds the inbound receipt and review outcome into a separate SHA-256 review receipt. The complete twelve-phase local gate passes with 232 backend tests, 20 frontend tests, 90.00% coverage, 40/40 evaluation scenarios, and 5/5 deterministic rehearsals.
 
 ## Real Workspace happy-path evidence
 
@@ -50,6 +52,6 @@ This proves actual dependency retry, quarantine, immutable failure records, audi
 ## Honest remaining proof
 
 - Five **consecutive clean** production runs have not been achieved because real Gemini outages interrupted the streak. Multiple clean and recovered runs are listed instead of being relabelled.
-- Desktop hosted-browser semantics, refresh persistence, visible approvals, real-time incident updates, and overflow checks passed. At 1280×720 the final incident had one `main`, one H1, seven headings, thirteen labelled buttons, zero images without `alt`, one skip link, one live region, and no horizontal overflow. Final phone-width, keyboard-only, and automated accessibility recordings remain partial.
+- Desktop hosted-browser semantics, refresh persistence, visible approvals, real-time incident updates, and overflow checks passed. At 1280×720 the final incident had one `main`, one H1, seven headings, thirteen labelled buttons, zero images without `alt`, one skip link, one live region, and no horizontal overflow. The 390×844 hosted phone audit on 2026-08-27 also had one `main`, one H1, zero unlabeled buttons, zero images without `alt`, one skip link, one live region, and no horizontal overflow; keyboard-only Enter navigation successfully exposed the Blast radius and Verification views.
 - Exact p50/p95, Gemini token totals, and Cloud billing cost are not claimed while samples are incomplete and billing reporting is delayed.
 - The continuous demo recording, upload, and final Devpost submission require the entrant and are not represented as complete.
