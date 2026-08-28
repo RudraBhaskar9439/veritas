@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import generationRequest from '../../../fixtures/demo/q3-generation-request.json';
 import {
   type ClaimChange,
@@ -10,6 +10,7 @@ import {
 
 const VIEW_STORAGE_KEY = 'veritas.command-center.view';
 const CLAIM_STORAGE_KEY = 'veritas.command-center.claim';
+const OPENING_SESSION_KEY = 'veritas.command-center.opening-seen';
 
 type StartupStatus = 'loading' | 'ready' | 'unauthorized' | 'empty' | 'error';
 type VerificationRetryState = 'idle' | 'running' | 'error';
@@ -277,6 +278,172 @@ function incidentLabel(incident: Incident): string {
   return suffix ? `INCIDENT ${suffix}` : 'INCIDENT';
 }
 
+function shouldPlayOpening(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.sessionStorage.getItem(OPENING_SESSION_KEY) !== 'true';
+  } catch {
+    return true;
+  }
+}
+
+function OpeningSequence({ onComplete }: { onComplete: () => void }) {
+  const [exiting, setExiting] = useState(false);
+  const completed = useRef(false);
+
+  const finish = useCallback(() => {
+    if (completed.current) return;
+    completed.current = true;
+    try {
+      window.sessionStorage.setItem(OPENING_SESSION_KEY, 'true');
+    } catch {
+      // Private browsing may disable storage; the animation can still finish.
+    }
+    onComplete();
+  }, [onComplete]);
+
+  function skip() {
+    setExiting(true);
+    window.setTimeout(finish, 320);
+  }
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const beginExit = window.setTimeout(() => setExiting(true), 3300);
+    const complete = window.setTimeout(finish, 3880);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.clearTimeout(beginExit);
+      window.clearTimeout(complete);
+    };
+  }, [finish]);
+
+  return (
+    <section
+      className="openingSequence"
+      data-exiting={exiting}
+      aria-label="Veritas introduction"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div className="openingGrid" aria-hidden="true" />
+      <div className="openingAura" aria-hidden="true" />
+
+      <header className="openingBrand">
+        <span className="openingMark" aria-hidden="true">
+          V
+        </span>
+        <strong>VERITAS</strong>
+        <span>CONTINUOUS EVIDENCE INTEGRITY</span>
+      </header>
+
+      <div className="openingCopy">
+        <span className="openingKicker">AUTONOMOUS CONSEQUENCE REPAIR</span>
+        <h1>
+          <span>When evidence changes,</span>
+          <strong>repair every consequence.</strong>
+        </h1>
+        <p>Detect the change. Trace exact ownership. Repair safely. Prove the result.</p>
+      </div>
+
+      <svg
+        className="openingGraph"
+        viewBox="0 0 1080 700"
+        role="img"
+        aria-label="Registered evidence flowing through claims into owned workspace artifacts"
+      >
+        <defs>
+          <linearGradient id="openingEdge" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#35bd7e" stopOpacity="0.25" />
+            <stop offset="0.55" stopColor="#72e2aa" stopOpacity="0.9" />
+            <stop offset="1" stopColor="#35bd7e" stopOpacity="0.3" />
+          </linearGradient>
+          <filter id="openingGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <g className="openingEdges">
+          <path className="openingEdge openingEdgeSource" d="M150 350 C280 350 350 350 470 350" />
+          <path className="openingEdge openingEdgeOne" d="M550 350 C680 350 710 130 875 130" />
+          <path className="openingEdge openingEdgeTwo" d="M550 350 C690 350 735 280 875 280" />
+          <path className="openingEdge openingEdgeThree" d="M550 350 C690 350 735 430 875 430" />
+          <path className="openingEdge openingEdgeFour" d="M550 350 C680 350 710 580 875 580" />
+        </g>
+
+        <g className="openingNode openingNodeSource" transform="translate(150 350)">
+          <circle r="56" />
+          <text textAnchor="middle" dominantBaseline="middle">
+            S
+          </text>
+          <text className="openingNodeLabel" y="92" textAnchor="middle">
+            SOURCE
+          </text>
+        </g>
+        <g className="openingNode openingNodeClaim" transform="translate(510 350)">
+          <circle r="62" />
+          <text textAnchor="middle" dominantBaseline="middle">
+            C
+          </text>
+          <text className="openingNodeLabel" y="100" textAnchor="middle">
+            CLAIM MANIFEST
+          </text>
+        </g>
+        {[
+          { y: 130, letter: 'D', label: 'DOCS' },
+          { y: 280, letter: 'S', label: 'SLIDES' },
+          { y: 430, letter: 'G', label: 'GMAIL' },
+          { y: 580, letter: 'T', label: 'TASKS' },
+        ].map((node, index) => (
+          <g
+            className={`openingNode openingNodeArtifact openingNodeArtifact${index + 1}`}
+            transform={`translate(925 ${node.y})`}
+            key={node.label}
+          >
+            <circle r="47" />
+            <text textAnchor="middle" dominantBaseline="middle">
+              {node.letter}
+            </text>
+            <text className="openingNodeLabel" y="78" textAnchor="middle">
+              {node.label}
+            </text>
+          </g>
+        ))}
+        <circle className="openingSignal" r="9" filter="url(#openingGlow)" />
+      </svg>
+
+      <ol className="openingSteps" aria-label="Veritas integrity lifecycle">
+        <li>
+          <span>01</span>
+          <strong>DETECT</strong>
+        </li>
+        <li>
+          <span>02</span>
+          <strong>TRACE</strong>
+        </li>
+        <li>
+          <span>03</span>
+          <strong>REPAIR</strong>
+        </li>
+        <li>
+          <span>04</span>
+          <strong>VERIFY</strong>
+        </li>
+      </ol>
+
+      <button className="openingSkip" type="button" onClick={skip}>
+        Skip intro
+        <span aria-hidden="true">↗</span>
+      </button>
+    </section>
+  );
+}
+
 export function App({ initialIncident }: { initialIncident?: Incident }) {
   const [incident, setIncident] = useState<Incident | null>(initialIncident ?? null);
   const [state, setState] = useState<StartupStatus>(initialIncident ? 'ready' : 'loading');
@@ -440,6 +607,8 @@ function CommandCenter({
   onIncidentChange: (incident: Incident) => void;
   onNewPacket: () => void;
 }) {
+  const [isOpening, setIsOpening] = useState(shouldPlayOpening);
+  const completeOpening = useCallback(() => setIsOpening(false), []);
   const [view, setView] = useState<ViewId>(storedView);
   const [selectedClaimId, setSelectedClaimId] = useState(() => storedClaim(incident));
   const [replayStage, setReplayStage] = useState<number>(incident.timeline.length);
@@ -596,6 +765,7 @@ function CommandCenter({
 
   return (
     <IncidentContext.Provider value={incident}>
+      {isOpening && <OpeningSequence onComplete={completeOpening} />}
       <div className="appFrame">
         <a className="skipLink" href="#main-content">
           Skip to incident details
@@ -619,6 +789,10 @@ function CommandCenter({
               <span className="pulseDot" aria-hidden="true" />
               {incident.status.replace('_', ' ')}
             </span>
+            <button className="introReplayButton" type="button" onClick={() => setIsOpening(true)}>
+              <span aria-hidden="true">✦</span>
+              Opening
+            </button>
             <button className="replayButton" type="button" onClick={replayIncident}>
               <span aria-hidden="true">↻</span>
               {isReplaying ? 'Replaying incident' : 'Replay incident'}
