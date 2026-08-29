@@ -925,63 +925,158 @@ function StartupState({
   const connect = () => {
     window.location.assign('/api/v1/auth/google/start?returnTo=/');
   };
+  const title =
+    state === 'loading'
+      ? 'Loading your evidence boundary…'
+      : state === 'unauthorized'
+        ? 'Connect Google Workspace to begin.'
+        : state === 'empty'
+          ? 'Your workspace is connected.'
+          : 'The live Command Center is temporarily unreachable.';
+  const connectionTitle =
+    state === 'loading'
+      ? 'Establishing a secure session'
+      : state === 'unauthorized'
+        ? 'Authorize the evidence boundary'
+        : state === 'empty'
+          ? 'Create your monitored packet'
+          : 'Restore the production connection';
   return (
-    <main className="startupState">
-      <span className="brandMark" aria-hidden="true">
-        V
-      </span>
-      <span className="sectionKicker">Veritas Command Center</span>
-      <h1>
-        {state === 'loading'
-          ? 'Loading your evidence boundary…'
-          : state === 'unauthorized'
-            ? 'Connect Google Workspace to begin.'
-            : state === 'empty'
-              ? 'Your workspace is connected.'
-              : 'The live Command Center is temporarily unreachable.'}
-      </h1>
-      <p>
-        {state === 'empty'
-          ? 'Generate a decision packet to register its claims, evidence, and downstream artifacts.'
-          : 'Live mode never substitutes demonstration data silently. You can retry, connect, or explicitly open the offline judge demo.'}
-      </p>
-      <div className="startupActions">
-        {state === 'unauthorized' && (
-          <button className="replayButton" type="button" onClick={connect}>
-            Connect Google Workspace
-          </button>
-        )}
-        {(state === 'error' || state === 'empty') && (
-          <button className="replayButton" type="button" onClick={onRetry}>
-            Retry live data
-          </button>
-        )}
-        {state === 'empty' && generation.phase !== 'complete' && (
-          <button
-            className="primaryButton"
-            type="button"
-            onClick={onGenerate}
-            disabled={generation.phase === 'running'}
-          >
-            {generation.phase === 'running'
-              ? 'Creating real Workspace packet…'
-              : 'Generate real Workspace packet'}
-          </button>
-        )}
-        {state !== 'loading' && (
-          <button className="secondaryButton" type="button" onClick={onDemo}>
-            Open offline judge demo
-          </button>
-        )}
+    <main className="startupState" data-state={state}>
+      <div className="startupGrid" aria-hidden="true" />
+      <header className="startupHeader">
+        <div className="startupBrand">
+          <span className="brandMark" aria-hidden="true">
+            V
+          </span>
+          <strong>VERITAS</strong>
+          <span>Autonomous consequence repair</span>
+        </div>
+        <div className="startupEnvironment">
+          <i aria-hidden="true" />
+          Google Cloud production runtime
+        </div>
+      </header>
+
+      <div className="startupLayout">
+        <section className="startupNarrative" aria-labelledby="startup-title">
+          <span className="sectionKicker">Production evidence boundary</span>
+          <h1 id="startup-title">{title}</h1>
+          <p>
+            {state === 'empty'
+              ? 'Generate a decision packet to register its claims, evidence, and downstream artifacts.'
+              : 'Veritas watches registered evidence, repairs only owned consequences, preserves human authorship, and independently verifies the result.'}
+          </p>
+          <ul className="startupProofs" aria-label="Veritas trust guarantees">
+            <li>
+              <span>01</span>
+              <strong>Exact lineage</strong>
+              <small>No inferred writes</small>
+            </li>
+            <li>
+              <span>02</span>
+              <strong>Human authority</strong>
+              <small>Decisions pause safely</small>
+            </li>
+            <li>
+              <span>03</span>
+              <strong>Independent proof</strong>
+              <small>The worker cannot certify itself</small>
+            </li>
+          </ul>
+        </section>
+
+        <section className="startupConnectCard" aria-labelledby="connection-title">
+          <div className="startupCardTopline">
+            <span>Workspace connection</span>
+            <span className="startupConnectionStatus" data-active={state === 'empty'}>
+              <i aria-hidden="true" />
+              {state === 'empty' ? 'connected' : state === 'loading' ? 'checking' : 'not connected'}
+            </span>
+          </div>
+          <div className="workspaceGlyph" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+            <strong>W</strong>
+          </div>
+          <span className="sectionKicker">Google Workspace</span>
+          <h2 id="connection-title">{connectionTitle}</h2>
+          <p>
+            Subject-scoped OAuth gives Veritas access only to the Workspace resources registered in
+            your decision packet.
+          </p>
+
+          <div className="startupActions">
+            {state === 'unauthorized' && (
+              <button className="primaryButton" type="button" onClick={connect}>
+                Connect Google Workspace <span aria-hidden="true">↗</span>
+              </button>
+            )}
+            {(state === 'error' || state === 'empty') && (
+              <button className="replayButton" type="button" onClick={onRetry}>
+                Retry live data
+              </button>
+            )}
+            {state === 'empty' && generation.phase !== 'complete' && (
+              <button
+                className="primaryButton"
+                type="button"
+                onClick={onGenerate}
+                disabled={generation.phase === 'running'}
+              >
+                {generation.phase === 'running'
+                  ? 'Creating real Workspace packet…'
+                  : 'Generate real Workspace packet'}
+              </button>
+            )}
+            {state !== 'loading' && (
+              <button className="secondaryButton" type="button" onClick={onDemo}>
+                Open offline judge demo
+              </button>
+            )}
+          </div>
+
+          <dl className="startupTrustFacts">
+            <div>
+              <dt>Identity</dt>
+              <dd>Subject-scoped OAuth</dd>
+            </div>
+            <div>
+              <dt>Writes</dt>
+              <dd>Manifest-bound only</dd>
+            </div>
+            <div>
+              <dt>Fallback</dt>
+              <dd>Never silent</dd>
+            </div>
+          </dl>
+        </section>
       </div>
-      {generation.phase === 'error' && (
-        <p className="actionError" role="alert">
-          {generation.message} No demonstration data was substituted.
-        </p>
+
+      {(generation.phase === 'error' || generation.phase === 'complete') && (
+        <div className="startupResultZone">
+          {generation.phase === 'error' && (
+            <p className="actionError" role="alert">
+              {generation.message} No demonstration data was substituted.
+            </p>
+          )}
+          {generation.phase === 'complete' && (
+            <GeneratedPacket
+              result={generation.result}
+              onRetry={() => onReplay(generation.request)}
+            />
+          )}
+        </div>
       )}
-      {generation.phase === 'complete' && (
-        <GeneratedPacket result={generation.result} onRetry={() => onReplay(generation.request)} />
-      )}
+
+      <footer className="startupFooter">
+        <span>Gemini 3.5 Flash</span>
+        <span>Google Gen AI SDK</span>
+        <span>Cloud Run</span>
+        <span>Independent verifier</span>
+      </footer>
     </main>
   );
 }
