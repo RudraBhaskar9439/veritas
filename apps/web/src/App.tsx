@@ -625,6 +625,7 @@ function CommandCenter({
 
   useEffect(() => {
     window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+    window.scrollTo?.({ top: 0, behavior: 'auto' });
   }, [view]);
 
   useEffect(() => {
@@ -724,7 +725,6 @@ function CommandCenter({
     if (window.location.hash !== hash) {
       window.history.pushState({ view: next }, '', hash);
     }
-    window.scrollTo?.({ top: 0, behavior: 'smooth' });
   }
 
   function replayIncident() {
