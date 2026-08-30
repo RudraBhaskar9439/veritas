@@ -1,24 +1,24 @@
 {
   "schemaVersion": "1.1",
   "status": "live_proof_partial",
-  "lastUpdated": "2026-08-27T07:48:26+05:30",
+  "lastUpdated": "2026-08-30T19:15:59+05:30",
   "projectId": "project-c0f0f832-e02b-4eac-ae2",
   "region": "us-central1",
   "modelLocation": "global",
-  "acceptedCommit": "5425b0c",
+  "acceptedCommit": "582df1f",
   "publicUrl": "https://veritas-preview-web-602044424209.us-central1.run.app/",
   "requiredEvidence": [
     {
       "id": "public-url",
       "description": "Public Cloud Run Command Center URL",
       "status": "complete",
-      "evidence": "Signed-out root, web /health/ready, same-origin /api/v1, and control API /health/ready returned HTTP 200 on release 5425b0c on 2026-08-27."
+      "evidence": "Signed-out root, web /health/ready, and control API /health/ready returned HTTP 200 on release 582df1f on 2026-08-30."
     },
     {
       "id": "immutable-images",
       "description": "Four deployed image digests bound to the accepted commit",
       "status": "complete",
-      "evidence": "Cloud Build 00da295d-10e2-4748-9f64-9eebdc15f839 built clean commit 5425b0c; runtime sha256:5f3d1f2f48fc8ad194ace4fe451fb472866c559327320378d8745b28863ae0d8 and web sha256:1c817e345ebab89305f4962295363f65281f708de34f84ea87e6aeee94f5de5f. Migration execution veritas-preview-migrations-h8xqg completed before service rollout. Worker-identity execution veritas-preview-model-probe-hwgqd returned a schema-valid Gemini 3.5 Flash receipt through Vertex AI global; the temporary probe job was removed after success and Cloud logs remain."
+      "evidence": "Cloud Build 0e381867-45fd-4ccf-892c-a54741a1b2c9 built clean commit 582df1f; runtime sha256:f1c7824c15797ea318e468b209c82215565c349b4a02122b90522c29f9e2bdef and web sha256:3318e31fc148f8d3df31aafdd4196d88fe2c5c93d32abe8f9489eed3040a51a7. API revision veritas-preview-api-00044-772, ingress revision veritas-preview-ingress-00043-sqw, worker revision veritas-preview-worker-00043-rvw, and web revision veritas-preview-web-00027-6zd serve those digests. Migration execution veritas-preview-migrations-h4msm completed. Historical worker-identity execution veritas-preview-model-probe-hwgqd returned a schema-valid Gemini 3.5 Flash receipt through Vertex AI global; the temporary probe job was removed after success and Cloud logs remain."
     },
     {
       "id": "workspace-generation",
@@ -72,7 +72,7 @@
       "id": "browser-audit",
       "description": "Hosted responsive, keyboard, refresh, and accessibility evidence",
       "status": "complete",
-      "evidence": "Hosted desktop semantics, refresh persistence, labelled controls, visible approvals, real-time updates, the Google Tasks deep link, one active natural-language task, and in-place task repair were inspected. On 2026-08-27 the public 390x844 phone view had one main, one H1, zero unlabeled buttons, zero images without alt, one skip link, one live region, and scroll width exactly equal to viewport width. Keyboard-only Enter navigation exposed Blast radius and Verification content."
+      "evidence": "Hosted desktop semantics, refresh persistence, labelled controls, visible approvals, real-time updates, the Google Tasks deep link, one active natural-language task, and in-place task repair were inspected. On 2026-08-30 routed destinations opened at the top, all seven execution stages rendered without clipping at 1280px, and Execution plus Architecture had no horizontal overflow. The 390x844 phone view exposed mobile navigation, all seven stages, and scroll width exactly equal to viewport width. The earlier full semantics audit had one main, one H1, zero unlabeled buttons, zero images without alt, one skip link, and one live region; keyboard-only Enter navigation exposed Blast radius and Verification content."
     },
     {
       "id": "cost-latency",

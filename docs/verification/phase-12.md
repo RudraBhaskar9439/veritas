@@ -1,11 +1,10 @@
 # Phase 12 verification report
 
 - Status: release proof package passed; entrant video, final submission, and three explicitly partial proof items remain
-- Verified locally: 2026-08-27
+- Verified locally: 2026-08-30
 - Local command: `node scripts/verify-phase-12.mjs`
-- Accepted application release commit: `5425b0c06511e6de13a7028b6485bba172af7292`
-- Clean application workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/33032292084>
-- Clean proof-package workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/33032968328>
+- Accepted application release commit: `582df1f2ef9bf799851efecd7b19ea84ecd02bb7`
+- Clean release workflow: <https://github.com/RudraBhaskar9439/veritas/actions/runs/33314487171>
 
 ## Completed without Google Cloud
 
@@ -32,6 +31,7 @@ The offline rehearsals verify timing, chronology, canonical 4% → 9% evidence, 
 - a schema-valid Gemini 3.5 receipt produced from the immutable image under the actual private-worker identity, with no IAM weakening;
 - real Workspace packet generation, real Drive-triggered changes, native cross-surface repairs, human approval continuation, independent verification, and scoped certificates;
 - real Gemini dependency retry, dead-letter quarantine, packet-scoped recovery, and audited replay;
+- a visible seven-stage live progression, bounded Gemini decision receipt, and caller-supplied Packet Contract on the hosted release;
 - machine-readable complete versus partial proof status and a production proof report.
 
 ## Explicitly not complete

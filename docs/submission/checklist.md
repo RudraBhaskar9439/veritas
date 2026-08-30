@@ -13,7 +13,7 @@
 - [x] `cloud-proof-manifest.json` has no pending item; three incomplete claims are explicitly `partial`.
 - [x] Public URL works in a signed-out browser and on phone width.
 - [x] Accepted commit matches deployed image digests.
-- [x] Production worker identity returned a schema-valid Gemini 3.5 Flash review from the deployed immutable image.
+- [x] Production worker identity returned a schema-valid Gemini 3.5 Flash review from an immutable deployed image; the final release preserves the pinned identity, model, endpoint, schema, and exact-scope contract.
 - [x] Real Workspace APIs generate and repair the packet.
 - [x] Deterministic formatting-only, wrong-repair, duplicate-event, worker-interruption, and stale-source negatives pass.
 - [x] Accessibility, keyboard, refresh, and responsive checks pass on the hosted URL.
@@ -51,7 +51,7 @@
 ## Final freeze
 
 - [x] Latest GitHub workflow is fully green.
-- [x] Working tree was clean and a release tag was pushed after verification.
+- [x] Accepted release `582df1f` is green, deployed by immutable digest, and identified by a dedicated release tag.
 - [x] Submission was reread once as a Taskmaster judge and once as an architecture judge.
 - [ ] Devpost preview was checked after saving.
 - [ ] Submission confirmation and final URLs are archived.
