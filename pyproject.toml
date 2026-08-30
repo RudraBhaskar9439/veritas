@@ -30,6 +30,7 @@ testpaths = ["services/runtime/tests"]
 target-version = "py312"
 line-length = 100
 src = ["services/runtime/src", "services/runtime/tests"]
+extend-exclude = ["demo/video"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]

@@ -12,7 +12,7 @@ Total planned duration: **3:58**. Speak calmly; let each visible state prove the
 
 **Screen:** Veritas opening view.
 
-**Say:** “Veritas is a transactional integrity runtime for AI-created knowledge work. It records claim-level provenance, watches the evidence, repairs only registered consequences, preserves human authorship, and then independently verifies the result.”
+**Say:** “When source truth changes, Veritas repairs every registered consequence—and proves the result. It records claim-level provenance, watches the evidence, preserves human authorship, and independently verifies the repair.”
 
 ## 0:36–0:58 — Trigger a real change
 
@@ -32,11 +32,11 @@ Total planned duration: **3:58**. Speak calmly; let each visible state prove the
 
 **Say:** “This is not a similarity search. The versioned Claim Manifest traces exactly four affected claims through nine registered paths into five artifacts. Four unrelated claims remain untouched, and inferred candidate edges cannot authorize a repair.”
 
-## 1:45–2:08 — Safety policy and approval
+## 1:45–2:08 — Gemini decision and human authority
 
-**Screen:** Repair plan; approve the two decision-changing claims.
+**Screen:** Live Run → Gemini Safety Decision receipt, then Repair Desk; approve the two decision-changing claims.
 
-**Say:** “Facts in editable targets can repair automatically. Decision-changing recommendations pause for a human. The sent investor email is immutable, so Veritas can only create an unsent correction draft. The agent cannot approve its own plan.”
+**Say:** “Gemini reviews the semantic change and exactly these four registered claims. Its schema-bound decision is proceed, with decision-changing claims flagged for human authority. It cannot add scope, approve itself, or issue a certificate. Facts can repair automatically; recommendations pause for me, and sent email remains immutable.”
 
 ## 2:08–2:45 — Native cross-artifact repair
 
@@ -64,9 +64,9 @@ Total planned duration: **3:58**. Speak calmly; let each visible state prove the
 
 ## 3:40–3:52 — Engineering proof
 
-**Screen:** Architecture diagram and green GitHub workflow.
+**Screen:** Architecture diagram, Packet Contract panel, and green GitHub workflow.
 
-**Say:** “Gemini 3.5 Flash reviews the exact registered scope through Google’s Gen AI SDK. It can stop ambiguous work, but it cannot invent scope or approve itself; its structured decision is checksummed. The system runs on Cloud Run, Cloud SQL, Cloud Storage, KMS, Secret Manager, Vertex AI, and real Workspace APIs—with durable leases, dead letters, audited replay, and a forty-scenario reproducible benchmark.”
+**Say:** “The Q3 scenario is a versioned blueprint passed to the packet API—not hard-coded workflow logic. The system runs on Cloud Run, Cloud SQL, Cloud Storage, KMS, Secret Manager, Vertex AI, and real Workspace APIs, with durable leases, dead letters, audited replay, and a forty-scenario benchmark.”
 
 ## 3:52–3:58 — Close
 

@@ -695,10 +695,12 @@ class EmailTaskRegistrationCoordinator:
         subject: str,
         mailbox_email: str,
         packet_id: str,
+        now: datetime | None = None,
     ) -> EmailTaskSetup:
         setup = await self._workflows.setup(subject, mailbox_email, packet_id)
         watch = await self._repository.get_watch(subject)
-        if watch is None or watch.expiration <= datetime.now(UTC):
+        instant = (now or datetime.now(UTC)).astimezone(UTC)
+        if watch is None or watch.expiration <= instant:
             return setup.model_copy(update={"workflows": ()})
         return setup
 

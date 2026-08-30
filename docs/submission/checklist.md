@@ -30,9 +30,10 @@
 - [ ] Source changes on screen from 4% to 9%.
 - [ ] No prompt or manual trigger appears after the source edit.
 - [ ] Blast radius shows 4 claims, 5 artifacts, and 9 paths.
+- [ ] Persisted Gemini decision visibly shows exact scope, rationale, authority limits, and receipt.
 - [ ] Human approval, immutable email correction, and preserved CFO paragraph are visible.
 - [ ] Independent verification and scoped certificate are legible.
-- [ ] Google Cloud architecture and green build appear briefly.
+- [ ] Google Cloud architecture, reusable Packet Contract, and green build appear briefly.
 - [ ] Runtime is 3:58 or less; captions and 1080p playback checked.
 - [ ] No secrets, personal data, billing data, or OAuth tokens are visible.
 

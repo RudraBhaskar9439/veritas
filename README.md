@@ -1,8 +1,10 @@
 # Veritas
 
-**AI created the work. Veritas keeps it true.**
+**When source truth changes, Veritas repairs every registered consequence—and proves the result.**
 
 Veritas is a continuous evidence-integrity agent for AI-created knowledge work. It records claim-level provenance when a decision packet is created, watches registered evidence for meaningful changes, calculates the downstream blast radius, performs minimal repairs across Google Workspace artifacts, preserves human edits, and independently verifies the repaired packet.
+
+The Q3 executive review is a live-proven packet blueprint, not scenario code embedded in the runtime. The versioned packet API accepts supported evidence anchors, typed claim transformations, risk policies, and native Workspace targets, then commits the resulting graph as a checksummed Claim Manifest.
 
 The production worker uses Gemini 3.5 Flash on Vertex AI through Google's Gen AI SDK as a bounded safety-reasoning gate. Gemini may veto ambiguous work and force escalation, but it cannot expand registered scope, override policy, approve its own action, or certify its own repairs. Every structured model decision is schema-validated, checksummed, and persisted as an inspectable reasoning receipt.
 

@@ -1,6 +1,6 @@
 # Veritas
 
-**Tagline:** When evidence changes, repair every consequence.
+**Tagline:** When source truth changes, repair every registered consequence—and prove the result.
 
 > Submission integrity note: this draft is release-ready, but the video URL and final submission confirmation must still be added. Partial proof items remain labeled in `cloud-proof-manifest.json`.
 
@@ -26,11 +26,15 @@ When registered evidence changes, Veritas:
 
 In the demo, changing customer churn from 4% to 9% affects four monitored claims across five artifacts. Veritas repairs the editable consequences, pauses decision-changing actions for a human, creates an unsent correction for the immutable investor email, preserves the CFO’s paragraph, and verifies all thirteen registered targets.
 
+The Q3 executive review is supplied through the same versioned packet API used by the runtime; it is not compiled into application logic. A packet blueprint declares supported source anchors, transformations, risk classes, and Workspace targets. Veritas materializes the artifacts and persists the resulting ownership graph as a checksummed Claim Manifest.
+
 ## Why it is different
 
 Veritas does not search the Drive for text that looks similar. Relationships are registered when the packet is generated and stored in a checksummed Claim Manifest. Model-inferred candidate relationships cannot authorize a write or enter a certificate.
 
 The repair agent also cannot certify itself. An independent, read-only verifier recomputes claims from immutable evidence snapshots and re-reads native Workspace artifacts. The certificate says only that monitored claims match their registered evidence versions—not that an entire document is universally true.
+
+The Command Center exposes Gemini’s structured input, exact reviewed scope, `proceed` or `escalate` disposition, rationale, risk flags, authority limits, and checksummed receipt. This makes the model’s material contribution inspectable without giving it permission to expand scope, approve decisions, mutate arbitrary resources, or certify its own work.
 
 ## How we built it
 
@@ -61,7 +65,7 @@ The hardest problem was not generating better content. It was preserving authors
 - Independent verification across eight registered claims, thirteen targets, five protected artifacts, and six evidence versions.
 - Durable retries, worker-lease recovery, dead-letter quarantine, and audited replay.
 - A reproducible forty-scenario benchmark with 100% deterministic accuracy and 0% false certification on the unsafe cases.
-- 232 runtime tests with at least 90% coverage, plus 20 web tests and strict Terraform and container gates.
+- 232 runtime tests with at least 90% coverage, plus 26 web tests and strict Terraform and container gates.
 
 ## What we learned
 

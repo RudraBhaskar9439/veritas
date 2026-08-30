@@ -344,7 +344,10 @@ function OpeningSequence({ onComplete }: { onComplete: () => void }) {
           <span>When evidence changes,</span>
           <strong>repair every consequence.</strong>
         </h1>
-        <p>Detect the change. Trace exact ownership. Repair safely. Prove the result.</p>
+        <p>
+          When source truth changes, Veritas repairs every registered consequence—and proves the
+          result.
+        </p>
       </div>
 
       <svg
@@ -1355,6 +1358,8 @@ function ExecutionView({
         title="Every agent step appears as it happens."
         description="The live terminal, causal graph, timeline, timestamps, and cryptographic receipt chain update from persisted backend state without a page reload."
       />
+      <RunProgressRibbon activeStage={replayStage} isStreaming={isStreaming} />
+      <GeminiDecisionReceipt visible={replayStage >= 2} />
       <Timeline activeStage={replayStage} isStreaming={isStreaming} />
       <ChangeProofPanel />
     </>
@@ -1949,7 +1954,75 @@ function ArchitectureView() {
           </article>
         </div>
       </section>
+      <PacketContractPanel />
     </>
+  );
+}
+
+function PacketContractPanel() {
+  const incident = useIncident();
+  return (
+    <section className="packetContractPanel" aria-labelledby="packet-contract-title">
+      <div className="packetContractHeading">
+        <div>
+          <span className="sectionKicker">Reusable packet runtime</span>
+          <h2 id="packet-contract-title">The Q3 scenario is input—not application code.</h2>
+        </div>
+        <span className="contractProofBadge">
+          <i aria-hidden="true" /> Blueprint API proven live
+        </span>
+      </div>
+      <p>
+        Veritas accepts a versioned packet blueprint, materializes its native Workspace artifacts,
+        and commits the resulting source-to-claim-to-target graph as a checksummed Claim Manifest.
+        The same runtime executes the contract supplied by each packet.
+      </p>
+
+      <div className="packetContractFlow">
+        <article>
+          <span>01 · Sources</span>
+          <strong>Anchored evidence</strong>
+          <small>Google Sheets ranges and Google Docs anchors with native versions</small>
+        </article>
+        <i aria-hidden="true">→</i>
+        <article>
+          <span>02 · Claims</span>
+          <strong>Typed transformations</strong>
+          <small>Identity, comparison, threshold, recommendation, risk and freshness</small>
+        </article>
+        <i aria-hidden="true">→</i>
+        <article>
+          <span>03 · Targets</span>
+          <strong>Native Workspace adapters</strong>
+          <small>Docs, Slides, Gmail drafts and Google Tasks with exact ownership</small>
+        </article>
+      </div>
+
+      <div className="packetContractProof">
+        <code>POST /api/v1/packets</code>
+        <dl>
+          <div>
+            <dt>Packet identity</dt>
+            <dd>Caller supplied</dd>
+          </div>
+          <div>
+            <dt>Current proof</dt>
+            <dd>{incident.packetId}</dd>
+          </div>
+          <div>
+            <dt>Registered graph</dt>
+            <dd>
+              {incident.coverage.sources} sources · {incident.coverage.claims} claims ·{' '}
+              {incident.coverage.targets} targets
+            </dd>
+          </div>
+          <div>
+            <dt>Idempotency</dt>
+            <dd>Input digest bound</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
   );
 }
 
@@ -2959,6 +3032,189 @@ function Metric({
         <small>{detail}</small>
       </div>
     </article>
+  );
+}
+
+function RunProgressRibbon({
+  activeStage,
+  isStreaming,
+}: {
+  activeStage: number;
+  isStreaming: boolean;
+}) {
+  const incident = useIncident();
+  const visibleEvents = incident.timeline.slice(0, activeStage);
+  const visibleLabels = new Set(visibleEvents.map((event) => event.label.toLowerCase()));
+  const detected = visibleLabels.has('detected');
+  const traced = visibleLabels.has('traced');
+  const reviewed = traced && incident.agentReview !== null;
+  const repaired = visibleLabels.has('repaired');
+  const verified = visibleLabels.has('verified') || incident.checks.length > 0;
+  const certified = visibleLabels.has('certified') || incident.certificate !== null;
+  const progress = [
+    { label: 'Detected', detail: 'Source delta', complete: detected },
+    { label: 'Snapshot sealed', detail: 'Immutable evidence', complete: detected },
+    {
+      label: 'Claims traced',
+      detail: `${incident.coverage.affectedClaims} affected`,
+      complete: traced,
+    },
+    {
+      label: 'Gemini reviewed',
+      detail: incident.agentReview?.disposition ?? 'bounded decision',
+      complete: reviewed,
+    },
+    {
+      label: 'Workspace repaired',
+      detail: `${incident.artifacts.length} artifacts`,
+      complete: repaired,
+    },
+    {
+      label: 'Independently verified',
+      detail: `${incident.coverage.verifiedTargets}/${incident.coverage.targets} targets`,
+      complete: verified,
+    },
+    {
+      label: 'Certificate issued',
+      detail: incident.certificate?.shortId ?? 'scoped proof',
+      complete: certified,
+    },
+  ];
+  const activeIndex = progress.findIndex((step) => !step.complete);
+  return (
+    <section className="runProgress" aria-labelledby="run-progress-title">
+      <div className="runProgressTopline">
+        <div>
+          <span className="sectionKicker">One autonomous transaction</span>
+          <h2 id="run-progress-title">Source truth → repaired consequences → proof</h2>
+        </div>
+        <span className="runProgressState" data-streaming={isStreaming}>
+          <i aria-hidden="true" />
+          {certified ? 'Transaction sealed' : isStreaming ? 'Advancing live' : 'Persisted state'}
+        </span>
+      </div>
+      <ol>
+        {progress.map((step, index) => {
+          const active = !step.complete && index === activeIndex;
+          return (
+            <li key={step.label} data-complete={step.complete} data-active={active}>
+              <span aria-hidden="true">
+                {step.complete ? '✓' : String(index + 1).padStart(2, '0')}
+              </span>
+              <div>
+                <strong>{step.label}</strong>
+                <small>{step.detail}</small>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function GeminiDecisionReceipt({ visible }: { visible: boolean }) {
+  const incident = useIncident();
+  const review = visible ? incident.agentReview : null;
+  const source = changedEvidence(incident);
+  const valueChange = primaryValueChange(incident);
+  return (
+    <section
+      className="geminiDecision"
+      data-pending={!review}
+      aria-labelledby="gemini-decision-title"
+    >
+      <div className="geminiDecisionIntro">
+        <div className="geminiDecisionMark" aria-hidden="true">
+          G
+        </div>
+        <div>
+          <span className="sectionKicker">Material agent decision</span>
+          <h2 id="gemini-decision-title">Gemini interprets the risk. Policy owns authority.</h2>
+          <p>
+            The model reviews the semantic change and exact registered claim set. It may proceed or
+            stop the run, but it cannot invent scope, approve decisions, write outside the manifest,
+            or certify itself.
+          </p>
+        </div>
+      </div>
+
+      {review ? (
+        <div className="geminiDecisionBody">
+          <div className="geminiDecisionInput">
+            <span>Structured input</span>
+            <dl>
+              <div>
+                <dt>Evidence delta</dt>
+                <dd>
+                  <code>{source?.anchor ?? 'registered anchor'}</code>
+                  <strong>
+                    {compactSourceValue(valueChange?.before)} →{' '}
+                    {compactSourceValue(valueChange?.after)}
+                  </strong>
+                </dd>
+              </div>
+              <div>
+                <dt>Exact scope</dt>
+                <dd>
+                  <strong>{incident.coverage.affectedClaims} affected claims</strong>
+                  <small>{incident.coverage.lineagePaths} registered paths · 0 inferred</small>
+                </dd>
+              </div>
+              <div>
+                <dt>Decision risks</dt>
+                <dd className="geminiClaimScope">
+                  {incident.claims.map((claim) => (
+                    <span key={claim.id} data-risk={claim.risk}>
+                      {claim.shortLabel}
+                    </span>
+                  ))}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="geminiDecisionOutput">
+            <div className="geminiDecisionTopline">
+              <span>{review.model}</span>
+              <strong data-disposition={review.disposition}>{review.disposition}</strong>
+            </div>
+            <blockquote>{review.rationale}</blockquote>
+            <div className="geminiRiskFlags">
+              <span>Risk flags</span>
+              {review.riskFlags.length > 0 ? (
+                review.riskFlags.map((flag) => <strong key={flag}>{flag}</strong>)
+              ) : (
+                <strong>No additional model risk flags</strong>
+              )}
+            </div>
+            <code className="geminiReceiptChecksum">receipt · {review.receipt}</code>
+          </div>
+        </div>
+      ) : (
+        <div className="geminiDecisionPending">
+          <span className="terminalPrompt" aria-hidden="true">
+            ›
+          </span>
+          Waiting for the persisted Gemini review receipt…
+        </div>
+      )}
+
+      <ul className="geminiAuthority" aria-label="Gemini authority limits">
+        <li>
+          <span>Cannot</span>
+          <strong>Expand registered scope</strong>
+        </li>
+        <li>
+          <span>Cannot</span>
+          <strong>Approve decision changes</strong>
+        </li>
+        <li>
+          <span>Cannot</span>
+          <strong>Issue the certificate</strong>
+        </li>
+      </ul>
+    </section>
   );
 }
 

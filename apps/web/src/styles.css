@@ -1201,6 +1201,418 @@ dd {
   font-size: 9px;
 }
 
+.runProgress {
+  margin-bottom: 18px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(251, 252, 249, 0.88);
+  box-shadow: 0 16px 42px rgba(19, 45, 33, 0.07);
+}
+
+.runProgressTopline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.runProgressTopline h2 {
+  margin: 5px 0 0;
+  font-size: clamp(1.35rem, 2.2vw, 2rem);
+  letter-spacing: -0.045em;
+}
+
+.runProgressState {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid rgba(22, 118, 81, 0.15);
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--green-pale);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+}
+
+.runProgressState i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green-bright);
+}
+
+.runProgressState[data-streaming='true'] i {
+  animation: pulse 1.3s ease-in-out infinite;
+}
+
+.runProgress ol {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  list-style: none;
+}
+
+.runProgress li {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 27px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 13px 12px;
+  border: 1px solid var(--line);
+  border-left: 0;
+  color: var(--soft);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.runProgress li:first-child {
+  border-left: 1px solid var(--line);
+  border-radius: 10px 0 0 10px;
+}
+
+.runProgress li:last-child {
+  border-radius: 0 10px 10px 0;
+}
+
+.runProgress li > span {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 1px solid #cad4ce;
+  border-radius: 50%;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem;
+}
+
+.runProgress li > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.runProgress li strong,
+.runProgress li small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runProgress li strong {
+  font-size: 0.64rem;
+}
+
+.runProgress li small {
+  color: #8a9690;
+  font-size: 0.52rem;
+}
+
+.runProgress li[data-complete='true'] {
+  color: #174c37;
+  background: rgba(228, 245, 235, 0.72);
+}
+
+.runProgress li[data-complete='true'] > span {
+  color: #ffffff;
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.runProgress li[data-active='true'] {
+  z-index: 1;
+  color: #6f501b;
+  border-color: #d9b979;
+  background: #fff7e9;
+  box-shadow: 0 0 0 1px rgba(200, 148, 57, 0.08);
+}
+
+.runProgress li[data-active='true'] > span {
+  border-color: #d5a653;
+  color: #9b6b17;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.geminiDecision {
+  position: relative;
+  margin-bottom: 18px;
+  overflow: hidden;
+  padding: clamp(24px, 3.4vw, 42px);
+  border: 1px solid rgba(163, 210, 183, 0.18);
+  border-radius: 18px;
+  color: #e9f4ee;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(182, 218, 79, 0.12), transparent 21rem),
+    linear-gradient(132deg, #07150f 0%, #0d2c20 60%, #10261e 100%);
+  box-shadow: 0 28px 70px rgba(10, 28, 21, 0.18);
+}
+
+.geminiDecision::after {
+  position: absolute;
+  right: -90px;
+  bottom: -150px;
+  width: 360px;
+  height: 360px;
+  border: 1px solid rgba(138, 229, 180, 0.1);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 58px rgba(138, 229, 180, 0.025);
+  content: '';
+  pointer-events: none;
+}
+
+.geminiDecision[data-pending='true'] {
+  background: linear-gradient(132deg, #0b1813, #14231d);
+}
+
+.geminiDecisionIntro {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 17px;
+  align-items: start;
+}
+
+.geminiDecisionMark {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border-radius: 14px;
+  color: #0a2418;
+  background: #c7f04c;
+  font-family: 'DM Mono', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 0 32px rgba(199, 240, 76, 0.15);
+}
+
+.geminiDecision .sectionKicker {
+  color: #a8d36f;
+}
+
+.geminiDecisionIntro h2 {
+  max-width: 760px;
+  margin: 5px 0 8px;
+  font-size: clamp(1.6rem, 3vw, 2.75rem);
+  letter-spacing: -0.055em;
+}
+
+.geminiDecisionIntro p {
+  max-width: 850px;
+  margin: 0;
+  color: #97ada2;
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
+
+.geminiDecisionBody {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  margin-top: 28px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 12px;
+}
+
+.geminiDecisionInput,
+.geminiDecisionOutput {
+  padding: 20px;
+  border: 1px solid rgba(157, 211, 182, 0.14);
+  border-radius: 13px;
+  background: rgba(1, 11, 7, 0.42);
+}
+
+.geminiDecisionInput > span,
+.geminiRiskFlags > span {
+  color: #6fa086;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+}
+
+.geminiDecisionInput dl {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0 0;
+}
+
+.geminiDecisionInput dl > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding-top: 14px;
+  border-top: 1px solid rgba(150, 204, 175, 0.11);
+}
+
+.geminiDecisionInput dt {
+  color: #758f82;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.53rem;
+  text-transform: uppercase;
+}
+
+.geminiDecisionInput dd {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  margin: 0;
+}
+
+.geminiDecisionInput dd code,
+.geminiDecisionInput dd small {
+  color: #7f9a8d;
+  font-size: 0.56rem;
+}
+
+.geminiDecisionInput dd strong {
+  font-size: 0.72rem;
+}
+
+.geminiClaimScope {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 6px !important;
+}
+
+.geminiClaimScope span {
+  padding: 5px 7px;
+  border: 1px solid rgba(122, 193, 155, 0.18);
+  border-radius: 999px;
+  color: #b5c9bf;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.55rem;
+}
+
+.geminiClaimScope span[data-risk='decision'] {
+  color: #e6bd77;
+  border-color: rgba(221, 170, 86, 0.22);
+  background: rgba(176, 116, 37, 0.09);
+}
+
+.geminiDecisionOutput {
+  display: grid;
+  align-content: start;
+}
+
+.geminiDecisionTopline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  color: #a7bbb1;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+}
+
+.geminiDecisionTopline strong {
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: #092117;
+  background: #8fe2b4;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+}
+
+.geminiDecisionTopline strong[data-disposition='escalate'] {
+  color: #4f3308;
+  background: #f0c472;
+}
+
+.geminiDecisionOutput blockquote {
+  margin: 24px 0;
+  padding-left: 17px;
+  border-left: 2px solid #c7f04c;
+  color: #e4eee9;
+  font-size: clamp(0.82rem, 1.2vw, 1.02rem);
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.geminiRiskFlags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.geminiRiskFlags strong {
+  padding: 6px 8px;
+  border: 1px solid rgba(234, 186, 105, 0.2);
+  border-radius: 7px;
+  color: #d9b476;
+  background: rgba(170, 111, 31, 0.08);
+  font-size: 0.55rem;
+  font-weight: 600;
+}
+
+.geminiReceiptChecksum {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(150, 204, 175, 0.11);
+  color: #76a78e;
+  font-size: 0.56rem;
+}
+
+.geminiDecisionPending {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
+  padding: 18px;
+  border: 1px dashed rgba(157, 211, 182, 0.18);
+  border-radius: 12px;
+  color: #89a095;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+}
+
+.geminiAuthority {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  margin: 20px 0 0;
+  padding: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  list-style: none;
+}
+
+.geminiAuthority li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid rgba(157, 211, 182, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.geminiAuthority span {
+  color: #db9d75;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5rem;
+  text-transform: uppercase;
+}
+
+.geminiAuthority strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #b8c9c0;
+  font-size: 0.6rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .executionObservatory {
   position: relative;
   overflow: hidden;
@@ -5027,6 +5439,178 @@ button:disabled {
   border-color: rgba(82, 211, 147, 0.34);
 }
 
+.packetContractPanel {
+  margin-top: 22px;
+  padding: clamp(24px, 3.6vw, 42px);
+  border: 1px solid rgba(31, 88, 61, 0.17);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(80, 203, 139, 0.1), transparent 24rem),
+    rgba(250, 251, 248, 0.9);
+  box-shadow: 0 22px 55px rgba(17, 48, 34, 0.08);
+}
+
+.packetContractHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+}
+
+.packetContractHeading h2 {
+  max-width: 720px;
+  margin: 6px 0 0;
+  font-size: clamp(1.65rem, 3.2vw, 3rem);
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.contractProofBadge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid rgba(22, 118, 81, 0.15);
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--green-pale);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+}
+
+.contractProofBadge i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green-bright);
+  box-shadow: 0 0 0 4px rgba(82, 211, 147, 0.1);
+}
+
+.packetContractPanel > p {
+  max-width: 900px;
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.7;
+}
+
+.packetContractFlow {
+  display: grid;
+  margin-top: 28px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.packetContractFlow article {
+  display: grid;
+  min-height: 132px;
+  align-content: start;
+  gap: 7px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.packetContractFlow article > span {
+  color: var(--green);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+}
+
+.packetContractFlow article strong {
+  font-size: 0.88rem;
+}
+
+.packetContractFlow article small {
+  color: var(--soft);
+  font-size: 0.62rem;
+  line-height: 1.55;
+}
+
+.packetContractFlow > i {
+  color: var(--green);
+  font-style: normal;
+}
+
+.packetContractProof {
+  display: grid;
+  margin-top: 12px;
+  padding: 18px;
+  grid-template-columns: minmax(180px, 0.38fr) minmax(0, 1.62fr);
+  gap: 18px;
+  align-items: center;
+  border: 1px solid rgba(82, 211, 147, 0.2);
+  border-radius: 12px;
+  color: #dceae3;
+  background: var(--dark);
+}
+
+.packetContractProof > code {
+  color: var(--green-bright);
+  font-size: 0.68rem;
+}
+
+.packetContractProof dl {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.packetContractProof dl > div {
+  min-width: 0;
+  padding: 4px 13px;
+  border-left: 1px solid rgba(255, 255, 255, 0.11);
+}
+
+.packetContractProof dt {
+  color: #71877c;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5rem;
+  text-transform: uppercase;
+}
+
+.packetContractProof dd {
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: #c9d9d1;
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .runProgress ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .runProgress li,
+  .runProgress li:first-child,
+  .runProgress li:last-child {
+    border: 1px solid var(--line);
+    border-radius: 9px;
+  }
+
+  .geminiDecisionBody {
+    grid-template-columns: 1fr;
+  }
+
+  .packetContractProof {
+    grid-template-columns: 1fr;
+  }
+
+  .packetContractProof dl > div:first-child {
+    border-left: 0;
+  }
+}
+
 @media (max-width: 720px) {
   .startupState {
     min-height: 100svh;
@@ -5119,6 +5703,70 @@ button:disabled {
   .startupFooter {
     gap: 9px 18px;
     padding-top: 16px;
+  }
+
+  .runProgress {
+    padding: 18px;
+  }
+
+  .runProgressTopline,
+  .packetContractHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .runProgress ol {
+    grid-template-columns: 1fr;
+  }
+
+  .geminiDecision {
+    padding: 22px 18px;
+  }
+
+  .geminiDecisionIntro {
+    grid-template-columns: 1fr;
+  }
+
+  .geminiDecisionMark {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .geminiDecisionInput dl > div {
+    grid-template-columns: 1fr;
+  }
+
+  .geminiAuthority {
+    grid-template-columns: 1fr;
+  }
+
+  .packetContractFlow {
+    grid-template-columns: 1fr;
+  }
+
+  .packetContractFlow > i {
+    transform: rotate(90deg);
+    text-align: center;
+  }
+
+  .packetContractFlow article {
+    min-height: auto;
+  }
+
+  .packetContractProof dl {
+    grid-template-columns: 1fr;
+  }
+
+  .packetContractProof dl > div,
+  .packetContractProof dl > div:first-child {
+    padding: 10px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.11);
+    border-left: 0;
+  }
+
+  .packetContractProof dd {
+    white-space: normal;
   }
 
   .startupActions,

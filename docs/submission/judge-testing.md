@@ -5,12 +5,14 @@
 1. Open <https://veritas-preview-web-602044424209.us-central1.run.app/> in a signed-out browser.
 2. Select **Open offline judge demo**. Veritas visibly labels this as demonstration data.
 3. Inspect the complete incident in order:
-   - **Incident** — immutable before/after evidence and detection time;
+   - **Command center** — the incident outcome, immutable before/after evidence, and detection time;
+   - **Live run** — the seven-stage autonomous transaction, persisted Gemini decision, signed execution terminal, and causal graph;
+   - **Email → Task** — manifest-bound private Gmail routing into one exact Google Task;
+   - **Repair desk** — automatic, human-approval, draft-only, conflict, and recovery actions;
    - **Blast radius** — four affected claims, five artifacts, and only manifest-registered paths;
-   - **Repair plan** — automatic, human-approval, and immutable-email actions;
-   - **Execution** — idempotent native writes and Gemini 3.5 reasoning receipt;
-   - **Verification** — independent re-read of 13/13 registered targets and protected hashes;
-   - **Proof ledger** — content-addressed snapshots and scoped certificate.
+   - **Proof ledger** — native resource boundaries, content-addressed snapshots, revisions, and preservation hashes;
+   - **Verification** — independent re-read of 13/13 registered targets and the scoped certificate;
+   - **Architecture** — Google Cloud trust boundaries and the reusable versioned packet contract.
 4. Refresh the page, switch to a phone-width viewport, and use the tabs with the keyboard. The walkthrough remains available and responsive.
 5. Check <https://veritas-preview-web-602044424209.us-central1.run.app/health/ready>; a healthy deployment returns HTTP 200.
 

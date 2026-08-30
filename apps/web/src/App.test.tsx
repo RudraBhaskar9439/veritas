@@ -111,6 +111,40 @@ describe('Veritas command center', () => {
     expect(executionLog).toHaveTextContent('no simulated log lines');
   });
 
+  it('makes the bounded Gemini decision and authority limits judge-visible', () => {
+    render(<App initialIncident={demoIncident} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Live run' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Source truth → repaired consequences → proof' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Gemini reviewed')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: 'Gemini interprets the risk. Policy owns authority.',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(demoIncident.agentReview.rationale)).toBeInTheDocument();
+    expect(screen.getByText(`receipt · ${demoIncident.agentReview.receipt}`)).toBeInTheDocument();
+    expect(screen.getByText('Expand registered scope')).toBeInTheDocument();
+    expect(screen.getByText('Approve decision changes')).toBeInTheDocument();
+    expect(screen.getByText('Issue the certificate')).toBeInTheDocument();
+  });
+
+  it('proves the Q3 scenario is supplied through the reusable packet contract', () => {
+    render(<App initialIncident={demoIncident} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Architecture' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'The Q3 scenario is input—not application code.' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('POST /api/v1/packets')).toBeInTheDocument();
+    expect(screen.getByText(demoIncident.packetId)).toBeInTheDocument();
+    expect(screen.getByText('6 sources · 8 claims · 13 targets')).toBeInTheDocument();
+  });
+
   it('can replay the incident through an announced live region', () => {
     render(<App initialIncident={demoIncident} />);
     fireEvent.click(screen.getByRole('button', { name: 'Replay incident' }));

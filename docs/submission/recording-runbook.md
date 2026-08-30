@@ -14,7 +14,7 @@
 ## Recording layout
 
 - 1920×1080, browser zoom 100%, system notifications disabled.
-- Keep one browser window with ordered tabs: customer Gmail, Sheet, Veritas, Memo, Deck, Gmail drafts, Task, architecture, GitHub workflow.
+- Keep one browser window with ordered tabs: customer Gmail, Sheet, Veritas Live Run, Memo, Deck, Gmail drafts, Task, Veritas Architecture, GitHub workflow.
 - Keep the mouse still while speaking; use deliberate clicks and no rapid scrolling.
 - Increase cursor size slightly and ensure every value is legible at 1080p.
 - Record microphone and screen in one continuous take. Do not splice a failed run into a successful one.
@@ -28,6 +28,8 @@
 - Confirm the task and all registered anchors show the old claims.
 - Confirm the external customer is allowlisted, the normal opening email is present, and its Gmail thread is bound to the manifest-provided Task.
 - Confirm network, account, public URL, and health endpoints.
+- Confirm **Live Run** exposes the seven-stage transaction ribbon and the persisted Gemini Safety Decision receipt.
+- Confirm **Architecture** exposes the reusable Packet Contract panel and the current packet ID.
 - Start a four-minute timer beside the recording controls, outside the captured region.
 
 ## After recording

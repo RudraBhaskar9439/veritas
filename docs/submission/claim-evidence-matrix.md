@@ -13,6 +13,7 @@
 | Certificate scope is honest | Certificate statement, counts, evidence versions, report checksum | All registered coverage complete; no universal-truth language |
 | The system runs on Google Cloud | [`live-proof-report.md`](live-proof-report.md), Cloud Run revisions, image digests, Cloud SQL, Storage, Vertex AI, KMS, Logs | Evidence bound to accepted application release `72c687c` |
 | Gemini materially participates without controlling safety | Vertex AI call, schema-bound review, exact-scope validator, checksummed SQL receipt, UI receipt | Model can proceed or escalate but cannot add scope or self-approve |
+| The demo packet is not hard-coded application behavior | Versioned `/api/v1/packets` contract, generic blueprint models, transformation registry, native artifact adapters, Packet Contract UI | Packet identity, sources, claims, risk policy, and targets are caller-supplied and input-digest bound |
 | Evaluation is reproducible | `evaluation/scenarios.json`, checksum, harness, CI log | 40/40 thresholds pass from production decision code |
 
 Proof status is machine-readable in [`cloud-proof-manifest.json`](cloud-proof-manifest.json). Complete and partial evidence are intentionally distinguished; a passing local test is not relabelled as a live injection.

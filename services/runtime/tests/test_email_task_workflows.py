@@ -799,7 +799,7 @@ def test_registration_coordinator_checks_scopes_starts_watch_and_hides_expired_s
         assert (await coordinator.list("subject-1"))[0] == created.workflow
         assert await coordinator.list_events("subject-1", manifest.packet_id) == ()
         assert (
-            await coordinator.setup("subject-1", "operator@example.com", manifest.packet_id)
+            await coordinator.setup("subject-1", "operator@example.com", manifest.packet_id, NOW)
         ).workflows == (created.workflow,)
 
         escalated = EmailTaskEvent(
@@ -1119,7 +1119,7 @@ def test_registration_coordinator_checks_scopes_starts_watch_and_hides_expired_s
         with pytest.raises(EmailTaskWorkflowError, match="Reconnect Google Workspace"):
             await coordinator.start_conversation("subject-1", alternate.workflow.workflow_id, NOW)
         assert (
-            await coordinator.setup("subject-1", "operator@example.com", manifest.packet_id)
+            await coordinator.setup("subject-1", "operator@example.com", manifest.packet_id, NOW)
         ).workflows == ()
 
         no_scopes = EmailTaskRegistrationCoordinator(
