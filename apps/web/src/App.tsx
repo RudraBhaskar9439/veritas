@@ -1979,7 +1979,11 @@ function ClaimDiffPanel({
 
 function CertifiedReferencePanel() {
   const incident = useIncident();
-  if (incident.certificate) return null;
+  // A completed offline fixture must never sit beside live verification state:
+  // during an in-progress live run, it makes a fixture's 13/13 look like the
+  // current incident's result. Live verification is always rendered only from
+  // the active incident above.
+  if (incident.source === 'live' || incident.certificate) return null;
   return (
     <section className="certifiedReference" aria-labelledby="certified-reference-title">
       <div>

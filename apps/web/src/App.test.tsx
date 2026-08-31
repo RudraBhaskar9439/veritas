@@ -791,6 +791,10 @@ describe('Veritas command center', () => {
         name: 'Verification is blocked by a preserved repair conflict.',
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Completed-state reference · offline evidence'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Verified reference')).not.toBeInTheDocument();
   });
 
   it('reconciles native conflicts into a fresh approval-ready run', async () => {
