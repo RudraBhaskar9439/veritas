@@ -428,6 +428,7 @@ dd {
 .topbarActions,
 .systemStatus,
 .replayButton,
+.recordingButton,
 .incidentIdentity,
 .metric,
 .incidentMeta,
@@ -500,6 +501,7 @@ dd {
 }
 
 .replayButton,
+.recordingButton,
 .introReplayButton,
 .secondaryButton,
 .primaryButton {
@@ -552,6 +554,256 @@ dd {
 .replayButton:hover {
   border-color: rgba(124, 224, 173, 0.5);
   background: rgba(124, 224, 173, 0.08);
+}
+
+.recordingButton {
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid rgba(111, 226, 166, 0.32);
+  border-radius: 7px;
+  color: #dff8ea;
+  background: rgba(74, 177, 123, 0.14);
+  font-size: 11px;
+  font-weight: 650;
+  transition: 160ms ease;
+}
+
+.recordingButton span {
+  color: #62e5a0;
+  font-size: 8px;
+  filter: drop-shadow(0 0 5px rgba(98, 229, 160, 0.8));
+}
+
+.recordingButton:hover {
+  border-color: rgba(124, 224, 173, 0.62);
+  background: rgba(124, 224, 173, 0.2);
+}
+
+.recordingReady {
+  position: fixed;
+  z-index: 15;
+  inset: 72px 0 0;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  padding: clamp(28px, 5vw, 76px);
+  color: #edf7f2;
+  background:
+    radial-gradient(circle at 74% 44%, rgba(45, 157, 100, 0.2), transparent 31%),
+    radial-gradient(circle at 20% 86%, rgba(56, 125, 92, 0.14), transparent 26%),
+    #07120f;
+}
+
+.recordingReadyGrid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(rgba(103, 190, 145, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(103, 190, 145, 0.065) 1px, transparent 1px);
+  background-size: 62px 62px;
+  mask-image: linear-gradient(to bottom, black, transparent 92%);
+}
+
+.recordingReady::before {
+  position: absolute;
+  width: min(68vw, 880px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(98, 229, 160, 0.08);
+  border-radius: 50%;
+  content: '';
+  animation: recording-breathe 3.4s ease-in-out infinite alternate;
+}
+
+.recordingReadyCopy {
+  position: relative;
+  z-index: 2;
+  width: min(820px, 100%);
+  text-align: center;
+}
+
+.recordingReadyKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  color: #73dfa7;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.recordingReadyKicker i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #68e5a4;
+  box-shadow: 0 0 0 6px rgba(104, 229, 164, 0.1), 0 0 22px rgba(104, 229, 164, 0.8);
+  animation: recording-dot 1.4s ease-in-out infinite;
+}
+
+.recordingReady h1 {
+  max-width: 760px;
+  margin: 0 auto 20px;
+  color: #f4faf7;
+  font-size: clamp(44px, 6.4vw, 82px);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.065em;
+}
+
+.recordingReady p {
+  max-width: 690px;
+  margin: 0 auto;
+  color: #9fb4aa;
+  font-size: clamp(14px, 1.45vw, 17px);
+  line-height: 1.75;
+}
+
+.recordingReady p strong {
+  color: #d9eee3;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.86em;
+  font-weight: 500;
+}
+
+.recordingReadyRoute {
+  display: grid;
+  max-width: 780px;
+  margin: 44px auto 28px;
+  padding: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+}
+
+.recordingReadyRoute li {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.recordingReadyRoute li:not(:last-child)::after {
+  position: absolute;
+  top: 16px;
+  left: calc(50% + 26px);
+  width: calc(100% - 52px);
+  height: 1px;
+  background: linear-gradient(90deg, rgba(103, 226, 162, 0.55), rgba(103, 226, 162, 0.13));
+  content: '';
+}
+
+.recordingReadyRoute span {
+  display: grid;
+  width: 33px;
+  height: 33px;
+  place-items: center;
+  border: 1px solid rgba(107, 224, 163, 0.32);
+  border-radius: 50%;
+  color: #78e1ac;
+  background: #0b1d17;
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  box-shadow: 0 0 24px rgba(65, 196, 134, 0.1);
+}
+
+.recordingReadyRoute strong {
+  color: #b9cac2;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.recordingReadyMeta {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, auto) auto auto;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 11px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  color: #6f897c;
+  background: rgba(255, 255, 255, 0.025);
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.recordingReadyMeta code,
+.recordingReadyMeta strong {
+  overflow: hidden;
+  color: #bcd1c7;
+  font-size: 8px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recordingCancel {
+  display: block;
+  margin: 22px auto 0;
+  padding: 8px 12px;
+  border: 0;
+  color: #779084;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.recordingCancel:hover {
+  color: #c7dbd1;
+}
+
+.recordingReadySignal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(86vw, 1050px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.recordingReadySignal span {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(105, 221, 160, 0.065);
+  border-radius: 50%;
+  animation: recording-radar 4.2s ease-out infinite;
+}
+
+.recordingReadySignal span:nth-child(2) {
+  animation-delay: 2.1s;
+}
+
+.recordingReadySignal i {
+  position: absolute;
+  right: 8%;
+  bottom: 18%;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(104, 229, 164, 0.28);
+  border-radius: 9px;
+  color: rgba(104, 229, 164, 0.4);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-style: normal;
+}
+
+@keyframes recording-dot {
+  50% { opacity: 0.42; transform: scale(0.72); }
+}
+
+@keyframes recording-radar {
+  from { opacity: 0.52; transform: scale(0.18); }
+  to { opacity: 0; transform: scale(1); }
+}
+
+@keyframes recording-breathe {
+  from { opacity: 0.38; transform: scale(0.96); }
+  to { opacity: 0.8; transform: scale(1.04); }
 }
 
 .sidebar {
@@ -3456,6 +3708,30 @@ code {
 
   .introReplayButton {
     display: none;
+  }
+
+  .recordingReady {
+    inset: 62px 0 0;
+    padding: 28px 18px;
+  }
+
+  .recordingReady h1 {
+    font-size: clamp(38px, 12vw, 58px);
+  }
+
+  .recordingReadyRoute {
+    gap: 18px 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .recordingReadyRoute li::after {
+    display: none;
+  }
+
+  .recordingReadyMeta {
+    max-width: 100%;
+    grid-template-columns: auto minmax(0, 1fr);
+    text-align: left;
   }
 
   .mainContent {

@@ -287,6 +287,10 @@ function incidentLabel(incident: Incident): string {
   return suffix ? `INCIDENT ${suffix}` : 'INCIDENT';
 }
 
+function incidentOccurrence(incident: Incident): string {
+  return `${incident.id}:${incident.detectedAt}`;
+}
+
 function shouldPlayOpening(): boolean {
   if (typeof window === 'undefined') return false;
   try {
@@ -627,6 +631,7 @@ function CommandCenter({
   const [isReplaying, setIsReplaying] = useState(false);
   const [isLiveAnimating, setIsLiveAnimating] = useState(false);
   const [verificationRetry, setVerificationRetry] = useState<VerificationRetryState>('idle');
+  const [recordingBaseline, setRecordingBaseline] = useState<string | null>(null);
   const observedIncidentId = useRef(incident.id);
   const observedTimelineLength = useRef(incident.timeline.length);
   const selectedClaim =
@@ -706,7 +711,12 @@ function CommandCenter({
         });
         if (!response.ok) return;
         const result = (await response.json()) as Incident | null;
-        if (!disposed && result) onIncidentChange(result);
+        if (!disposed && result) {
+          if (recordingBaseline && incidentOccurrence(result) !== recordingBaseline) {
+            setRecordingBaseline(null);
+          }
+          onIncidentChange(result);
+        }
       } catch {
         // Keep the last authenticated incident visible through transient refresh failures.
       } finally {
@@ -726,7 +736,7 @@ function CommandCenter({
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [incident.source, onIncidentChange]);
+  }, [incident.source, onIncidentChange, recordingBaseline]);
 
   function chooseView(next: ViewId) {
     setView(next);
@@ -741,6 +751,14 @@ function CommandCenter({
     setReplayStage(0);
     setIsReplaying(true);
     chooseView('execution');
+  }
+
+  function armRecording() {
+    setIsOpening(false);
+    setIsReplaying(false);
+    setIsLiveAnimating(false);
+    setReplayStage(incident.timeline.length);
+    setRecordingBaseline(incidentOccurrence(incident));
   }
 
   async function retryVerification() {
@@ -778,7 +796,7 @@ function CommandCenter({
   return (
     <IncidentContext.Provider value={incident}>
       {isOpening && <OpeningSequence onComplete={completeOpening} />}
-      <div className="appFrame">
+      <div className="appFrame" data-recording-armed={recordingBaseline !== null}>
         <a className="skipLink" href="#main-content">
           Skip to incident details
         </a>
@@ -810,15 +828,79 @@ function CommandCenter({
               {isReplaying ? 'Replaying incident' : 'Replay incident'}
             </button>
             {incident.source === 'live' && (
-              <button className="replayButton" type="button" onClick={onNewPacket}>
-                <span aria-hidden="true">＋</span>
-                New monitored packet
-              </button>
+              <>
+                <button className="recordingButton" type="button" onClick={armRecording}>
+                  <span aria-hidden="true">●</span>
+                  Prepare recording
+                </button>
+                <button className="replayButton" type="button" onClick={onNewPacket}>
+                  <span aria-hidden="true">＋</span>
+                  New monitored packet
+                </button>
+              </>
             )}
           </div>
         </header>
 
-        <aside className="sidebar" aria-label="Incident views">
+        {recordingBaseline && (
+          <section className="recordingReady" aria-labelledby="recording-ready-title">
+            <div className="recordingReadyGrid" aria-hidden="true" />
+            <div className="recordingReadySignal" aria-hidden="true">
+              <span />
+              <span />
+              <i>V</i>
+            </div>
+            <div className="recordingReadyCopy">
+              <span className="recordingReadyKicker">
+                <i aria-hidden="true" /> Live capture armed
+              </span>
+              <h1 id="recording-ready-title">Waiting for the next real source change.</h1>
+              <p>
+                The previous incident is safely hidden for your recording. Change{' '}
+                <strong>{changedEvidence(incident).anchor}</strong> in the connected Google Sheet;
+                this screen will open the new autonomous run automatically.
+              </p>
+              <ol className="recordingReadyRoute" aria-label="Live change processing stages">
+                <li>
+                  <span>01</span>
+                  <strong>Detect evidence</strong>
+                </li>
+                <li>
+                  <span>02</span>
+                  <strong>Trace claims</strong>
+                </li>
+                <li>
+                  <span>03</span>
+                  <strong>Repair targets</strong>
+                </li>
+                <li>
+                  <span>04</span>
+                  <strong>Verify proof</strong>
+                </li>
+              </ol>
+              <div className="recordingReadyMeta">
+                <span>Packet</span>
+                <code>{incident.packetId}</code>
+                <span>Refresh</span>
+                <strong>Every 3 seconds</strong>
+              </div>
+              <button
+                className="recordingCancel"
+                type="button"
+                onClick={() => setRecordingBaseline(null)}
+              >
+                Return to current incident
+              </button>
+            </div>
+          </section>
+        )}
+
+        <aside
+          className="sidebar"
+          aria-label="Incident views"
+          aria-hidden={recordingBaseline !== null}
+          inert={recordingBaseline !== null}
+        >
           <div className="incidentIdentity">
             <span className="incidentMonogram" aria-hidden="true">
               Q3
@@ -862,7 +944,13 @@ function CommandCenter({
           </div>
         </aside>
 
-        <main id="main-content" className="mainContent" tabIndex={-1}>
+        <main
+          id="main-content"
+          className="mainContent"
+          tabIndex={-1}
+          aria-hidden={recordingBaseline !== null}
+          inert={recordingBaseline !== null}
+        >
           <nav className="mobileNav" aria-label="Incident views">
             {views.map((item) => (
               <button

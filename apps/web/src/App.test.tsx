@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { demoIncident, type Incident } from './incident';
@@ -627,6 +627,45 @@ describe('Veritas command center', () => {
     expect(screen.getByRole('heading', { name: 'New source change arrived' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Blast radius' }));
     expect(screen.getByText('12 registered paths · 0 inferred paths')).toBeInTheDocument();
+  });
+
+  it('arms a clean recording screen and reveals only the next live incident', async () => {
+    vi.useFakeTimers();
+    const initial: Incident = {
+      ...demoIncident,
+      source: 'live',
+      id: 'incident-before-recording',
+      headline: 'Previous incident stays preserved',
+    };
+    const refreshed: Incident = {
+      ...initial,
+      id: 'incident-recorded-live',
+      detectedAt: '2026-08-31T08:10:00Z',
+      headline: 'Fresh Sheet change detected',
+    };
+    vi.spyOn(window, 'fetch').mockResolvedValue(new Response(JSON.stringify(refreshed)));
+    render(<App initialIncident={initial} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare recording' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Waiting for the next real source change.' }),
+    ).toBeInTheDocument();
+    const readyScreen = screen.getByRole('region', {
+      name: 'Waiting for the next real source change.',
+    });
+    expect(within(readyScreen).getByText('Metrics!B17')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+
+    expect(
+      screen.queryByRole('heading', { name: 'Waiting for the next real source change.' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Fresh Sheet change detected' }),
+    ).toBeInTheDocument();
   });
 
   it('streams a newly persisted receipt into the graph without a page reload', async () => {
