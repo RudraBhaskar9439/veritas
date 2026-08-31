@@ -793,6 +793,64 @@ describe('Veritas command center', () => {
     ).toBeInTheDocument();
   });
 
+  it('reconciles native conflicts into a fresh approval-ready run', async () => {
+    const attention: Incident = {
+      ...demoIncident,
+      source: 'live',
+      status: 'attention',
+      certificate: null,
+      checks: [],
+      artifacts: demoIncident.artifacts.map((artifact, index) =>
+        index === 0 ? { ...artifact, result: 'attention required' } : artifact,
+      ),
+      approvals: [
+        {
+          approvalId: 'approval-conflict',
+          planId: demoIncident.id,
+          runId: demoIncident.runId,
+          claimId: 'acquisition',
+          claimLabel: 'Acquisition spend',
+          status: 'pending',
+          reason: null,
+        },
+      ],
+    };
+    const recovered: Incident = {
+      ...attention,
+      status: 'awaiting_approval',
+      runId: 'run-reconciled',
+      artifacts: demoIncident.artifacts,
+      approvals: attention.approvals.map((approval) => ({
+        ...approval,
+        runId: 'run-reconciled',
+      })),
+    };
+    const fetchMock = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ runId: 'run-reconciled', status: 'awaiting_approval' })),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify(recovered)));
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000003');
+    render(<App initialIncident={attention} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Repair desk' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reconcile & replan' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `/api/v1/command-center/incidents/${attention.id}/runs/${attention.runId}/reconcile`,
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+      requestId: '00000000-0000-4000-8000-000000000003',
+      reason:
+        'Re-read the conflicted manifest-owned anchors and continue from their current native revisions.',
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/command-center/incidents/latest');
+    expect(await screen.findByRole('button', { name: 'Approve & continue' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Reconcile & replan' })).toBeNull();
+  });
+
   it('retries independent verification without changing the completed repair run', async () => {
     const pending: Incident = {
       ...demoIncident,

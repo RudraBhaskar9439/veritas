@@ -1483,7 +1483,7 @@ function DecisionsView({ onIncidentChange }: { onIncidentChange: (incident: Inci
         description="Automatic, approval-required, draft-only, and conflict-stopped work are separated before any native Workspace mutation is allowed."
       />
       <RepairPlanPanel />
-      <AttentionRecoveryPanel />
+      <AttentionRecoveryPanel onIncidentChange={onIncidentChange} />
       <ApprovalQueue onIncidentChange={onIncidentChange} />
       <RecoveryQueue onIncidentChange={onIncidentChange} />
       <RepairActivityPanel />
@@ -1608,12 +1608,54 @@ function RepairPlanPanel() {
   );
 }
 
-function AttentionRecoveryPanel() {
+function AttentionRecoveryPanel({
+  onIncidentChange,
+}: {
+  onIncidentChange: (incident: Incident) => void;
+}) {
   const incident = useIncident();
   const conflicts = incident.artifacts.filter((artifact) => artifact.result.includes('attention'));
   const pendingApprovals = incident.approvals.filter(
     (approval) => approval.status === 'pending',
   ).length;
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function reconcile() {
+    if (incident.source !== 'live' || !incident.runId || conflicts.length === 0) return;
+    setWorking(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/v1/command-center/incidents/${encodeURIComponent(incident.id)}/runs/${encodeURIComponent(incident.runId)}/reconcile`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            requestId: crypto.randomUUID(),
+            reason:
+              'Re-read the conflicted manifest-owned anchors and continue from their current native revisions.',
+          }),
+        },
+      );
+      if (!response.ok) throw new Error(await safeApiError(response));
+      const refreshed = await fetch('/api/v1/command-center/incidents/latest', {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (!refreshed.ok) throw new Error(await safeApiError(refreshed));
+      const result = (await refreshed.json()) as Incident | null;
+      if (!result) throw new Error('The recovered incident could not be loaded.');
+      onIncidentChange(result);
+    } catch (caught: unknown) {
+      setError(
+        caught instanceof Error ? caught.message : 'The conflict could not be reconciled safely.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  }
   return (
     <section className="panel recoveryStatusPanel" aria-labelledby="recovery-status-title">
       <div className="panelHeader">
@@ -1664,10 +1706,27 @@ function AttentionRecoveryPanel() {
         </article>
       </div>
       {conflicts.length > 0 && (
-        <p className="actionNotice">
-          Veritas did not overwrite newer human or Workspace state. The conflict receipt is
-          retained; reconciliation must produce a fresh, version-checked operation before
-          verification can resume.
+        <div className="recoveryReconcileAction">
+          <p className="actionNotice">
+            Veritas did not overwrite newer human or Workspace state. Reconciliation retains the
+            original conflict receipt, re-reads only manifest-owned anchors, and starts a fresh
+            version-checked run.
+          </p>
+          {incident.source === 'live' && incident.runId && (
+            <button
+              className="replayButton"
+              type="button"
+              disabled={working}
+              onClick={() => void reconcile()}
+            >
+              {working ? 'Reconciling native revisions…' : 'Reconcile & replan'}
+            </button>
+          )}
+        </div>
+      )}
+      {error && (
+        <p className="actionError" role="alert">
+          {error}
         </p>
       )}
     </section>

@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -140,6 +141,81 @@ class RepairExecutionService:
         context = await self._repository.load_context(subject, run.plan_id)
         return await self._advance(subject, context, run, current_time, reused=True)
 
+    async def reconcile_conflict(
+        self,
+        subject: str,
+        run_id: str,
+        request_id: str,
+        actor: str,
+        reason: str,
+        now: datetime | None = None,
+    ) -> RepairRun:
+        """Rebase conflicted registered anchors and start a fresh guarded run.
+
+        The failed run and its conflict receipts remain immutable. Recovery
+        re-reads only the manifest-owned anchors that conflicted and uses those
+        exact native revisions as the new three-way merge base.
+        """
+        if not all((subject, run_id, request_id, actor, reason.strip())):
+            raise ValueError(
+                "Subject, run ID, request ID, actor, and reconciliation reason are required"
+            )
+        current_time = (now or datetime.now(UTC)).astimezone(UTC)
+        conflicted_run = await self._repository.get_by_run_id(subject, run_id)
+        if conflicted_run.status != RepairRunStatus.CONFLICT:
+            raise ValueError("Only a conflicted repair run can be reconciled")
+        conflict_step_ids = {
+            record.step_id
+            for record in conflicted_run.steps
+            if record.status == StepExecutionStatus.CONFLICT
+        }
+        if not conflict_step_ids:
+            raise ValueError("The repair run has no persisted conflict receipt")
+
+        context = await self._repository.load_context(subject, conflicted_run.plan_id)
+        session = await self._sessions.get(subject)
+        rebased_steps: list[RepairStep] = []
+        for step in context.plan.steps:
+            if step.step_id not in conflict_step_ids:
+                rebased_steps.append(step)
+                continue
+            session.authorization.require(self._gateway.capability(step))
+            current = await self._gateway.read(session.access_token, step)
+            if current.resource_id != step.resource_id or current.anchor != step.anchor:
+                raise ValueError("Workspace state does not match the registered repair target")
+            rebased_steps.append(
+                step.model_copy(
+                    update={
+                        "before_statement": current.statement,
+                        "base_revision_id": current.revision_id,
+                    }
+                )
+            )
+
+        reconciled_plan = context.plan.model_copy(update={"steps": tuple(rebased_steps)})
+        reconciled_context = ExecutionContext(reconciled_plan, context.approvals)
+        key = f"{subject}:{run_id}:reconcile:{request_id}"
+        existing = await self._repository.get_by_idempotency_key(key)
+        recovered = existing or await self._repository.start(
+            subject,
+            reconciled_plan,
+            key,
+            current_time,
+        )
+        if existing is not None and existing.status in _FINAL_RUN_STATES:
+            return existing.model_copy(update={"reused": True})
+        return await self._advance(
+            subject,
+            reconciled_context,
+            recovered,
+            current_time,
+            reused=existing is not None,
+            recovery_notes={
+                step_id: (f"Conflict reconciliation authorized by {actor}: {reason.strip()}")
+                for step_id in conflict_step_ids
+            },
+        )
+
     async def _advance(
         self,
         subject: str,
@@ -148,6 +224,7 @@ class RepairExecutionService:
         current_time: datetime,
         *,
         reused: bool,
+        recovery_notes: Mapping[str, str] | None = None,
     ) -> RepairRun:
         session = await self._sessions.get(subject)
         await self._baselines.capture(
@@ -169,6 +246,9 @@ class RepairExecutionService:
                 record_index[step.step_id] = policy_record
                 continue
             record = await self._execute_step(step, session, current_time)
+            recovery_note = (recovery_notes or {}).get(step.step_id)
+            if recovery_note is not None:
+                record = record.model_copy(update={"detail": f"{record.detail} {recovery_note}"})
             run = await self._repository.record_step(run, record, current_time)
             record_index[step.step_id] = record
         status = _aggregate_status(run.steps)

@@ -140,6 +140,11 @@ class CommandCenterApprovalRequest(CamelModel):
     reason: str = Field(min_length=12, max_length=1000)
 
 
+class CommandCenterConflictRecoveryRequest(CamelModel):
+    request_id: str = Field(min_length=1, max_length=128)
+    reason: str = Field(min_length=12, max_length=1000)
+
+
 class CommandCenterApprovalResult(CamelModel):
     approval: ApprovalDecisionResult
     run: RepairRun

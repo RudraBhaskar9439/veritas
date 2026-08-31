@@ -36,12 +36,10 @@ class GeminiEmailTaskGateway:
         try:
             response = await self._client.aio.models.generate_content(
                 model=self._model,
-                contents=[
-                    types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=_prompt(payload))],
-                    )
-                ],
+                contents=types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=_prompt(payload))],
+                ),
                 config=types.GenerateContentConfig(
                     max_output_tokens=1024,
                     response_mime_type="application/json",

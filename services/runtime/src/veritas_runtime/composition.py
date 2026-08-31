@@ -45,6 +45,7 @@ from veritas_runtime.operations.database import SqlOperationRepository
 from veritas_runtime.operations.service import ReliableOperationService
 from veritas_runtime.operations.telemetry import StructuredLogOperationTelemetry
 from veritas_runtime.orchestration import (
+    ConflictRecoveryContinuation,
     ConsequenceRepairOrchestrator,
     HumanApprovalContinuation,
 )
@@ -83,6 +84,7 @@ class ApiComponents:
     operations: ReliableOperationService
     command_center: CommandCenterService
     approval_continuation: HumanApprovalContinuation
+    conflict_recovery: ConflictRecoveryContinuation
     email_tasks: EmailTaskRegistrationCoordinator | None
 
     async def close(self) -> None:
@@ -188,6 +190,7 @@ def build_api_components(settings: Settings) -> ApiComponents | None:
             repairs,
             orchestrator,
         ),
+        conflict_recovery=ConflictRecoveryContinuation(command_center, execution),
         email_tasks=email_tasks,
     )
 

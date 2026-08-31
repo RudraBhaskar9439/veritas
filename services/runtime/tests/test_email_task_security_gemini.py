@@ -43,7 +43,7 @@ class FakeModels:
     async def generate_content(self, **kwargs):  # type: ignore[no-untyped-def]
         if self.error is not None:
             raise self.error
-        self.prompt = kwargs["contents"][0].parts[0].text
+        self.prompt = kwargs["contents"].parts[0].text
         return self.response
 
 

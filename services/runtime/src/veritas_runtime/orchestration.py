@@ -6,6 +6,7 @@ from veritas_runtime.changes.models import DeltaKind, EvidenceSnapshot
 from veritas_runtime.command_center.models import (
     CommandCenterApprovalRequest,
     CommandCenterApprovalResult,
+    CommandCenterConflictRecoveryRequest,
 )
 from veritas_runtime.command_center.service import CommandCenterService
 from veritas_runtime.execution.models import RepairRun, RepairRunStatus
@@ -168,4 +169,39 @@ class HumanApprovalContinuation:
             approval=decision,
             run=run,
             verification=verification,
+        )
+
+
+class ConflictRecoveryContinuation:
+    """Starts a version-checked successor to a conflicted repair run."""
+
+    def __init__(
+        self,
+        command_center: CommandCenterService,
+        execution: RepairExecutionService,
+    ) -> None:
+        self._command_center = command_center
+        self._execution = execution
+
+    async def reconcile(
+        self,
+        subject: str,
+        actor: ApprovalActor,
+        plan_id: str,
+        run_id: str,
+        request: CommandCenterConflictRecoveryRequest,
+    ) -> RepairRun:
+        if actor.kind.value != "human":
+            raise PermissionError("Conflict recovery requires an authenticated human")
+        incident = await self._command_center.get(subject, plan_id)
+        if incident.run_id != run_id:
+            raise LookupError("Conflict recovery is not bound to this repair run")
+        if incident.status.value != "attention":
+            raise ValueError("The repair run does not require conflict recovery")
+        return await self._execution.reconcile_conflict(
+            subject,
+            run_id,
+            request.request_id,
+            actor.principal,
+            request.reason,
         )

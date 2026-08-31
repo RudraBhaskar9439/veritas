@@ -5,10 +5,12 @@ from fastapi import APIRouter, HTTPException, Request
 from veritas_runtime.command_center.models import (
     CommandCenterApprovalRequest,
     CommandCenterApprovalResult,
+    CommandCenterConflictRecoveryRequest,
     CommandCenterIncident,
 )
 from veritas_runtime.command_center.service import CommandCenterService
-from veritas_runtime.orchestration import HumanApprovalContinuation
+from veritas_runtime.execution.models import RepairRun
+from veritas_runtime.orchestration import ConflictRecoveryContinuation, HumanApprovalContinuation
 from veritas_runtime.repairs.models import ApprovalActor
 from veritas_runtime.repairs.service import ApprovalConflict, RepairPlanningError
 from veritas_runtime.verification.service import (
@@ -25,6 +27,7 @@ def create_command_center_router(
     subject_resolver: SubjectResolver | None,
     continuation: HumanApprovalContinuation | None = None,
     actor_resolver: ActorResolver | None = None,
+    conflict_recovery: ConflictRecoveryContinuation | None = None,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -35,6 +38,9 @@ def create_command_center_router(
             "liveReadModel": configured,
             "approvalContinuation": configured
             and continuation is not None
+            and actor_resolver is not None,
+            "conflictReconciliation": configured
+            and conflict_recovery is not None
             and actor_resolver is not None,
         }
 
@@ -94,5 +100,33 @@ def create_command_center_router(
             raise HTTPException(status_code=403, detail="Approval continuation denied") from error
         except LookupError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @router.post(
+        "/api/v1/command-center/incidents/{plan_id}/runs/{run_id}/reconcile",
+        response_model=RepairRun,
+        tags=["command-center"],
+    )
+    async def reconcile_conflict(
+        plan_id: str,
+        run_id: str,
+        payload: CommandCenterConflictRecoveryRequest,
+        request: Request,
+    ) -> RepairRun:
+        if conflict_recovery is None or subject_resolver is None or actor_resolver is None:
+            raise HTTPException(status_code=503, detail="Conflict reconciliation is not configured")
+        try:
+            return await conflict_recovery.reconcile(
+                await subject_resolver(request),
+                await actor_resolver(request),
+                plan_id,
+                run_id,
+                payload,
+            )
+        except PermissionError as error:
+            raise HTTPException(status_code=403, detail="Conflict reconciliation denied") from error
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
 
     return router

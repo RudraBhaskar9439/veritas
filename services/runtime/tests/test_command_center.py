@@ -13,14 +13,22 @@ from veritas_runtime.agents.service import agent_review_checksum
 from veritas_runtime.auth.database import metadata
 from veritas_runtime.changes.database import evidence_snapshots
 from veritas_runtime.command_center.database import SqlCommandCenterRepository
-from veritas_runtime.command_center.models import CommandCenterApprovalRequest
+from veritas_runtime.command_center.models import (
+    CommandCenterApprovalRequest,
+    CommandCenterConflictRecoveryRequest,
+)
 from veritas_runtime.command_center.routes import create_command_center_router
 from veritas_runtime.command_center.service import CommandCenterRecord, CommandCenterService
 from veritas_runtime.execution.database import repair_runs
-from veritas_runtime.execution.models import RepairRun, RepairRunStatus
+from veritas_runtime.execution.models import (
+    RepairRun,
+    RepairRunStatus,
+    StepExecutionRecord,
+    StepExecutionStatus,
+)
 from veritas_runtime.lineage.database import impact_reports
 from veritas_runtime.lineage.service import impact_checksum
-from veritas_runtime.orchestration import HumanApprovalContinuation
+from veritas_runtime.orchestration import ConflictRecoveryContinuation, HumanApprovalContinuation
 from veritas_runtime.packets.database import claim_manifests
 from veritas_runtime.packets.generator import manifest_checksum
 from veritas_runtime.repairs.database import repair_approvals, repair_plans
@@ -87,6 +95,31 @@ class RecordingOrchestrator:
     async def resume_and_verify(self, subject: str, run_id: str, request_id: str):
         self.calls.append((subject, run_id, request_id))
         return self.run.model_copy(update={"status": RepairRunStatus.COMPLETED}), None
+
+
+class RecordingConflictExecution:
+    def __init__(self, run: RepairRun) -> None:
+        self.run = run
+        self.calls: list[tuple[str, str, str]] = []
+
+    async def reconcile_conflict(
+        self,
+        subject: str,
+        run_id: str,
+        request_id: str,
+        actor: str,
+        reason: str,
+    ) -> RepairRun:
+        assert actor == "human@example.test"
+        assert reason
+        self.calls.append((subject, run_id, request_id))
+        return self.run.model_copy(
+            update={
+                "run_id": "run-reconciled",
+                "status": RepairRunStatus.AWAITING_APPROVAL,
+                "steps": (),
+            }
+        )
 
 
 def _agent_review(plan_id: str, packet_id: str) -> AgentReview:
@@ -323,6 +356,75 @@ def test_approval_continuation_validates_binding_before_advancing() -> None:
     asyncio.run(scenario())
 
 
+def test_conflict_recovery_requires_the_bound_conflicted_run() -> None:
+    async def scenario() -> None:
+        service, planned, run = await _fixture()
+        record = await service._repository.get(  # type: ignore[attr-defined]
+            "subject-1", planned.plan.plan_id
+        )
+        assert record is not None
+        conflict_step = StepExecutionRecord(
+            step_id=planned.plan.steps[0].step_id,
+            status=StepExecutionStatus.CONFLICT,
+            attempted_at=NOW,
+            completed_at=NOW,
+            detail="A human edit overlaps the registered claim anchor.",
+        )
+        conflicted_run = run.model_copy(
+            update={
+                "status": RepairRunStatus.CONFLICT,
+                "steps": (conflict_step,),
+            }
+        )
+        conflicted_record = CommandCenterRecord(
+            plan=record.plan,
+            manifest=record.manifest,
+            impact=record.impact,
+            approvals=record.approvals,
+            run=conflicted_run,
+            verification=None,
+            certificate=None,
+            snapshots=record.snapshots,
+            agent_review=record.agent_review,
+        )
+        conflict_service = CommandCenterService(MemoryCommandCenterRepository(conflicted_record))
+        execution = RecordingConflictExecution(conflicted_run)
+        recovery = ConflictRecoveryContinuation(  # type: ignore[arg-type]
+            conflict_service,
+            execution,
+        )
+        actor = ApprovalActor(
+            principal="human@example.test",
+            kind=ApprovalActorKind.HUMAN,
+        )
+        request = CommandCenterConflictRecoveryRequest(
+            request_id="reconcile-conflict-1",
+            reason="Re-read the manifest-owned anchors from their current native revisions.",
+        )
+
+        with pytest.raises(LookupError, match="not bound"):
+            await recovery.reconcile(
+                "subject-1",
+                actor,
+                planned.plan.plan_id,
+                "wrong-run",
+                request,
+            )
+        assert execution.calls == []
+
+        result = await recovery.reconcile(
+            "subject-1",
+            actor,
+            planned.plan.plan_id,
+            conflicted_run.run_id,
+            request,
+        )
+        assert result.status == RepairRunStatus.AWAITING_APPROVAL
+        assert execution.calls == [("subject-1", conflicted_run.run_id, "reconcile-conflict-1")]
+
+    asyncio.run(scenario())
+
+
 def test_command_center_routes_fail_closed_and_expose_atomic_approval_action() -> None:
     closed = FastAPI()
     closed.include_router(create_command_center_router(None, None))
@@ -330,6 +432,7 @@ def test_command_center_routes_fail_closed_and_expose_atomic_approval_action() -
     assert closed_client.get("/api/v1/command-center/capabilities").json() == {
         "liveReadModel": False,
         "approvalContinuation": False,
+        "conflictReconciliation": False,
     }
     assert (
         closed_client.post(
@@ -338,6 +441,16 @@ def test_command_center_routes_fail_closed_and_expose_atomic_approval_action() -
                 "requestId": "request",
                 "decision": "approve",
                 "reason": "A sufficiently detailed approval reason.",
+            },
+        ).status_code
+        == 503
+    )
+    assert (
+        closed_client.post(
+            "/api/v1/command-center/incidents/p/runs/r/reconcile",
+            json={
+                "requestId": "request",
+                "reason": "Re-read the registered native anchors before continuing.",
             },
         ).status_code
         == 503
@@ -383,6 +496,67 @@ def test_command_center_routes_fail_closed_and_expose_atomic_approval_action() -
     )
     assert response.status_code == 200
     assert response.json()["run"]["status"] == "completed"
+
+
+def test_command_center_route_reconciles_a_conflicted_run() -> None:
+    async def subject_resolver(_request: Request) -> str:
+        return "subject-1"
+
+    async def actor_resolver(_request: Request) -> ApprovalActor:
+        return ApprovalActor(
+            principal="human@example.test",
+            kind=ApprovalActorKind.HUMAN,
+        )
+
+    service, planned, run = asyncio.run(_fixture())
+    record = asyncio.run(service._repository.get("subject-1", planned.plan.plan_id))  # type: ignore[attr-defined]
+    assert record is not None
+    conflict_step = StepExecutionRecord(
+        step_id=planned.plan.steps[0].step_id,
+        status=StepExecutionStatus.CONFLICT,
+        attempted_at=NOW,
+        completed_at=NOW,
+        detail="A human edit overlaps the registered claim anchor.",
+    )
+    conflicted_run = run.model_copy(
+        update={"status": RepairRunStatus.CONFLICT, "steps": (conflict_step,)}
+    )
+    conflicted_record = CommandCenterRecord(
+        plan=record.plan,
+        manifest=record.manifest,
+        impact=record.impact,
+        approvals=record.approvals,
+        run=conflicted_run,
+        verification=None,
+        certificate=None,
+        snapshots=record.snapshots,
+        agent_review=record.agent_review,
+    )
+    conflict_service = CommandCenterService(MemoryCommandCenterRepository(conflicted_record))
+    execution = RecordingConflictExecution(conflicted_run)
+    recovery = ConflictRecoveryContinuation(conflict_service, execution)  # type: ignore[arg-type]
+    app = FastAPI()
+    app.include_router(
+        create_command_center_router(
+            conflict_service,
+            subject_resolver,
+            actor_resolver=actor_resolver,
+            conflict_recovery=recovery,
+        )
+    )
+
+    response = TestClient(app).post(
+        f"/api/v1/command-center/incidents/{planned.plan.plan_id}"
+        f"/runs/{conflicted_run.run_id}/reconcile",
+        json={
+            "requestId": "route-reconciliation",
+            "reason": "Re-read the manifest-owned anchors from current native revisions.",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["runId"] == "run-reconciled"
+    assert response.json()["status"] == "awaiting_approval"
 
 
 def test_sql_command_center_repository_rebuilds_a_subject_scoped_incident() -> None:

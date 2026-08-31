@@ -58,6 +58,7 @@ else:
             resolve_subject,
             components.approval_continuation,
             approval_actor_resolver(components.session_codec, secure_cookie=secure_cookie),
+            components.conflict_recovery,
         )
     )
     app.include_router(create_execution_router(components.execution, resolve_subject))

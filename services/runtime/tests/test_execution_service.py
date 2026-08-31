@@ -109,3 +109,69 @@ def test_overlapping_human_edit_becomes_conflict_without_mutation() -> None:
         assert auto_step.step_id not in gateway.apply_calls
 
     asyncio.run(scenario())
+
+
+def test_operator_reconciliation_rebases_only_conflicted_registered_anchors() -> None:
+    repairs = MemoryRepairRepository()
+    planning = RepairPlanningService(repairs)
+
+    async def scenario() -> None:
+        planned = await planning.create_plan(
+            "subject-1",
+            repairs.context.manifest.packet_id,
+            "repair-request-1",
+            repairs.context.impact.report_id,
+            NOW,
+        )
+        repository = MemoryExecutionRepository(repairs)
+        gateway = MemoryWorkspaceGateway(planned.plan.steps)
+        baselines = RecordingBaselineCapture()
+        execution = RepairExecutionService(
+            repository,
+            StaticWorkspaceSessions(),
+            gateway,
+            baselines,
+        )
+        auto_step = next(
+            step for step in planned.plan.steps if step.disposition.value == "auto_execute"
+        )
+        operator_revision = "The operator reconciled this manifest-owned claim anchor."
+        gateway.statements[(auto_step.resource_id, auto_step.anchor)] = operator_revision
+
+        conflicted = await execution.execute("subject-1", planned.plan.plan_id, "conflict-run", NOW)
+        assert conflicted.status == RepairRunStatus.CONFLICT
+        assert auto_step.step_id not in gateway.apply_calls
+
+        recovered = await execution.reconcile_conflict(
+            "subject-1",
+            conflicted.run_id,
+            "reconcile-request-1",
+            "human@example.test",
+            "I reviewed the manifest-owned anchor and approved a version-checked rebase.",
+            NOW,
+        )
+        assert recovered.run_id != conflicted.run_id
+        assert recovered.status == RepairRunStatus.AWAITING_APPROVAL
+        assert gateway.statements[(auto_step.resource_id, auto_step.anchor)] == (
+            auto_step.proposed_statement
+        )
+        assert auto_step.step_id in gateway.apply_calls
+        recovered_step = next(
+            record for record in recovered.steps if record.step_id == auto_step.step_id
+        )
+        assert "authorized by human@example.test" in recovered_step.detail
+        assert len(baselines.calls) == 2
+
+        replay = await execution.reconcile_conflict(
+            "subject-1",
+            conflicted.run_id,
+            "reconcile-request-1",
+            "human@example.test",
+            "I reviewed the manifest-owned anchor and approved a version-checked rebase.",
+            NOW,
+        )
+        assert replay.run_id == recovered.run_id
+        assert replay.reused is True
+        assert len(baselines.calls) == 3
+
+    asyncio.run(scenario())

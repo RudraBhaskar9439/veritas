@@ -5360,6 +5360,33 @@ button:disabled {
   line-height: 1.45;
 }
 
+.recoveryReconcileAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(170, 79, 69, 0.24);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.recoveryReconcileAction .actionNotice {
+  max-width: 760px;
+  margin: 0;
+}
+
+.recoveryReconcileAction .replayButton {
+  flex: 0 0 auto;
+  min-width: 176px;
+  justify-content: center;
+  border-color: var(--green);
+  color: #ffffff;
+  background: var(--green);
+  box-shadow: 0 8px 20px rgba(22, 118, 81, 0.18);
+}
+
 .artifactProofGrid {
   display: grid;
   margin-top: 22px;
@@ -6115,6 +6142,15 @@ button:disabled {
   .recoveryOperation > button {
     width: 100%;
     justify-content: center;
+  }
+
+  .recoveryReconcileAction {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recoveryReconcileAction .replayButton {
+    width: 100%;
   }
 
   .routeDirectoryHeader,

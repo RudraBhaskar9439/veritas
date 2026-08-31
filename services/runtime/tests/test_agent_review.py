@@ -244,7 +244,7 @@ def test_google_genai_sdk_uses_vertex_structured_output(monkeypatch) -> None:  #
         assert calls[1]["model"] == "gemini-3.5-flash"
         assert calls[1]["config"].response_mime_type == "application/json"
         assert calls[1]["config"].max_output_tokens == 2048
-        prompt = calls[1]["contents"][0].parts[0].text
+        prompt = calls[1]["contents"].parts[0].text
         assert "approvalRequiredSteps greater than zero" in prompt
         assert "not reasons to escalate" in prompt
         await gateway.close()
