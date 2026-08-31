@@ -233,24 +233,33 @@ function changedEvidence(incident: Incident) {
   return incident.evidence.find((source) => source.changed) ?? incident.evidence[0];
 }
 
-function compactSourceValue(statement: string | undefined): string {
-  if (!statement) return '—';
+function displayScalar(statement: string | undefined): string | null {
+  if (!statement) return null;
   const date = statement.match(/\b\d{4}-\d{2}-\d{2}\b/);
   if (date) return date[0];
   const percent = statement.match(/-?\d+(?:\.\d+)?\s*%/);
   if (percent) return percent[0].replace(/\s+/g, '');
   const currency = statement.match(/[$€£₹]\s*\d+(?:[.,]\d+)*(?:\s*[KMB])?/i);
   if (currency) return currency[0].replace(/\s+/g, '');
-  const number = statement.match(/-?\d+(?:\.\d+)?(?:\s*[KMB])?/i);
-  return number?.[0].replace(/\s+/g, '') ?? statement;
+  const number = statement.match(/(?<![A-Za-z])-?\d+(?:\.\d+)?(?:\s*[KMB])?(?![A-Za-z])/i);
+  return number?.[0].replace(/\s+/g, '') ?? null;
 }
 
 function primaryValueChange(incident: Incident): ClaimChange | undefined {
-  return (
-    incident.claims.find(
-      (claim) => compactSourceValue(claim.before) !== compactSourceValue(claim.after),
-    ) ?? incident.claims[0]
-  );
+  return incident.claims.find((claim) => {
+    const before = displayScalar(claim.before);
+    const after = displayScalar(claim.after);
+    return before !== null && after !== null && before !== after;
+  });
+}
+
+function sourceTransitionValues(incident: Incident): { before: string; after: string } {
+  const claim = primaryValueChange(incident);
+  if (!claim) return { before: 'prior', after: 'current' };
+  return {
+    before: displayScalar(claim.before) ?? 'prior',
+    after: displayScalar(claim.after) ?? 'current',
+  };
 }
 
 function fullUtc(value: string): string {
@@ -1180,9 +1189,7 @@ function Overview({
 }: OverviewProps) {
   const incident = useIncident();
   const source = changedEvidence(incident);
-  const valueChange = primaryValueChange(incident);
-  const beforeValue = compactSourceValue(valueChange?.before);
-  const afterValue = compactSourceValue(valueChange?.after);
+  const { before: beforeValue, after: afterValue } = sourceTransitionValues(incident);
   return (
     <>
       <section className="judgeStage" aria-labelledby="incident-title">
@@ -3117,7 +3124,7 @@ function GeminiDecisionReceipt({ visible }: { visible: boolean }) {
   const incident = useIncident();
   const review = visible ? incident.agentReview : null;
   const source = changedEvidence(incident);
-  const valueChange = primaryValueChange(incident);
+  const sourceValues = sourceTransitionValues(incident);
   return (
     <section
       className="geminiDecision"
@@ -3149,8 +3156,7 @@ function GeminiDecisionReceipt({ visible }: { visible: boolean }) {
                 <dd>
                   <code>{source?.anchor ?? 'registered anchor'}</code>
                   <strong>
-                    {compactSourceValue(valueChange?.before)} →{' '}
-                    {compactSourceValue(valueChange?.after)}
+                    {sourceValues.before} → {sourceValues.after}
                   </strong>
                 </dd>
               </div>
@@ -3579,9 +3585,7 @@ function CertificateCard({
 function LineageView() {
   const incident = useIncident();
   const source = changedEvidence(incident);
-  const valueChange = primaryValueChange(incident);
-  const beforeValue = compactSourceValue(valueChange?.before);
-  const afterValue = compactSourceValue(valueChange?.after);
+  const { before: beforeValue, after: afterValue } = sourceTransitionValues(incident);
   return (
     <>
       <ViewHeader

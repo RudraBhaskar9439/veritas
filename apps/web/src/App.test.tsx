@@ -45,6 +45,32 @@ describe('Veritas command center', () => {
     expect(screen.getByText('0 inferred paths')).toBeInTheDocument();
   });
 
+  it('never mistakes the quarter label for a changed source value', () => {
+    const comparisonIncident: Incident = {
+      ...demoIncident,
+      claims: [demoIncident.claims[1]],
+      evidence: demoIncident.evidence.map((source) => ({
+        ...source,
+        changed: source.id === 'previous-churn',
+      })),
+    };
+    const { container } = render(<App initialIncident={comparisonIncident} />);
+
+    const transition = container.querySelector('.valueTransition');
+    expect(transition).toHaveTextContent('prior');
+    expect(transition).toHaveTextContent('current');
+    expect(transition).not.toHaveTextContent('3');
+    expect(screen.getByText('Metrics!B16')).toBeInTheDocument();
+  });
+
+  it('keeps exact percentage values for the primary monitored source', () => {
+    const { container } = render(<App initialIncident={demoIncident} />);
+
+    const transition = container.querySelector('.valueTransition');
+    expect(transition).toHaveTextContent('4%');
+    expect(transition).toHaveTextContent('9%');
+  });
+
   it('shows an exact deterministic diff for every affected claim', () => {
     render(<App initialIncident={demoIncident} />);
 
